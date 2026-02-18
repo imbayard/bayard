@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 _client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-3-haiku-20240307"
 
 SYSTEM_PROMPT = (
     "You are Coach, a personal AI training and nutrition assistant. "
