@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Role = "user" | "assistant";
 
@@ -60,7 +62,13 @@ export default function App() {
         {messages.map((m, i) => (
           <div key={i} style={m.role === "user" ? styles.userMsg : styles.assistantMsg}>
             <span style={styles.role}>{m.role === "user" ? "You" : "Coach"}</span>
-            <p style={styles.text}>{m.content}</p>
+            {m.role === "assistant" ? (
+              <div style={styles.markdown}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+              </div>
+            ) : (
+              <p style={styles.text}>{m.content}</p>
+            )}
           </div>
         ))}
         {loading && (
@@ -129,6 +137,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   role: { fontSize: 11, fontWeight: 600, opacity: 0.6, display: "block", marginBottom: 2 },
   text: { margin: 0, whiteSpace: "pre-wrap" },
+  markdown: { fontSize: 14, lineHeight: 1.6 },
   inputRow: {
     display: "flex",
     gap: 8,

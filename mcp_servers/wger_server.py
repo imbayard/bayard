@@ -1,15 +1,81 @@
 """
 Wger MCP Server
 
-Exposes Wger exercise and nutrition tools to Claude via the MCP stdio transport.
+Exposes Wger exercise tools to Claude via the MCP stdio transport.
 Auth: API key in .env (WGER_API_KEY). Base URL: https://wger.de/api/v2/
-
-TODO: implement each tool by calling the Wger REST API.
 """
 
+import asyncio
+import json
+import os
+import sys
+
+import httpx
+from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
+
+load_dotenv()
+
+WGER_BASE = "https://wger.de/api/v2"
+WGER_API_KEY = os.environ.get("WGER_API_KEY", "")
+
+# Wger muscle IDs — https://wger.de/api/v2/muscle/
+MUSCLE_NAME_TO_ID: dict[str, int] = {
+    "biceps": 1,
+    "biceps brachii": 1,
+    "anterior deltoid": 2,
+    "deltoid": 2,
+    "shoulder": 2,
+    "shoulders": 2,
+    "serratus anterior": 3,
+    "serratus": 3,
+    "pectoralis major": 4,
+    "pectoralis": 4,
+    "pecs": 4,
+    "chest": 4,
+    "triceps brachii": 5,
+    "triceps": 5,
+    "rectus abdominis": 6,
+    "abs": 6,
+    "abdominals": 6,
+    "core": 6,
+    "gastrocnemius": 7,
+    "calf": 7,
+    "calves": 7,
+    "gluteus maximus": 8,
+    "glutes": 8,
+    "gluteus": 8,
+    "trapezius": 9,
+    "traps": 9,
+    "quadriceps femoris": 10,
+    "quadriceps": 10,
+    "quads": 10,
+    "biceps femoris": 11,
+    "hamstrings": 11,
+    "hamstring": 11,
+    "latissimus dorsi": 12,
+    "lats": 12,
+    "upper back": 12,
+    "brachialis": 13,
+    "obliquus externus abdominis": 14,
+    "obliques": 14,
+    "oblique": 14,
+    "soleus": 15,
+}
+
+
+def _is_english(translation: dict) -> bool:
+    lang = translation.get("language")
+    if isinstance(lang, int):
+        return lang == 2
+    if isinstance(lang, dict):
+        return lang.get("id") == 2 or lang.get("shortName", "").lower() == "en"
+    if isinstance(lang, str):
+        return lang.lower() in ("en", "english")
+    return False
+
 
 server = Server("wger")
 
@@ -19,50 +85,25 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="search_exercises",
-            description="Search Wger exercises by muscle group, equipment, or category.",
+            description=(
+                "Fetch exercises from Wger that target specific muscle groups - use when the user wants exercises either for muscles or for activities. "
+                "Pass the muscle groups most relevant to the user's activity or goal. "
+                "Returns exercises with name, category, primary/secondary muscles, and equipment."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "muscle_group": {"type": "string", "description": "e.g. 'quadriceps', 'core'"},
-                    "equipment": {"type": "string", "description": "e.g. 'barbell', 'bodyweight'"},
-                    "category": {"type": "string", "description": "e.g. 'Legs', 'Chest'"},
+                    "muscle_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Muscle group names to target. "
+                            "Supported values: biceps, triceps, chest, shoulders, lats, upper back, traps, "
+                            "abs, core, obliques, quadriceps, quads, hamstrings, glutes, calves, brachialis, soleus."
+                        ),
+                    }
                 },
-            },
-        ),
-        Tool(
-            name="get_nutritional_info",
-            description="Look up macro information for a food ingredient by name.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "ingredient_name": {"type": "string", "description": "Food name to look up, e.g. 'chicken breast'"}
-                },
-                "required": ["ingredient_name"],
-            },
-        ),
-        Tool(
-            name="create_workout_plan",
-            description="Create a named workout plan in Wger and return its ID.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "description": {"type": "string", "description": "Plan name / description"}
-                },
-                "required": ["description"],
-            },
-        ),
-        Tool(
-            name="add_exercise_to_plan",
-            description="Add a specific exercise with sets and reps to an existing Wger workout plan.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "plan_id": {"type": "integer", "description": "Wger plan ID returned by create_workout_plan"},
-                    "exercise_id": {"type": "integer", "description": "Wger exercise ID"},
-                    "sets": {"type": "integer", "description": "Number of sets"},
-                    "reps": {"type": "integer", "description": "Number of reps per set"},
-                },
-                "required": ["plan_id", "exercise_id", "sets", "reps"],
+                "required": ["muscle_names"],
             },
         ),
     ]
@@ -70,10 +111,93 @@ async def list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    # TODO: call Wger REST API with WGER_API_KEY
-    return [TextContent(type="text", text=f"[stub] {name} called with {arguments}")]
+    if name != "search_exercises":
+        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+
+    muscle_names: list[str] = arguments.get("muscle_names", [])
+
+    # Map names → IDs (deduplicated)
+    muscle_ids: set[int] = set()
+    unrecognized: list[str] = []
+    for m in muscle_names:
+        mid = MUSCLE_NAME_TO_ID.get(m.strip().lower())
+        if mid:
+            muscle_ids.add(mid)
+        else:
+            unrecognized.append(m)
+
+    if not muscle_ids:
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(
+                    {
+                        "error": "No recognized muscle groups",
+                        "unrecognized": unrecognized,
+                    }
+                ),
+            )
+        ]
+
+    headers = {"Authorization": f"Token {WGER_API_KEY}"} if WGER_API_KEY else {}
+    seen_ids: set[int] = set()
+    exercises: list[dict] = []
+    print("Calling wger to get excercises for muscle groups", muscle_names, file=sys.stderr)
+    async with httpx.AsyncClient(timeout=15) as client:
+        for muscle_id in muscle_ids:
+            resp = await client.get(
+                f"{WGER_BASE}/exerciseinfo/",
+                headers=headers,
+                params={
+                    "format": "json",
+                    "language": 2,
+                    "muscles": muscle_id,
+                    "limit": 10,
+                },
+            )
+            resp.raise_for_status()
+
+            for ex in resp.json().get("results", []):
+                if ex["id"] in seen_ids:
+                    continue
+                seen_ids.add(ex["id"])
+
+                en = next(
+                    (t for t in ex.get("translations", []) if _is_english(t)), None
+                )
+                if not en or not en.get("name"):
+                    continue
+
+                exercises.append(
+                    {
+                        "id": ex["id"],
+                        "name": en["name"],
+                        "category": ex.get("category", {}).get("name", ""),
+                        "muscles_primary": [
+                            m["name_en"] for m in ex.get("muscles", [])
+                        ],
+                        "muscles_secondary": [
+                            m["name_en"] for m in ex.get("muscles_secondary", [])
+                        ],
+                        "equipment": [e["name"] for e in ex.get("equipment", [])]
+                        or ["bodyweight"],
+                    }
+                )
+
+    result: dict = {"exercises": exercises, "count": len(exercises)}
+    print("Response from wger: ", exercises, file=sys.stderr)
+    if unrecognized:
+        result["unrecognized_muscles"] = unrecognized
+
+    return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+async def main() -> None:
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(
+            read_stream, write_stream, server.create_initialization_options()
+        )
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(stdio_server(server))
+    asyncio.run(main())

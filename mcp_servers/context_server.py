@@ -44,6 +44,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     return [TextContent(type="text", text=f"[stub] {name} called with {arguments}")]
 
 
+async def main() -> None:
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(read_stream, write_stream, server.create_initialization_options())
+
+
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(stdio_server(server))
+    asyncio.run(main())
