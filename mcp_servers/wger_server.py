@@ -6,8 +6,10 @@ Auth: API key in .env (WGER_API_KEY). Base URL: https://wger.de/api/v2/
 """
 
 import asyncio
+import html
 import json
 import os
+import re
 import sys
 
 import httpx
@@ -64,6 +66,12 @@ MUSCLE_NAME_TO_ID: dict[str, int] = {
     "oblique": 14,
     "soleus": 15,
 }
+
+
+def _strip_html(text: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _is_english(translation: dict) -> bool:
@@ -168,6 +176,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 if not en or not en.get("name"):
                     continue
 
+                raw_desc = en.get("description", "")
+                videos = [v["video"] for v in ex.get("videos", []) if v.get("video")]
+
                 exercises.append(
                     {
                         "id": ex["id"],
@@ -181,6 +192,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         ],
                         "equipment": [e["name"] for e in ex.get("equipment", [])]
                         or ["bodyweight"],
+                        "description": _strip_html(raw_desc) if raw_desc else "",
+                        "videos": videos,
                     }
                 )
 

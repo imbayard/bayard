@@ -20,7 +20,8 @@ MODEL = "claude-sonnet-4-6"
 SYSTEM_PROMPT = (
     "You are Coach, a personal AI training and nutrition assistant. "
     "When a user asks about exercises or training for a specific activity or goal, "
-    "Be concise and specific."
+    "be concise and specific. "
+    "When exercises have video URLs, include them as markdown links — e.g. [Watch video](url) — so the user can view the demonstration."
 )
 
 _sessions: dict[str, ClientSession] = {}
