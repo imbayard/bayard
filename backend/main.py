@@ -2,12 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
-logging.basicConfig(level=logging.INFO)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from backend.claude_client import chat, cleanup_mcp, init_mcp
+logging.basicConfig(level=logging.INFO)
+
+from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
 
 
 @asynccontextmanager
@@ -32,11 +33,10 @@ class ChatRequest(BaseModel):
     history: list = []
 
 
-class ChatResponse(BaseModel):
-    response: str
-
-
-@app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(req: ChatRequest):
-    response = await chat(req.message, req.history)
-    return ChatResponse(response=response)
+@app.post("/chat/stream")
+async def chat_stream_endpoint(req: ChatRequest):
+    return StreamingResponse(
+        chat_stream(req.message, req.history),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

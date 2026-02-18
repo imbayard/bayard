@@ -7,6 +7,8 @@ type Role = "user" | "assistant";
 interface Message {
   role: Role;
   content: string;
+  preamble?: string;
+  streaming?: boolean;
 }
 
 export default function App() {
@@ -25,23 +27,85 @@ export default function App() {
 
     const history = messages;
     const updated: Message[] = [...history, { role: "user", content: text }];
-    setMessages(updated);
+    const assistantIdx = updated.length;
+    setMessages([...updated, { role: "assistant", content: "", preamble: "", streaming: true }]);
     setInput("");
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/chat", {
+      const res = await fetch("http://localhost:8000/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),
       });
-      const data = await res.json();
-      setMessages([...updated, { role: "assistant", content: data.response }]);
+
+      if (!res.ok || !res.body) {
+        throw new Error("Stream request failed");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      outer: while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const raw of events) {
+          if (!raw.trim()) continue;
+
+          const lines = raw.split("\n");
+          let eventType = "";
+          let eventData = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) eventType = line.slice(7);
+            else if (line.startsWith("data: ")) eventData = line.slice(6);
+          }
+
+          if (eventType === "preamble") {
+            setMessages((prev) => {
+              const next = [...prev];
+              next[assistantIdx] = { ...next[assistantIdx], preamble: eventData };
+              return next;
+            });
+          } else if (eventType === "response.message") {
+            const token = eventData.replace(/\\n/g, "\n");
+            setMessages((prev) => {
+              const next = [...prev];
+              const msg = next[assistantIdx];
+              next[assistantIdx] = {
+                ...msg,
+                content: msg.content + token,
+                preamble: "",
+                streaming: true,
+              };
+              return next;
+            });
+          } else if (eventType === "done") {
+            setMessages((prev) => {
+              const next = [...prev];
+              next[assistantIdx] = { ...next[assistantIdx], streaming: false, preamble: "" };
+              return next;
+            });
+            break outer;
+          }
+        }
+      }
     } catch {
-      setMessages([
-        ...updated,
-        { role: "assistant", content: "Error: could not reach backend." },
-      ]);
+      setMessages((prev) => {
+        const next = [...prev];
+        if (next[assistantIdx]?.role === "assistant") {
+          next[assistantIdx] = { role: "assistant", content: "Error: could not reach backend." };
+        } else {
+          next.push({ role: "assistant", content: "Error: could not reach backend." });
+        }
+        return next;
+      });
     } finally {
       setLoading(false);
     }
@@ -63,20 +127,21 @@ export default function App() {
           <div key={i} style={m.role === "user" ? styles.userMsg : styles.assistantMsg}>
             <span style={styles.role}>{m.role === "user" ? "You" : "Coach"}</span>
             {m.role === "assistant" ? (
-              <div style={styles.markdown}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-              </div>
+              <>
+                {m.preamble && <p style={styles.preamble}>{m.preamble}</p>}
+                <div style={styles.markdown}>
+                  {m.content ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  ) : m.streaming && !m.preamble ? (
+                    <span style={styles.cursor}>▊</span>
+                  ) : null}
+                </div>
+              </>
             ) : (
               <p style={styles.text}>{m.content}</p>
             )}
           </div>
         ))}
-        {loading && (
-          <div style={styles.assistantMsg}>
-            <span style={styles.role}>Coach</span>
-            <p style={styles.text}>…</p>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
 
@@ -138,6 +203,16 @@ const styles: Record<string, React.CSSProperties> = {
   role: { fontSize: 11, fontWeight: 600, opacity: 0.6, display: "block", marginBottom: 2 },
   text: { margin: 0, whiteSpace: "pre-wrap" },
   markdown: { fontSize: 14, lineHeight: 1.6 },
+  preamble: {
+    margin: "0 0 6px 0",
+    fontSize: 12,
+    fontStyle: "italic",
+    opacity: 0.65,
+    color: "#374151",
+  },
+  cursor: {
+    display: "inline-block",
+  },
   inputRow: {
     display: "flex",
     gap: 8,

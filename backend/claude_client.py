@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 import sys
+from collections.abc import AsyncIterator
 
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
@@ -104,11 +105,25 @@ async def _get_all_tools() -> list[dict]:
     return tools
 
 
-async def chat(message: str, history: list) -> str:
+def _preamble_for_tool(name: str, tool_input: dict) -> str:
+    if name == "search_exercises":
+        muscles: list[str] = tool_input.get("muscle_names", [])
+        if not muscles:
+            return "Searching for exercises..."
+        if len(muscles) == 1:
+            return f"Looking for exercises targeting {muscles[0]}..."
+        last = muscles[-1]
+        rest = ", ".join(muscles[:-1])
+        return f"Looking for exercises targeting {rest} and {last}..."
+    return f"Using {name.replace('_', ' ')}..."
+
+
+async def chat_stream(message: str, history: list) -> AsyncIterator[str]:
     messages = [*history, {"role": "user", "content": message}]
     tools = await _get_all_tools()
     kwargs: dict = {"tools": tools} if tools else {}
 
+    # Phase 1: resolve tool calls non-streaming
     while True:
         response = await _client.messages.create(
             model=MODEL,
@@ -118,46 +133,55 @@ async def chat(message: str, history: list) -> str:
             **kwargs,
         )
 
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if block.type == "text":
-                    return block.text
-            return ""
+        if response.stop_reason != "tool_use":
+            break  # fall through to streaming final answer
 
-        if response.stop_reason == "tool_use":
-            messages.append({"role": "assistant", "content": response.content})
+        # Emit preamble for each tool block
+        for block in response.content:
+            if block.type == "tool_use":
+                preamble = _preamble_for_tool(block.name, block.input)
+                yield f"event: preamble\ndata: {preamble}\n\n"
 
-            tool_results = []
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
+        messages.append({"role": "assistant", "content": response.content})
 
-                session = _tool_index.get(block.name)
-                if session:
-                    try:
-                        log.info("Tool call: %s %s", block.name, block.input)
-                        result = await session.call_tool(block.name, block.input)
-                        content = "\n".join(
-                            c.text for c in result.content if hasattr(c, "text")
-                        )
-                        log.info("Tool result: %s", content)
-                    except Exception as exc:
-                        content = f"Tool error: {exc}"
-                else:
-                    content = f"Unknown tool: {block.name}"
+        tool_results = []
+        for block in response.content:
+            if block.type != "tool_use":
+                continue
+            session = _tool_index.get(block.name)
+            if session:
+                try:
+                    log.info("Tool call: %s %s", block.name, block.input)
+                    result = await session.call_tool(block.name, block.input)
+                    content = "\n".join(
+                        c.text for c in result.content if hasattr(c, "text")
+                    )
+                    log.info("Tool result: %s", content)
+                except Exception as exc:
+                    content = f"Tool error: {exc}"
+            else:
+                content = f"Unknown tool: {block.name}"
 
-                tool_results.append(
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": content,
-                    }
-                )
+            tool_results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": content,
+                }
+            )
 
-            messages.append({"role": "user", "content": tool_results})
+        messages.append({"role": "user", "content": tool_results})
 
-        else:
-            for block in response.content:
-                if block.type == "text":
-                    return block.text
-            return ""
+    # Phase 2: stream the final response
+    async with _client.messages.stream(
+        model=MODEL,
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
+        messages=messages,
+        **kwargs,
+    ) as stream:
+        async for text_delta in stream.text_stream:
+            safe = text_delta.replace("\n", "\\n")
+            yield f"event: response.message\ndata: {safe}\n\n"
+
+    yield "event: done\ndata: \n\n"
