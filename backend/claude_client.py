@@ -1,18 +1,29 @@
-"""
-Anthropic SDK client + MCP tool loop.
+import os
+from anthropic import AsyncAnthropic
+from dotenv import load_dotenv
 
-TODO:
-- Initialize Anthropic client from ANTHROPIC_API_KEY
-- Spin up MCP server subprocesses (strava, wger, context) via stdio transport
-- Implement agentic tool loop:
-    1. Send message + history to Claude with available tools
-    2. If Claude returns tool_use blocks, route to the appropriate MCP server
-    3. Send tool results back to Claude
-    4. Repeat until Claude returns a final text response
-- Replace the stub below with the real implementation
-"""
+load_dotenv()
+
+_client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+MODEL = "claude-sonnet-4-6"
+
+SYSTEM_PROMPT = (
+    "You are Coach, a personal AI training and nutrition assistant. "
+    "You have access to the user's Strava activity data and Wger fitness/nutrition data. "
+    "Be concise, specific, and actionable."
+)
 
 
 async def chat(message: str, history: list) -> str:
-    # Stub — replace with real Anthropic SDK call + MCP tool loop
-    return f"[stub] Received: {message}"
+    # Build messages list from history + new user message
+    messages = [*history, {"role": "user", "content": message}]
+
+    response = await _client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        system=SYSTEM_PROMPT,
+        messages=messages,
+    )
+
+    return response.content[0].text
