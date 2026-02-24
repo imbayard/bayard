@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Dashboard from "./dashboard/Dashboard";
 
 type Role = "user" | "assistant";
 type View = "chat" | "dashboard";
@@ -17,7 +18,6 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showLearnForm, setShowLearnForm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,9 +42,7 @@ export default function App() {
         body: JSON.stringify({ message: text, history }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error("Stream request failed");
-      }
+      if (!res.ok || !res.body) throw new Error("Stream request failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -55,13 +53,11 @@ export default function App() {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-
         const events = buffer.split("\n\n");
         buffer = events.pop() ?? "";
 
         for (const raw of events) {
           if (!raw.trim()) continue;
-
           const lines = raw.split("\n");
           let eventType = "";
           let eventData = "";
@@ -81,12 +77,7 @@ export default function App() {
             setMessages((prev) => {
               const next = [...prev];
               const msg = next[assistantIdx];
-              next[assistantIdx] = {
-                ...msg,
-                content: msg.content + token,
-                preamble: "",
-                streaming: true,
-              };
+              next[assistantIdx] = { ...msg, content: msg.content + token, preamble: "", streaming: true };
               return next;
             });
           } else if (eventType === "done") {
@@ -122,12 +113,12 @@ export default function App() {
   }
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
+    <div style={s.container}>
+      <header style={s.header}>
         <span>Coach</span>
         <button
           style={{
-            ...styles.dashBtn,
+            ...s.dashBtn,
             background: view === "dashboard" ? "#2563eb" : "transparent",
             color: view === "dashboard" ? "#fff" : "#374151",
           }}
@@ -140,74 +131,51 @@ export default function App() {
 
       {view === "chat" ? (
         <>
-          <div style={styles.messages}>
+          <div style={s.messages}>
             {messages.map((m, i) => (
-              <div key={i} style={m.role === "user" ? styles.userMsg : styles.assistantMsg}>
-                <span style={styles.role}>{m.role === "user" ? "You" : "Coach"}</span>
+              <div key={i} style={m.role === "user" ? s.userMsg : s.assistantMsg}>
+                <span style={s.role}>{m.role === "user" ? "You" : "Coach"}</span>
                 {m.role === "assistant" ? (
                   <>
-                    {m.preamble && <p style={styles.preamble}>{m.preamble}</p>}
-                    <div style={styles.markdown}>
+                    {m.preamble && <p style={s.preamble}>{m.preamble}</p>}
+                    <div style={s.markdown}>
                       {m.content ? (
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                       ) : m.streaming && !m.preamble ? (
-                        <span style={styles.cursor}>▊</span>
+                        <span style={s.cursor}>▊</span>
                       ) : null}
                     </div>
                   </>
                 ) : (
-                  <p style={styles.text}>{m.content}</p>
+                  <p style={s.text}>{m.content}</p>
                 )}
               </div>
             ))}
             <div ref={bottomRef} />
           </div>
 
-          <div style={styles.inputRow}>
+          <div style={s.inputRow}>
             <textarea
-              style={styles.textarea}
+              style={s.textarea}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Message Coach… (Enter to send, Shift+Enter for newline)"
               rows={3}
             />
-            <button style={styles.button} onClick={send} disabled={loading}>
+            <button style={s.button} onClick={send} disabled={loading}>
               Send
             </button>
           </div>
         </>
       ) : (
-        <div style={styles.dashboard}>
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>Goals</h2>
-            <div style={styles.goalsList}>
-              <p style={styles.empty}>No goals yet.</p>
-            </div>
-          </section>
-
-          <button style={styles.learnBtn} onClick={() => setShowLearnForm(true)}>
-            + Learn something new
-          </button>
-        </div>
-      )}
-
-      {showLearnForm && (
-        <div style={styles.overlay} onClick={() => setShowLearnForm(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 style={styles.modalTitle}>Learn something new</h3>
-            <p style={styles.empty}>Form coming soon.</p>
-            <button style={styles.closeBtn} onClick={() => setShowLearnForm(false)}>
-              Close
-            </button>
-          </div>
-        </div>
+        <Dashboard />
       )}
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   container: {
     display: "flex",
     flexDirection: "column",
@@ -291,85 +259,5 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#fff",
     fontWeight: 600,
     cursor: "pointer",
-  },
-  // Dashboard
-  dashboard: {
-    flex: 1,
-    padding: "24px 20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 24,
-  },
-  section: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: 16,
-    fontWeight: 700,
-    color: "#111827",
-  },
-  goalsList: {
-    minHeight: 80,
-    border: "1px dashed #d1d5db",
-    borderRadius: 12,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  empty: {
-    margin: 0,
-    fontSize: 13,
-    color: "#9ca3af",
-  },
-  learnBtn: {
-    alignSelf: "flex-start",
-    padding: "10px 20px",
-    borderRadius: 8,
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-    fontWeight: 600,
-    fontSize: 14,
-    cursor: "pointer",
-  },
-  // Modal
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.4)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  modal: {
-    background: "#fff",
-    borderRadius: 16,
-    padding: "28px 24px",
-    width: 400,
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-  },
-  modalTitle: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#111827",
-  },
-  closeBtn: {
-    alignSelf: "flex-end",
-    padding: "8px 16px",
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    background: "transparent",
-    cursor: "pointer",
-    fontSize: 14,
-    fontWeight: 600,
-    color: "#374151",
   },
 };
