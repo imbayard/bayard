@@ -41,6 +41,12 @@ async def _mcp_lifecycle(ready: asyncio.Event, shutdown: asyncio.Event) -> None:
         env=None,  # inherit parent environment
         stderr=sys.stderr,
     )
+    context_server_path = str(
+        pathlib.Path(__file__).parent.parent / "mcp_servers" / "context_server.py"
+    )
+    user_context_params = StdioServerParameters(
+        command=sys.executable, args=[context_server_path], env=None, stderr=sys.stderr
+    )
     async with stdio_client(wger_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -48,8 +54,15 @@ async def _mcp_lifecycle(ready: asyncio.Event, shutdown: asyncio.Event) -> None:
             tools_result = await session.list_tools()
             for tool in tools_result.tools:
                 _tool_index[tool.name] = session
-            ready.set()
-            await shutdown.wait()
+            async with stdio_client(user_context_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    _sessions["context"] = session
+                    tools_result = await session.list_tools()
+                    for tool in tools_result.tools:
+                        _tool_index[tool.name] = session
+                    ready.set()
+                    await shutdown.wait()
 
 
 async def init_mcp() -> None:

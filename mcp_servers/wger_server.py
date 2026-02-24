@@ -18,6 +18,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
+from pydantic import BaseModel, Field
+
 load_dotenv()
 
 WGER_BASE = "https://wger.de/api/v2"
@@ -88,6 +90,15 @@ def _is_english(translation: dict) -> bool:
 server = Server("wger")
 
 
+class SearchExercisesTool(BaseModel):
+    muscle_names: list[str] = Field(
+        ...,
+        description="Muscle group names to target. "
+        "Supported values: biceps, triceps, chest, shoulders, lats, upper back, traps, "
+        "abs, core, obliques, quadriceps, quads, hamstrings, glutes, calves, brachialis, soleus.",
+    )
+
+
 @server.list_tools()
 async def list_tools() -> list[Tool]:
     return [
@@ -98,21 +109,7 @@ async def list_tools() -> list[Tool]:
                 "Pass the muscle groups most relevant to the user's activity or goal. "
                 "Returns exercises with name, category, primary/secondary muscles, and equipment."
             ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "muscle_names": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": (
-                            "Muscle group names to target. "
-                            "Supported values: biceps, triceps, chest, shoulders, lats, upper back, traps, "
-                            "abs, core, obliques, quadriceps, quads, hamstrings, glutes, calves, brachialis, soleus."
-                        ),
-                    }
-                },
-                "required": ["muscle_names"],
-            },
+            inputSchema=SearchExercisesTool.model_json_schema(),
         ),
     ]
 
@@ -150,7 +147,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     headers = {"Authorization": f"Token {WGER_API_KEY}"} if WGER_API_KEY else {}
     seen_ids: set[int] = set()
     exercises: list[dict] = []
-    print("Calling wger to get excercises for muscle groups", muscle_names, file=sys.stderr)
+    print(
+        "Calling wger to get excercises for muscle groups",
+        muscle_names,
+        file=sys.stderr,
+    )
     async with httpx.AsyncClient(timeout=15) as client:
         for muscle_id in muscle_ids:
             resp = await client.get(

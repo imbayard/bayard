@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 type Role = "user" | "assistant";
+type View = "chat" | "dashboard";
 
 interface Message {
   role: Role;
@@ -12,9 +13,11 @@ interface Message {
 }
 
 export default function App() {
+  const [view, setView] = useState<View>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showLearnForm, setShowLearnForm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -120,44 +123,86 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>Coach</header>
-
-      <div style={styles.messages}>
-        {messages.map((m, i) => (
-          <div key={i} style={m.role === "user" ? styles.userMsg : styles.assistantMsg}>
-            <span style={styles.role}>{m.role === "user" ? "You" : "Coach"}</span>
-            {m.role === "assistant" ? (
-              <>
-                {m.preamble && <p style={styles.preamble}>{m.preamble}</p>}
-                <div style={styles.markdown}>
-                  {m.content ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                  ) : m.streaming && !m.preamble ? (
-                    <span style={styles.cursor}>▊</span>
-                  ) : null}
-                </div>
-              </>
-            ) : (
-              <p style={styles.text}>{m.content}</p>
-            )}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      <div style={styles.inputRow}>
-        <textarea
-          style={styles.textarea}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Message Coach… (Enter to send, Shift+Enter for newline)"
-          rows={3}
-        />
-        <button style={styles.button} onClick={send} disabled={loading}>
-          Send
+      <header style={styles.header}>
+        <span>Coach</span>
+        <button
+          style={{
+            ...styles.dashBtn,
+            background: view === "dashboard" ? "#2563eb" : "transparent",
+            color: view === "dashboard" ? "#fff" : "#374151",
+          }}
+          onClick={() => setView(view === "dashboard" ? "chat" : "dashboard")}
+          title="Dashboard"
+        >
+          ⊞
         </button>
-      </div>
+      </header>
+
+      {view === "chat" ? (
+        <>
+          <div style={styles.messages}>
+            {messages.map((m, i) => (
+              <div key={i} style={m.role === "user" ? styles.userMsg : styles.assistantMsg}>
+                <span style={styles.role}>{m.role === "user" ? "You" : "Coach"}</span>
+                {m.role === "assistant" ? (
+                  <>
+                    {m.preamble && <p style={styles.preamble}>{m.preamble}</p>}
+                    <div style={styles.markdown}>
+                      {m.content ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                      ) : m.streaming && !m.preamble ? (
+                        <span style={styles.cursor}>▊</span>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <p style={styles.text}>{m.content}</p>
+                )}
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          <div style={styles.inputRow}>
+            <textarea
+              style={styles.textarea}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Message Coach… (Enter to send, Shift+Enter for newline)"
+              rows={3}
+            />
+            <button style={styles.button} onClick={send} disabled={loading}>
+              Send
+            </button>
+          </div>
+        </>
+      ) : (
+        <div style={styles.dashboard}>
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Goals</h2>
+            <div style={styles.goalsList}>
+              <p style={styles.empty}>No goals yet.</p>
+            </div>
+          </section>
+
+          <button style={styles.learnBtn} onClick={() => setShowLearnForm(true)}>
+            + Learn something new
+          </button>
+        </div>
+      )}
+
+      {showLearnForm && (
+        <div style={styles.overlay} onClick={() => setShowLearnForm(false)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalTitle}>Learn something new</h3>
+            <p style={styles.empty}>Form coming soon.</p>
+            <button style={styles.closeBtn} onClick={() => setShowLearnForm(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -176,6 +221,18 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     fontSize: 18,
     borderBottom: "1px solid #e5e7eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dashBtn: {
+    fontSize: 22,
+    border: "none",
+    borderRadius: 8,
+    padding: "4px 8px",
+    cursor: "pointer",
+    lineHeight: 1,
+    transition: "background 0.15s",
   },
   messages: {
     flex: 1,
@@ -210,9 +267,7 @@ const styles: Record<string, React.CSSProperties> = {
     opacity: 0.65,
     color: "#374151",
   },
-  cursor: {
-    display: "inline-block",
-  },
+  cursor: { display: "inline-block" },
   inputRow: {
     display: "flex",
     gap: 8,
@@ -236,5 +291,85 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#fff",
     fontWeight: 600,
     cursor: "pointer",
+  },
+  // Dashboard
+  dashboard: {
+    flex: 1,
+    padding: "24px 20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 24,
+  },
+  section: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#111827",
+  },
+  goalsList: {
+    minHeight: 80,
+    border: "1px dashed #d1d5db",
+    borderRadius: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  empty: {
+    margin: 0,
+    fontSize: 13,
+    color: "#9ca3af",
+  },
+  learnBtn: {
+    alignSelf: "flex-start",
+    padding: "10px 20px",
+    borderRadius: 8,
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
+  },
+  // Modal
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.4)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  modal: {
+    background: "#fff",
+    borderRadius: 16,
+    padding: "28px 24px",
+    width: 400,
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#111827",
+  },
+  closeBtn: {
+    alignSelf: "flex-end",
+    padding: "8px 16px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#374151",
   },
 };
