@@ -1,6 +1,8 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ModuleCard from "./ModuleCard";
+import type { Module } from "../types";
 
 interface Props {
   onClose: () => void;
@@ -41,9 +43,12 @@ export default function LearnForm({ onClose }: Props) {
     harshness: "",
   });
   const [lessonPlan, setLessonPlan] = useState<string | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
   const [generating, setGenerating] = useState(false);
   const [planTitle, setPlanTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [planCollapsed, setPlanCollapsed] = useState(true);
+  const [planCopied, setPlanCopied] = useState(false);
 
   const isReview    = step === REVIEW_STEP;
   const isTitleStep = step === TITLE_STEP;
@@ -56,8 +61,16 @@ export default function LearnForm({ onClose }: Props) {
   function close() {
     setStep(0);
     setLessonPlan(null);
+    setModules([]);
     setPlanTitle("");
+    setPlanCollapsed(true);
     onClose();
+  }
+
+  function copyPlan() {
+    navigator.clipboard.writeText(lessonPlan ?? "");
+    setPlanCopied(true);
+    setTimeout(() => setPlanCopied(false), 2000);
   }
 
   async function generatePlan() {
@@ -71,6 +84,7 @@ export default function LearnForm({ onClose }: Props) {
       });
       const data = await res.json();
       setLessonPlan(data.markdown);
+      setModules(data.modules ?? []);
     } catch {
       setLessonPlan("Failed to generate lesson plan. Please try again.");
     } finally {
@@ -90,7 +104,7 @@ export default function LearnForm({ onClose }: Props) {
       await fetch("http://localhost:8000/lesson-plan/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: planTitle.trim(), plan: lessonPlan }),
+        body: JSON.stringify({ title: planTitle.trim(), plan: lessonPlan, modules }),
       });
       close();
     } catch {
@@ -148,8 +162,29 @@ export default function LearnForm({ onClose }: Props) {
               <p style={s.loaderText}>Generating your lesson plan…</p>
             </div>
           ) : (
-            <div style={s.markdownBox}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonPlan ?? ""}</ReactMarkdown>
+            <div style={s.reviewScroll}>
+              <div style={s.planHeader}>
+                <button style={s.collapseBtn} onClick={() => setPlanCollapsed((c) => !c)}>
+                  <span style={{ ...s.chevron, transform: planCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▾</span>
+                  Agent instructions
+                </button>
+                <button style={s.copyBtn} onClick={copyPlan}>
+                  {planCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              {!planCollapsed && (
+                <div style={s.planSection}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonPlan ?? ""}</ReactMarkdown>
+                </div>
+              )}
+              {modules.length > 0 && (
+                <div style={s.modulesSection}>
+                  <p style={s.modulesSectionTitle}>Modules</p>
+                  {modules.map((m, i) => (
+                    <ModuleCard key={i} module={m} position={i + 1} />
+                  ))}
+                </div>
+              )}
             </div>
           )
         ) : (
@@ -265,13 +300,75 @@ const s: Record<string, React.CSSProperties> = {
     animation: "spin 0.8s linear infinite",
   },
   loaderText: { margin: 0, fontSize: 14, color: "#6b7280" },
-  markdownBox: {
+  reviewScroll: {
     flex: 1,
     overflowY: "auto",
     minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+  },
+  planHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    flexShrink: 0,
+  },
+  collapseBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    padding: 0,
+  },
+  chevron: {
+    fontSize: 14,
+    display: "inline-block",
+    transition: "transform 0.15s ease",
+    color: "#9ca3af",
+  },
+  copyBtn: {
+    padding: "3px 10px",
+    borderRadius: 6,
+    border: "1px solid #d1d5db",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#374151",
+  },
+  planSection: {
     fontSize: 14,
     lineHeight: 1.7,
     color: "#111827",
+    maxHeight: 260,
+    overflowY: "auto",
+    borderBottom: "1px solid #e5e7eb",
+    paddingBottom: 16,
+    marginBottom: 16,
+    flexShrink: 0,
+  },
+  modulesSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    paddingBottom: 8,
+  },
+  modulesSectionTitle: {
+    margin: "0 0 4px 0",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
   },
   titleStepBox: {
     flex: 1,

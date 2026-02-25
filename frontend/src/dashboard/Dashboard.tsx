@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import LearnForm from "./LearnForm";
+import ModuleCard from "./ModuleCard";
+import type { Module } from "../types";
 
 interface LessonPlan {
   id: number;
@@ -15,6 +17,9 @@ export default function Dashboard() {
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<LessonPlan | null>(null);
+  const [selectedModules, setSelectedModules] = useState<Module[]>([]);
+  const [planCollapsed, setPlanCollapsed] = useState(true);
+  const [planCopied, setPlanCopied] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [learnHovered, setLearnHovered] = useState(false);
@@ -36,6 +41,31 @@ export default function Dashboard() {
   function handleFormClose() {
     setShowLearnForm(false);
     fetchPlans();
+  }
+
+  async function openPlan(plan: LessonPlan) {
+    setSelectedPlan(plan);
+    setSelectedModules([]);
+    setPlanCollapsed(true);
+    try {
+      const res = await fetch(`http://localhost:8000/lesson-plan/${plan.id}/modules`);
+      const data = await res.json();
+      setSelectedModules(data.modules ?? []);
+    } catch {
+      // silently fail — plan still opens without modules
+    }
+  }
+
+  function closePlan() {
+    setSelectedPlan(null);
+    setSelectedModules([]);
+    setPlanCollapsed(true);
+  }
+
+  function copyPlan() {
+    navigator.clipboard.writeText(selectedPlan?.plan ?? "");
+    setPlanCopied(true);
+    setTimeout(() => setPlanCopied(false), 2000);
   }
 
   async function deletePlan(id: number) {
@@ -68,7 +98,7 @@ export default function Dashboard() {
               >
                 <button
                   style={s.planCardInner}
-                  onClick={() => setSelectedPlan(plan)}
+                  onClick={() => openPlan(plan)}
                 >
                   <span style={s.planTitle}>{plan.title}</span>
                   <span style={s.planDate}>
@@ -113,14 +143,35 @@ export default function Dashboard() {
       {showLearnForm && <LearnForm onClose={handleFormClose} />}
 
       {selectedPlan && (
-        <div style={s.overlay} onClick={() => setSelectedPlan(null)}>
+        <div style={s.overlay} onClick={closePlan}>
           <div style={s.viewer} onClick={(e) => e.stopPropagation()}>
             <div style={s.viewerHeader}>
               <h3 style={s.viewerTitle}>{selectedPlan.title}</h3>
-              <button style={s.closeBtn} onClick={() => setSelectedPlan(null)}>✕</button>
+              <button style={s.closeBtn} onClick={closePlan}>✕</button>
             </div>
             <div style={s.viewerBody}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPlan.plan}</ReactMarkdown>
+              <div style={s.planHeader}>
+                <button style={s.collapseBtn} onClick={() => setPlanCollapsed((c) => !c)}>
+                  <span style={{ ...s.chevron, transform: planCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▾</span>
+                  Agent instructions
+                </button>
+                <button style={s.copyBtn} onClick={copyPlan}>
+                  {planCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              {!planCollapsed && (
+                <div style={s.planSection}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPlan.plan}</ReactMarkdown>
+                </div>
+              )}
+              {selectedModules.length > 0 && (
+                <div style={s.modulesSection}>
+                  <p style={s.modulesSectionTitle}>Modules</p>
+                  {selectedModules.map((m, i) => (
+                    <ModuleCard key={m.id ?? i} module={m} position={i + 1} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -272,5 +323,67 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14,
     lineHeight: 1.7,
     color: "#111827",
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+  },
+  planHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    flexShrink: 0,
+  },
+  collapseBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    padding: 0,
+  },
+  chevron: {
+    fontSize: 14,
+    display: "inline-block",
+    transition: "transform 0.15s ease",
+    color: "#9ca3af",
+  },
+  copyBtn: {
+    padding: "3px 10px",
+    borderRadius: 6,
+    border: "1px solid #d1d5db",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#374151",
+  },
+  planSection: {
+    maxHeight: 300,
+    overflowY: "auto",
+    borderBottom: "1px solid #e5e7eb",
+    paddingBottom: 16,
+    marginBottom: 16,
+    flexShrink: 0,
+  },
+  modulesSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    paddingBottom: 8,
+  },
+  modulesSectionTitle: {
+    margin: "0 0 4px 0",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
   },
 };

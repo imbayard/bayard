@@ -31,8 +31,9 @@ async def set_plan(title: str, plan: str) -> int:
 
 
 async def delete_plan(plan_id: int) -> None:
-    """Delete a lesson plan by id."""
+    """Delete a lesson plan by id. Foreign key cascade removes associated modules."""
     async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         await db.execute("DELETE FROM lesson_plans WHERE id = ?", (plan_id,))
         await db.commit()
 

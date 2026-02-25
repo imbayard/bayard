@@ -1,3 +1,4 @@
+import logging
 import os
 
 from anthropic import AsyncAnthropic
@@ -9,15 +10,15 @@ _client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 MODEL = "claude-sonnet-4-5"
 
-SYSTEM_PROMPT = """You are an expert curriculum designer. Given a learner's answers to 5 intake questions, produce a structured lesson plan in markdown.
+PLAN_SYSTEM_PROMPT = """You are an expert curriculum designer. Given a learner's answers to 5 intake questions, produce a lesson plan overview in markdown.
 
 Output ONLY the markdown — no preamble, no commentary, nothing before the H1.
 
-The lesson plan must follow this exact structure:
+The overview must follow this exact structure:
 
 # {Concise, specific title for the learning goal}
 
-> **Purpose:** {2–4 sentences summarizing who the learner is, what they want to achieve, and how they want to be taught. This is a directive to the instructor — write it in second person ("Bayard wants to...", "He has...", "Push him on...").}
+> **Purpose:** {2–4 sentences summarizing who the learner is, what they want to achieve, and how they want to be taught. Write in second person ("Bayard wants to...", "He has...", "Push him on...").}
 
 ## Instructor Directives
 - {Concrete teaching instruction derived from the learner's answers — tone, pacing, what to emphasize}
@@ -25,31 +26,43 @@ The lesson plan must follow this exact structure:
 
 ## Curriculum Overview
 
-```
-1. {Module title}
-2. {Module title}
-3. {Module title}
-4. {Module title}
-5. {Module title}
-6. {Module title}
-```
+1. {Module title} — {one-line description of what the learner can do after this module}
+2. {Module title} — {one-line description}
+3. {Module title} — {one-line description}
+4. {Module title} — {one-line description}
+5. {Module title} — {one-line description}
+6. {Module title} — {one-line description}"""
 
-## Module 1 — {Title}
+EXTRACT_SYSTEM_PROMPT = """You extract structured module data from curriculum plans. When given a lesson plan overview and the original learner intake answers, call save_modules with the full detailed breakdown for each module in the curriculum."""
 
-**Goal:** {One sentence — what the learner can do after this module.}
-
-**Key Points:**
-- {concrete thing to cover}
-- {concrete thing to cover}
-- {at least 3–5 bullet points}
-
-**Challenge:** {A specific, timed exercise or task the learner must complete to prove mastery. Be concrete.}
-
----
-
-## Module 2 — {Title}
-...repeat for all 6 modules...
-"""
+SAVE_MODULES_TOOL = {
+    "name": "save_modules",
+    "description": "Record the structured module breakdown for this lesson plan.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "modules": {
+                "type": "array",
+                "description": "The modules in order",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "Module title"},
+                        "description": {"type": "string", "description": "One sentence — what the learner can do after this module"},
+                        "key_points": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "3–5 concrete things to cover",
+                        },
+                        "challenge": {"type": "string", "description": "Specific, timed exercise or task to prove mastery"},
+                    },
+                    "required": ["name", "description", "key_points", "challenge"],
+                },
+            }
+        },
+        "required": ["modules"],
+    },
+}
 
 
 async def generate_lesson_plan(
@@ -58,10 +71,8 @@ async def generate_lesson_plan(
     explore: str,
     avoid: str,
     harshness: str,
-) -> str:
-    user_message = f"""Here are the learner's intake answers:
-
-**What do you want to learn about and why?**
+) -> tuple[str, list[dict]]:
+    intake = f"""**What do you want to learn about and why?**
 {topic}
 
 **What is your experience level?**
@@ -74,15 +85,40 @@ async def generate_lesson_plan(
 {avoid}
 
 **How harsh should I be with you?**
-{harshness}
+{harshness}"""
 
-Generate the lesson plan now."""
-
-    response = await _client.messages.create(
+    # Step 1: Generate the plan overview markdown
+    logging.info("course_planner: step 1 — generating plan overview")
+    plan_response = await _client.messages.create(
         model=MODEL,
-        max_tokens=4096,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_message}],
+        max_tokens=2048,
+        system=PLAN_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": f"{intake}\n\nGenerate the lesson plan overview now."}],
     )
+    logging.info("course_planner: step 1 stop_reason=%s content_blocks=%d", plan_response.stop_reason, len(plan_response.content))
+    plan_text = plan_response.content[0].text.strip()
+    logging.info("course_planner: plan_text length=%d", len(plan_text))
 
-    return response.content[0].text
+    # Step 2: Extract structured modules (forced tool call)
+    logging.info("course_planner: step 2 — extracting modules")
+    extract_response = await _client.messages.create(
+        model=MODEL,
+        max_tokens=2048,
+        system=EXTRACT_SYSTEM_PROMPT,
+        tools=[SAVE_MODULES_TOOL],
+        tool_choice={"type": "any"},
+        messages=[{
+            "role": "user",
+            "content": f"Learner intake:\n{intake}\n\nCurriculum overview:\n{plan_text}\n\nCall save_modules with the full breakdown for each module.",
+        }],
+    )
+    logging.info("course_planner: step 2 stop_reason=%s content_blocks=%d", extract_response.stop_reason, len(extract_response.content))
+
+    captured_modules: list[dict] = []
+    for block in extract_response.content:
+        logging.info("course_planner: step 2 block type=%s", block.type)
+        if block.type == "tool_use" and block.name == "save_modules":
+            captured_modules = block.input["modules"]
+    logging.info("course_planner: captured %d modules", len(captured_modules))
+
+    return plan_text, captured_modules
