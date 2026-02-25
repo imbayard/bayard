@@ -14,7 +14,9 @@ const LEARN_STEPS: { label: string; field: keyof LearnFormState; rows: number }[
   { label: "How harsh should I be with you?", field: "harshness", rows: 3 },
 ];
 
-const TOTAL_STEPS = LEARN_STEPS.length;
+const TOTAL_STEPS = LEARN_STEPS.length; // 5 — last question step index is TOTAL_STEPS - 1
+const REVIEW_STEP = TOTAL_STEPS;        // 5
+const TITLE_STEP  = TOTAL_STEPS + 1;   // 6
 
 interface LearnFormState {
   topic: string;
@@ -22,6 +24,11 @@ interface LearnFormState {
   explore: string;
   avoid: string;
   harshness: string;
+}
+
+function extractH1(markdown: string): string {
+  const firstLine = markdown.split("\n")[0] ?? "";
+  return firstLine.replace(/^#\s+/, "").trim();
 }
 
 export default function LearnForm({ onClose }: Props) {
@@ -35,8 +42,11 @@ export default function LearnForm({ onClose }: Props) {
   });
   const [lessonPlan, setLessonPlan] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [planTitle, setPlanTitle] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const isReview = step === TOTAL_STEPS;
+  const isReview    = step === REVIEW_STEP;
+  const isTitleStep = step === TITLE_STEP;
 
   function setField(field: keyof LearnFormState) {
     return (e: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -46,11 +56,12 @@ export default function LearnForm({ onClose }: Props) {
   function close() {
     setStep(0);
     setLessonPlan(null);
+    setPlanTitle("");
     onClose();
   }
 
   async function generatePlan() {
-    setStep(TOTAL_STEPS);
+    setStep(REVIEW_STEP);
     setGenerating(true);
     try {
       const res = await fetch("http://localhost:8000/lesson-plan/generate", {
@@ -67,30 +78,70 @@ export default function LearnForm({ onClose }: Props) {
     }
   }
 
+  function goToTitleStep() {
+    setPlanTitle(extractH1(lessonPlan ?? ""));
+    setStep(TITLE_STEP);
+  }
+
+  async function save() {
+    if (!planTitle.trim() || !lessonPlan) return;
+    setSaving(true);
+    try {
+      await fetch("http://localhost:8000/lesson-plan/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: planTitle.trim(), plan: lessonPlan }),
+      });
+      close();
+    } catch {
+      // TODO: surface error to user
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Header title ────────────────────────────────────────────────────────────
+  const modalTitle = isTitleStep
+    ? "Name your lesson plan"
+    : isReview
+    ? "Review your lesson plan"
+    : "Learn something new";
+
   return (
     <div style={s.overlay} onClick={close}>
       <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-        <h3 style={s.title}>
-          {isReview ? "Review your lesson plan" : "Learn something new"}
-        </h3>
+        <h3 style={s.title}>{modalTitle}</h3>
 
-        {/* Progress bar */}
-        <div style={s.progressRow}>
-          <div style={s.progressTrack}>
-            <div
-              style={{
-                ...s.progressFill,
-                width: `${(Math.min(step, TOTAL_STEPS) / TOTAL_STEPS) * 100}%`,
-              }}
-            />
+        {/* Progress bar — only shown during questions and review */}
+        {!isTitleStep && (
+          <div style={s.progressRow}>
+            <div style={s.progressTrack}>
+              <div
+                style={{
+                  ...s.progressFill,
+                  width: `${(Math.min(step, TOTAL_STEPS) / TOTAL_STEPS) * 100}%`,
+                }}
+              />
+            </div>
+            <span style={s.progressLabel}>
+              {isReview ? `${TOTAL_STEPS} / ${TOTAL_STEPS}` : `${step} / ${TOTAL_STEPS}`}
+            </span>
           </div>
-          <span style={s.progressLabel}>
-            {isReview ? `${TOTAL_STEPS} / ${TOTAL_STEPS}` : `${step} / ${TOTAL_STEPS}`}
-          </span>
-        </div>
+        )}
 
         {/* Step content */}
-        {isReview ? (
+        {isTitleStep ? (
+          <div style={s.titleStepBox}>
+            <label style={s.label}>Title</label>
+            <input
+              style={s.titleInput}
+              value={planTitle}
+              onChange={(e) => setPlanTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && save()}
+              autoFocus
+            />
+          </div>
+        ) : isReview ? (
           generating ? (
             <div style={s.loaderBox}>
               <div style={s.spinner} />
@@ -116,19 +167,42 @@ export default function LearnForm({ onClose }: Props) {
 
         {/* Footer */}
         <div style={s.footer}>
-          <button style={s.ghostBtn} onClick={close} disabled={generating}>Cancel</button>
+          <button style={s.ghostBtn} onClick={close} disabled={generating || saving}>
+            Cancel
+          </button>
           <div style={{ display: "flex", gap: 8 }}>
-            {step > 0 && !generating && (
-              <button style={s.ghostBtn} onClick={() => setStep((n) => n - 1)}>Back</button>
+            {step > 0 && !generating && !saving && (
+              <button
+                style={s.ghostBtn}
+                onClick={() => setStep((n) => n - 1)}
+              >
+                Back
+              </button>
             )}
-            {isReview ? (
-              <button style={s.primaryBtn} disabled={generating}>Start learning</button>
+            {isTitleStep ? (
+              <button
+                style={s.primaryBtn}
+                onClick={save}
+                disabled={saving || !planTitle.trim()}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            ) : isReview ? (
+              <button
+                style={s.primaryBtn}
+                onClick={goToTitleStep}
+                disabled={generating}
+              >
+                Start learning
+              </button>
             ) : step === TOTAL_STEPS - 1 ? (
               <button style={s.primaryBtn} onClick={generatePlan}>
                 Generate lesson plan
               </button>
             ) : (
-              <button style={s.primaryBtn} onClick={() => setStep((n) => n + 1)}>Next</button>
+              <button style={s.primaryBtn} onClick={() => setStep((n) => n + 1)}>
+                Next
+              </button>
             )}
           </div>
         </div>
@@ -199,7 +273,24 @@ const s: Record<string, React.CSSProperties> = {
     lineHeight: 1.7,
     color: "#111827",
   },
+  titleStepBox: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 10,
+  },
   label: { fontSize: 13, fontWeight: 600, color: "#374151" },
+  titleInput: {
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    fontSize: 16,
+    fontFamily: "inherit",
+    width: "100%",
+    boxSizing: "border-box",
+    outline: "none",
+  },
   formArea: {
     resize: "vertical",
     padding: "8px 10px",

@@ -10,11 +10,13 @@ logging.basicConfig(level=logging.INFO)
 
 from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
 from backend.agents.course_planner import generate_lesson_plan
+from backend.api.lesson_plan_store import create_table, set_plan, get_plans
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_mcp()
+    await create_table()
     yield
     await cleanup_mcp()
 
@@ -29,6 +31,8 @@ app.add_middleware(
 )
 
 
+# ── Request models ────────────────────────────────────────────────────────────
+
 class ChatRequest(BaseModel):
     message: str
     history: list = []
@@ -42,6 +46,13 @@ class LessonPlanRequest(BaseModel):
     harshness: str
 
 
+class SaveLessonPlanRequest(BaseModel):
+    title: str
+    plan: str
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
 @app.post("/chat/stream")
 async def chat_stream_endpoint(req: ChatRequest):
     return StreamingResponse(
@@ -52,7 +63,7 @@ async def chat_stream_endpoint(req: ChatRequest):
 
 
 @app.post("/lesson-plan/generate")
-async def lesson_plan_endpoint(req: LessonPlanRequest):
+async def lesson_plan_generate(req: LessonPlanRequest):
     markdown = await generate_lesson_plan(
         topic=req.topic,
         experience=req.experience,
@@ -61,3 +72,15 @@ async def lesson_plan_endpoint(req: LessonPlanRequest):
         harshness=req.harshness,
     )
     return {"markdown": markdown}
+
+
+@app.post("/lesson-plan/save")
+async def lesson_plan_save(req: SaveLessonPlanRequest):
+    new_id = await set_plan(req.title, req.plan)
+    return {"id": new_id}
+
+
+@app.get("/lesson-plans")
+async def lesson_plans_list():
+    plans = await get_plans()
+    return {"plans": plans}
