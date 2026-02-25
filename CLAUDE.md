@@ -56,6 +56,7 @@ data/                      — Created at runtime, gitignored
 | POST | `/lesson-plan/generate` | Generate lesson plan markdown from 5 answers |
 | POST | `/lesson-plan/save` | Save `{title, plan}` to DB, returns `{id}` |
 | GET | `/lesson-plans` | List all saved plans, newest first |
+| DELETE | `/lesson-plan/{id}` | Delete a plan by id |
 
 ---
 
@@ -76,12 +77,11 @@ data/                      — Created at runtime, gitignored
 - Wger exercise search (by muscle group, returns exercises with videos)
 - User preference memory (`get_context` / `set_context` → `context.db`)
 - Full lesson plan creation flow: 5 intake questions → generated markdown → review → title → saved to DB
-- Dashboard view with goals placeholder
+- Dashboard: lists saved plans, click to view full markdown, hover to delete (with confirm)
 
 **Stubbed / not wired yet:**
 - Strava integration (MCP server exists, API calls not implemented)
-- Goals list in dashboard (UI placeholder only — no DB or display logic yet)
-- "Start learning" after saving a plan (no chat integration with the lesson plan yet)
+- "Start learning" — plan is saved but chat doesn't yet load it as context for a session
 
 ---
 

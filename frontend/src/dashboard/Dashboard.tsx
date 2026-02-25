@@ -15,6 +15,9 @@ export default function Dashboard() {
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<LessonPlan | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [learnHovered, setLearnHovered] = useState(false);
 
   async function fetchPlans() {
     try {
@@ -32,7 +35,13 @@ export default function Dashboard() {
 
   function handleFormClose() {
     setShowLearnForm(false);
-    fetchPlans(); // re-fetch in case a plan was saved
+    fetchPlans();
+  }
+
+  async function deletePlan(id: number) {
+    await fetch(`http://localhost:8000/lesson-plan/${id}`, { method: "DELETE" });
+    setConfirmDeleteId(null);
+    setPlans((prev) => prev.filter((p) => p.id !== id));
   }
 
   return (
@@ -51,26 +60,53 @@ export default function Dashboard() {
         ) : (
           <div style={s.planList}>
             {plans.map((plan) => (
-              <button
+              <div
                 key={plan.id}
                 style={s.planCard}
-                onClick={() => setSelectedPlan(plan)}
+                onMouseEnter={() => setHoveredId(plan.id)}
+                onMouseLeave={() => setHoveredId(null)}
               >
-                <span style={s.planTitle}>{plan.title}</span>
-                <span style={s.planDate}>
-                  {new Date(plan.created_at).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-              </button>
+                <button
+                  style={s.planCardInner}
+                  onClick={() => setSelectedPlan(plan)}
+                >
+                  <span style={s.planTitle}>{plan.title}</span>
+                  <span style={s.planDate}>
+                    {new Date(plan.created_at).toLocaleDateString(undefined, {
+                      month: "short", day: "numeric", year: "numeric",
+                    })}
+                  </span>
+                </button>
+
+                {hoveredId === plan.id && confirmDeleteId !== plan.id && (
+                  <button
+                    style={s.deleteBtn}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(plan.id); }}
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
+                )}
+
+                {confirmDeleteId === plan.id && (
+                  <div style={s.confirmRow}>
+                    <span style={s.confirmText}>Delete this plan?</span>
+                    <button style={s.confirmYes} onClick={() => deletePlan(plan.id)}>Yes</button>
+                    <button style={s.confirmNo} onClick={() => setConfirmDeleteId(null)}>No</button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
       </section>
 
-      <button style={s.learnBtn} onClick={() => setShowLearnForm(true)}>
+      <button
+        style={{ ...s.learnBtn, color: learnHovered ? "#111827" : "#9ca3af" }}
+        onClick={() => setShowLearnForm(true)}
+        onMouseEnter={() => setLearnHovered(true)}
+        onMouseLeave={() => setLearnHovered(false)}
+      >
         + Learn something new
       </button>
 
@@ -118,30 +154,78 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   planCard: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: "#fff",
+    overflow: "hidden",
+  },
+  planCardInner: {
+    flex: 1,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     padding: "12px 16px",
-    borderRadius: 10,
-    border: "1px solid #e5e7eb",
-    background: "#fff",
+    background: "transparent",
+    border: "none",
     cursor: "pointer",
     textAlign: "left",
-    width: "100%",
-    transition: "background 0.1s",
   },
   planTitle: { fontSize: 14, fontWeight: 600, color: "#111827" },
   planDate: { fontSize: 12, color: "#9ca3af", whiteSpace: "nowrap" },
-  learnBtn: {
-    alignSelf: "flex-start",
-    padding: "10px 20px",
-    borderRadius: 8,
+  deleteBtn: {
+    padding: "0 14px",
+    alignSelf: "stretch",
     border: "none",
-    background: "#2563eb",
+    background: "transparent",
+    color: "#9ca3af",
+    fontSize: 13,
+    cursor: "pointer",
+    borderLeft: "1px solid #f3f4f6",
+  },
+  confirmRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 12px",
+    background: "#fff7ed",
+    borderLeft: "1px solid #fed7aa",
+    whiteSpace: "nowrap",
+  },
+  confirmText: { fontSize: 13, color: "#92400e" },
+  confirmYes: {
+    padding: "4px 10px",
+    borderRadius: 6,
+    border: "none",
+    background: "#ef4444",
     color: "#fff",
     fontWeight: 600,
-    fontSize: 14,
+    fontSize: 12,
     cursor: "pointer",
+  },
+  confirmNo: {
+    padding: "4px 10px",
+    borderRadius: 6,
+    border: "1px solid #d1d5db",
+    background: "transparent",
+    fontWeight: 600,
+    fontSize: 12,
+    cursor: "pointer",
+    color: "#374151",
+  },
+  learnBtn: {
+    alignSelf: "flex-start",
+    padding: "4px 0",
+    border: "none",
+    background: "transparent",
+    color: "#9ca3af",
+    fontWeight: 400,
+    fontSize: 13,
+    cursor: "pointer",
+    letterSpacing: "0.01em",
+    transition: "color 0.15s",
   },
   // Plan viewer modal
   overlay: {

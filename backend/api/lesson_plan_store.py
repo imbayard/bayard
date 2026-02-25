@@ -30,6 +30,13 @@ async def set_plan(title: str, plan: str) -> int:
         return cursor.lastrowid
 
 
+async def delete_plan(plan_id: int) -> None:
+    """Delete a lesson plan by id."""
+    async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("DELETE FROM lesson_plans WHERE id = ?", (plan_id,))
+        await db.commit()
+
+
 async def get_plans() -> list[dict]:
     """Return all lesson plans ordered newest first."""
     async with aiosqlite.connect(str(DB_PATH)) as db:
