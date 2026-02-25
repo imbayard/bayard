@@ -1,4 +1,6 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
   onClose: () => void;
@@ -31,6 +33,8 @@ export default function LearnForm({ onClose }: Props) {
     avoid: "",
     harshness: "",
   });
+  const [lessonPlan, setLessonPlan] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const isReview = step === TOTAL_STEPS;
 
@@ -41,7 +45,26 @@ export default function LearnForm({ onClose }: Props) {
 
   function close() {
     setStep(0);
+    setLessonPlan(null);
     onClose();
+  }
+
+  async function generatePlan() {
+    setStep(TOTAL_STEPS);
+    setGenerating(true);
+    try {
+      const res = await fetch("http://localhost:8000/lesson-plan/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      setLessonPlan(data.markdown);
+    } catch {
+      setLessonPlan("Failed to generate lesson plan. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   return (
@@ -68,9 +91,16 @@ export default function LearnForm({ onClose }: Props) {
 
         {/* Step content */}
         {isReview ? (
-          <div style={s.reviewStub}>
-            <p style={s.empty}>Lesson plan will appear here…</p>
-          </div>
+          generating ? (
+            <div style={s.loaderBox}>
+              <div style={s.spinner} />
+              <p style={s.loaderText}>Generating your lesson plan…</p>
+            </div>
+          ) : (
+            <div style={s.markdownBox}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonPlan ?? ""}</ReactMarkdown>
+            </div>
+          )
         ) : (
           <>
             <label style={s.label}>{LEARN_STEPS[step].label}</label>
@@ -86,15 +116,15 @@ export default function LearnForm({ onClose }: Props) {
 
         {/* Footer */}
         <div style={s.footer}>
-          <button style={s.ghostBtn} onClick={close}>Cancel</button>
+          <button style={s.ghostBtn} onClick={close} disabled={generating}>Cancel</button>
           <div style={{ display: "flex", gap: 8 }}>
-            {step > 0 && (
+            {step > 0 && !generating && (
               <button style={s.ghostBtn} onClick={() => setStep((n) => n - 1)}>Back</button>
             )}
             {isReview ? (
-              <button style={s.primaryBtn}>Start learning</button>
+              <button style={s.primaryBtn} disabled={generating}>Start learning</button>
             ) : step === TOTAL_STEPS - 1 ? (
-              <button style={s.primaryBtn} onClick={() => setStep(TOTAL_STEPS)}>
+              <button style={s.primaryBtn} onClick={generatePlan}>
                 Generate lesson plan
               </button>
             ) : (
@@ -121,9 +151,8 @@ const s: Record<string, React.CSSProperties> = {
     background: "#fff",
     borderRadius: 16,
     padding: "28px 24px",
-    width: 480,
-    maxHeight: "90vh",
-    overflowY: "auto",
+    width: 560,
+    height: "80vh",
     display: "flex",
     flexDirection: "column",
     gap: 12,
@@ -145,16 +174,31 @@ const s: Record<string, React.CSSProperties> = {
     transition: "width 0.25s ease",
   },
   progressLabel: { fontSize: 12, fontWeight: 600, color: "#6b7280", whiteSpace: "nowrap" },
-  reviewStub: {
+  loaderBox: {
     flex: 1,
-    minHeight: 160,
-    border: "1px dashed #d1d5db",
-    borderRadius: 12,
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: 16,
   },
-  empty: { margin: 0, fontSize: 13, color: "#9ca3af" },
+  spinner: {
+    width: 32,
+    height: 32,
+    border: "3px solid #e5e7eb",
+    borderTop: "3px solid #2563eb",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+  },
+  loaderText: { margin: 0, fontSize: 14, color: "#6b7280" },
+  markdownBox: {
+    flex: 1,
+    overflowY: "auto",
+    minHeight: 0,
+    fontSize: 14,
+    lineHeight: 1.7,
+    color: "#111827",
+  },
   label: { fontSize: 13, fontWeight: 600, color: "#374151" },
   formArea: {
     resize: "vertical",

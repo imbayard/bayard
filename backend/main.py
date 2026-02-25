@@ -9,6 +9,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 
 from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
+from backend.agents.course_planner import generate_lesson_plan
 
 
 @asynccontextmanager
@@ -33,6 +34,14 @@ class ChatRequest(BaseModel):
     history: list = []
 
 
+class LessonPlanRequest(BaseModel):
+    topic: str
+    experience: str
+    explore: str
+    avoid: str
+    harshness: str
+
+
 @app.post("/chat/stream")
 async def chat_stream_endpoint(req: ChatRequest):
     return StreamingResponse(
@@ -40,3 +49,15 @@ async def chat_stream_endpoint(req: ChatRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.post("/lesson-plan/generate")
+async def lesson_plan_endpoint(req: LessonPlanRequest):
+    markdown = await generate_lesson_plan(
+        topic=req.topic,
+        experience=req.experience,
+        explore=req.explore,
+        avoid=req.avoid,
+        harshness=req.harshness,
+    )
+    return {"markdown": markdown}
