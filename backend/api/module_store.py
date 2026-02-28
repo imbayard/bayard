@@ -41,6 +41,7 @@ async def save_modules(plan_id: int, modules: list[dict]) -> None:
 async def get_modules(plan_id: int) -> list[dict]:
     """Return all modules for a plan ordered by position."""
     async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM modules WHERE plan_id = ? ORDER BY position", (plan_id,)
@@ -57,6 +58,7 @@ async def get_modules(plan_id: int) -> list[dict]:
 async def get_module(module_id: int) -> dict | None:
     """Return a single module by id."""
     async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM modules WHERE id = ?", (module_id,)) as cursor:
             row = await cursor.fetchone()
@@ -78,11 +80,13 @@ async def update_module(module_id: int, fields: dict) -> None:
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = list(updates.values()) + [module_id]
     async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         await db.execute(f"UPDATE modules SET {set_clause} WHERE id = ?", values)
         await db.commit()
 
 
 async def delete_module(module_id: int) -> None:
     async with aiosqlite.connect(str(DB_PATH)) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         await db.execute("DELETE FROM modules WHERE id = ?", (module_id,))
         await db.commit()

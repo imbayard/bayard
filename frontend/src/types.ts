@@ -5,3 +5,11 @@ export interface Module {
   key_points: string[];
   challenge: string;
 }
+
+export interface LessonPlan {
+  id: number;
+  title: string;
+  plan: string;
+  status: string;
+  created_at: string;
+}

@@ -4,6 +4,8 @@ import remarkGfm from "remark-gfm";
 import ModuleCard from "./ModuleCard";
 import type { Module } from "../types";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 interface Props {
   onClose: () => void;
 }
@@ -77,7 +79,7 @@ export default function LearnForm({ onClose }: Props) {
     setStep(REVIEW_STEP);
     setGenerating(true);
     try {
-      const res = await fetch("http://localhost:8000/lesson-plan/generate", {
+      const res = await fetch(`${API_BASE}/lesson-plan/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -101,7 +103,7 @@ export default function LearnForm({ onClose }: Props) {
     if (!planTitle.trim() || !lessonPlan) return;
     setSaving(true);
     try {
-      await fetch("http://localhost:8000/lesson-plan/save", {
+      await fetch(`${API_BASE}/lesson-plan/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: planTitle.trim(), plan: lessonPlan, modules }),

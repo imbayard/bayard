@@ -39,3 +39,6 @@ bootcamp/*
 # Data
 backend/data/
 /data
+
+# Context
+*.md

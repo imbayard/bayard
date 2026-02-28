@@ -3,6 +3,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Dashboard from "./dashboard/Dashboard";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 type Role = "user" | "assistant";
 type View = "chat" | "dashboard";
 
@@ -36,7 +38,7 @@ export default function App() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/chat/stream", {
+      const res = await fetch(`${API_BASE}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),

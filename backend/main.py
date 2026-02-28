@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
 from backend.agents.course_planner import generate_lesson_plan
-from backend.api.lesson_plan_store import create_table as create_plans_table, set_plan, get_plans, delete_plan
+from backend.api.lesson_plan_store import create_table as create_plans_table, set_plan, get_plans, delete_plan, update_plan_status
 from backend.api.module_store import (
     create_table as create_modules_table,
     save_modules,
@@ -108,6 +108,12 @@ async def lesson_plan_save(req: SaveLessonPlanRequest):
 async def lesson_plans_list():
     plans = await get_plans()
     return {"plans": plans}
+
+
+@app.put("/lesson-plan/{plan_id}")
+async def lesson_plan_update_status(plan_id: int, body: dict):
+    await update_plan_status(plan_id, body["status"])
+    return {"ok": True}
 
 
 @app.delete("/lesson-plan/{plan_id}")

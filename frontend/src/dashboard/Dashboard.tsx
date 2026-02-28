@@ -3,14 +3,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import LearnForm from "./LearnForm";
 import ModuleCard from "./ModuleCard";
-import type { Module } from "../types";
+import type { Module, LessonPlan } from "../types";
 
-interface LessonPlan {
-  id: number;
-  title: string;
-  plan: string;
-  created_at: string;
-}
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export default function Dashboard() {
   const [showLearnForm, setShowLearnForm] = useState(false);
@@ -26,7 +21,7 @@ export default function Dashboard() {
 
   async function fetchPlans() {
     try {
-      const res = await fetch("http://localhost:8000/lesson-plans");
+      const res = await fetch(`${API_BASE}/lesson-plans`);
       const data = await res.json();
       setPlans(data.plans);
     } catch {
@@ -48,7 +43,7 @@ export default function Dashboard() {
     setSelectedModules([]);
     setPlanCollapsed(true);
     try {
-      const res = await fetch(`http://localhost:8000/lesson-plan/${plan.id}/modules`);
+      const res = await fetch(`${API_BASE}/lesson-plan/${plan.id}/modules`);
       const data = await res.json();
       setSelectedModules(data.modules ?? []);
     } catch {
@@ -69,7 +64,7 @@ export default function Dashboard() {
   }
 
   async function deletePlan(id: number) {
-    await fetch(`http://localhost:8000/lesson-plan/${id}`, { method: "DELETE" });
+    await fetch(`${API_BASE}/lesson-plan/${id}`, { method: "DELETE" });
     setConfirmDeleteId(null);
     setPlans((prev) => prev.filter((p) => p.id !== id));
   }
@@ -100,7 +95,17 @@ export default function Dashboard() {
                   style={s.planCardInner}
                   onClick={() => openPlan(plan)}
                 >
-                  <span style={s.planTitle}>{plan.title}</span>
+                  <div style={s.planCardLeft}>
+                    <span style={s.planTitle}>{plan.title}</span>
+                    <span
+                      style={{
+                        ...s.statusBadge,
+                        ...(plan.status === "completed" ? s.statusCompleted : s.statusActive),
+                      }}
+                    >
+                      {plan.status}
+                    </span>
+                  </div>
                   <span style={s.planDate}>
                     {new Date(plan.created_at).toLocaleDateString(undefined, {
                       month: "short", day: "numeric", year: "numeric",
@@ -224,7 +229,27 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     textAlign: "left",
   },
+  planCardLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
   planTitle: { fontSize: 14, fontWeight: 600, color: "#111827" },
+  statusBadge: {
+    fontSize: 11,
+    fontWeight: 600,
+    padding: "2px 7px",
+    borderRadius: 99,
+    textTransform: "capitalize",
+  },
+  statusActive: {
+    background: "#dcfce7",
+    color: "#166534",
+  },
+  statusCompleted: {
+    background: "#dbeafe",
+    color: "#1e40af",
+  },
   planDate: { fontSize: 12, color: "#9ca3af", whiteSpace: "nowrap" },
   deleteBtn: {
     padding: "0 14px",
