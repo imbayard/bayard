@@ -64,8 +64,8 @@ class SaveLessonPlanRequest(BaseModel):
 class UpdateModuleRequest(BaseModel):
     name: str | None = None
     description: str | None = None
-    key_points: list[str] | None = None
-    challenge: str | None = None
+    type: str | None = None
+    status: str | None = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

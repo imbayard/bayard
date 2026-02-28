@@ -4,11 +4,13 @@ import os
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 
+from backend.config import MODEL_PLANNER
+
 load_dotenv()
 
 _client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-MODEL = "claude-sonnet-4-5"
+MODEL = MODEL_PLANNER
 
 PLAN_SYSTEM_PROMPT = """You are an expert curriculum designer. Given a learner's answers to 5 intake questions, produce a lesson plan overview in markdown.
 
@@ -49,14 +51,13 @@ SAVE_MODULES_TOOL = {
                     "properties": {
                         "name": {"type": "string", "description": "Module title"},
                         "description": {"type": "string", "description": "One sentence — what the learner can do after this module"},
-                        "key_points": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "3–5 concrete things to cover",
+                        "type": {
+                            "type": "string",
+                            "enum": ["physical", "conceptual", "applicable"],
+                            "description": "physical — involves movement, exercise, or body mechanics; conceptual — understanding ideas, theory, or mental models; applicable — applying knowledge to real situations, practice, or projects",
                         },
-                        "challenge": {"type": "string", "description": "Specific, timed exercise or task to prove mastery"},
                     },
-                    "required": ["name", "description", "key_points", "challenge"],
+                    "required": ["name", "description", "type"],
                 },
             }
         },
