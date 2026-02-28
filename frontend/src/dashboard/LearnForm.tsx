@@ -51,6 +51,7 @@ export default function LearnForm({ onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [planCollapsed, setPlanCollapsed] = useState(true);
   const [planCopied, setPlanCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isReview    = step === REVIEW_STEP;
   const isTitleStep = step === TITLE_STEP;
@@ -102,6 +103,7 @@ export default function LearnForm({ onClose }: Props) {
   async function save() {
     if (!planTitle.trim() || !lessonPlan) return;
     setSaving(true);
+    setError(null);
     try {
       await fetch(`${API_BASE}/lesson-plan/save`, {
         method: "POST",
@@ -110,7 +112,7 @@ export default function LearnForm({ onClose }: Props) {
       });
       close();
     } catch {
-      // TODO: surface error to user
+      setError("Could not save plan. Is the backend running?");
     } finally {
       setSaving(false);
     }
@@ -200,6 +202,13 @@ export default function LearnForm({ onClose }: Props) {
               autoFocus
             />
           </>
+        )}
+
+        {error && (
+          <div style={s.errorBar}>
+            <span>{error}</span>
+            <button style={s.errorDismiss} onClick={() => setError(null)}>✕</button>
+          </div>
         )}
 
         {/* Footer */}
@@ -399,6 +408,25 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "inherit",
     width: "100%",
     boxSizing: "border-box",
+  },
+  errorBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 12px",
+    borderRadius: 8,
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    fontSize: 13,
+    color: "#991b1b",
+  },
+  errorDismiss: {
+    border: "none",
+    background: "transparent",
+    color: "#991b1b",
+    cursor: "pointer",
+    fontSize: 13,
+    padding: "0 4px",
   },
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   primaryBtn: {

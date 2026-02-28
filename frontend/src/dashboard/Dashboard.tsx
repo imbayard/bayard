@@ -18,14 +18,16 @@ export default function Dashboard() {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [learnHovered, setLearnHovered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function fetchPlans() {
+    setError(null);
     try {
       const res = await fetch(`${API_BASE}/lesson-plans`);
       const data = await res.json();
       setPlans(data.plans);
     } catch {
-      // silently fail — empty list is fine
+      setError("Could not load plans. Is the backend running?");
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export default function Dashboard() {
       const data = await res.json();
       setSelectedModules(data.modules ?? []);
     } catch {
-      // silently fail — plan still opens without modules
+      setError("Could not load modules.");
     }
   }
 
@@ -64,15 +66,27 @@ export default function Dashboard() {
   }
 
   async function deletePlan(id: number) {
-    await fetch(`${API_BASE}/lesson-plan/${id}`, { method: "DELETE" });
-    setConfirmDeleteId(null);
-    setPlans((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await fetch(`${API_BASE}/lesson-plan/${id}`, { method: "DELETE" });
+      setConfirmDeleteId(null);
+      setPlans((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      setError("Could not delete plan.");
+      setConfirmDeleteId(null);
+    }
   }
 
   return (
     <div style={s.dashboard}>
       <section style={s.section}>
         <h2 style={s.sectionTitle}>Goals</h2>
+
+        {error && (
+          <div style={s.errorBar}>
+            <span>{error}</span>
+            <button style={s.errorDismiss} onClick={() => setError(null)}>✕</button>
+          </div>
+        )}
 
         {loading ? (
           <div style={s.emptyBox}>
@@ -194,6 +208,25 @@ const s: Record<string, React.CSSProperties> = {
     gap: 24,
   },
   section: { display: "flex", flexDirection: "column", gap: 12 },
+  errorBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 12px",
+    borderRadius: 8,
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    fontSize: 13,
+    color: "#991b1b",
+  },
+  errorDismiss: {
+    border: "none",
+    background: "transparent",
+    color: "#991b1b",
+    cursor: "pointer",
+    fontSize: 13,
+    padding: "0 4px",
+  },
   sectionTitle: { margin: 0, fontSize: 16, fontWeight: 700, color: "#111827" },
   emptyBox: {
     minHeight: 80,
