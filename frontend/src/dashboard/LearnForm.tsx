@@ -10,25 +10,9 @@ interface Props {
   onClose: () => void;
 }
 
-const LEARN_STEPS: { label: string; field: keyof LearnFormState; rows: number }[] = [
-  { label: "What do you want to learn about and why?", field: "topic", rows: 4 },
-  { label: "What is your experience level?", field: "experience", rows: 3 },
-  { label: "Anything specific you want us to explore?", field: "explore", rows: 3 },
-  { label: "Anything you want to avoid?", field: "avoid", rows: 3 },
-  { label: "How harsh should I be with you?", field: "harshness", rows: 3 },
-];
-
-const TOTAL_STEPS = LEARN_STEPS.length; // 5 — last question step index is TOTAL_STEPS - 1
-const REVIEW_STEP = TOTAL_STEPS;        // 5
-const TITLE_STEP  = TOTAL_STEPS + 1;   // 6
-
-interface LearnFormState {
-  topic: string;
-  experience: string;
-  explore: string;
-  avoid: string;
-  harshness: string;
-}
+const INPUT_STEP  = 0;
+const REVIEW_STEP = 1;
+const TITLE_STEP  = 2;
 
 function extractH1(markdown: string): string {
   const firstLine = markdown.split("\n")[0] ?? "";
@@ -36,14 +20,8 @@ function extractH1(markdown: string): string {
 }
 
 export default function LearnForm({ onClose }: Props) {
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState<LearnFormState>({
-    topic: "",
-    experience: "",
-    explore: "",
-    avoid: "",
-    harshness: "",
-  });
+  const [step, setStep] = useState(INPUT_STEP);
+  const [prompt, setPrompt] = useState("");
   const [lessonPlan, setLessonPlan] = useState<string | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -53,16 +31,9 @@ export default function LearnForm({ onClose }: Props) {
   const [planCopied, setPlanCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isReview    = step === REVIEW_STEP;
-  const isTitleStep = step === TITLE_STEP;
-
-  function setField(field: keyof LearnFormState) {
-    return (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
-  }
-
   function close() {
-    setStep(0);
+    setStep(INPUT_STEP);
+    setPrompt("");
     setLessonPlan(null);
     setModules([]);
     setPlanTitle("");
@@ -83,7 +54,7 @@ export default function LearnForm({ onClose }: Props) {
       const res = await fetch(`${API_BASE}/lesson-plan/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
       setLessonPlan(data.markdown);
@@ -118,37 +89,39 @@ export default function LearnForm({ onClose }: Props) {
     }
   }
 
-  // ── Header title ────────────────────────────────────────────────────────────
-  const modalTitle = isTitleStep
-    ? "Name your lesson plan"
-    : isReview
-    ? "Review your lesson plan"
-    : "Learn something new";
+  const modalTitle =
+    step === TITLE_STEP  ? "Name your lesson plan" :
+    step === REVIEW_STEP ? "Review your lesson plan" :
+                           "Learn something new";
 
   return (
     <div style={s.overlay} onClick={close}>
       <div style={s.modal} onClick={(e) => e.stopPropagation()}>
         <h3 style={s.title}>{modalTitle}</h3>
 
-        {/* Progress bar — only shown during questions and review */}
-        {!isTitleStep && (
-          <div style={s.progressRow}>
-            <div style={s.progressTrack}>
-              <div
-                style={{
-                  ...s.progressFill,
-                  width: `${(Math.min(step, TOTAL_STEPS) / TOTAL_STEPS) * 100}%`,
-                }}
-              />
+        {step === INPUT_STEP && (
+          <>
+            <div style={s.questionBlock}>
+              <p style={s.question}>Tell me what you want to learn about.</p>
+              <ul style={s.hints}>
+                <li>Why do you want to learn this?</li>
+                <li>What's your current experience level?</li>
+                <li>Anything specific you want to explore or avoid?</li>
+                <li>How harsh should I be with you?</li>
+              </ul>
             </div>
-            <span style={s.progressLabel}>
-              {isReview ? `${TOTAL_STEPS} / ${TOTAL_STEPS}` : `${step} / ${TOTAL_STEPS}`}
-            </span>
-          </div>
+            <textarea
+              style={s.formArea}
+              rows={4}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Write freely — a sentence or a few paragraphs, whatever feels natural."
+              autoFocus
+            />
+          </>
         )}
 
-        {/* Step content */}
-        {isTitleStep ? (
+        {step === TITLE_STEP && (
           <div style={s.titleStepBox}>
             <label style={s.label}>Title</label>
             <input
@@ -159,7 +132,9 @@ export default function LearnForm({ onClose }: Props) {
               autoFocus
             />
           </div>
-        ) : isReview ? (
+        )}
+
+        {step === REVIEW_STEP && (
           generating ? (
             <div style={s.loaderBox}>
               <div style={s.spinner} />
@@ -191,17 +166,6 @@ export default function LearnForm({ onClose }: Props) {
               )}
             </div>
           )
-        ) : (
-          <>
-            <label style={s.label}>{LEARN_STEPS[step].label}</label>
-            <textarea
-              style={s.formArea}
-              rows={LEARN_STEPS[step].rows}
-              value={form[LEARN_STEPS[step].field]}
-              onChange={setField(LEARN_STEPS[step].field)}
-              autoFocus
-            />
-          </>
         )}
 
         {error && (
@@ -211,46 +175,25 @@ export default function LearnForm({ onClose }: Props) {
           </div>
         )}
 
-        {/* Footer */}
         <div style={s.footer}>
           <button style={s.ghostBtn} onClick={close} disabled={generating || saving}>
             Cancel
           </button>
-          <div style={{ display: "flex", gap: 8 }}>
-            {step > 0 && !generating && !saving && (
-              <button
-                style={s.ghostBtn}
-                onClick={() => setStep((n) => n - 1)}
-              >
-                Back
-              </button>
-            )}
-            {isTitleStep ? (
-              <button
-                style={s.primaryBtn}
-                onClick={save}
-                disabled={saving || !planTitle.trim()}
-              >
-                {saving ? "Saving…" : "Save"}
-              </button>
-            ) : isReview ? (
-              <button
-                style={s.primaryBtn}
-                onClick={goToTitleStep}
-                disabled={generating}
-              >
-                Start learning
-              </button>
-            ) : step === TOTAL_STEPS - 1 ? (
-              <button style={s.primaryBtn} onClick={generatePlan}>
-                Generate lesson plan
-              </button>
-            ) : (
-              <button style={s.primaryBtn} onClick={() => setStep((n) => n + 1)}>
-                Next
-              </button>
-            )}
-          </div>
+          {step === INPUT_STEP && (
+            <button style={s.primaryBtn} onClick={generatePlan} disabled={!prompt.trim()}>
+              Generate lesson plan
+            </button>
+          )}
+          {step === REVIEW_STEP && (
+            <button style={s.primaryBtn} onClick={goToTitleStep} disabled={generating}>
+              Start learning
+            </button>
+          )}
+          {step === TITLE_STEP && (
+            <button style={s.primaryBtn} onClick={save} disabled={saving || !planTitle.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -279,21 +222,38 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
   },
   title: { margin: 0, fontSize: 18, fontWeight: 700, color: "#111827" },
-  progressRow: { display: "flex", alignItems: "center", gap: 10 },
-  progressTrack: {
-    flex: 1,
-    height: 6,
-    background: "#e5e7eb",
-    borderRadius: 99,
-    overflow: "hidden",
+  questionBlock: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
   },
-  progressFill: {
-    height: "100%",
-    background: "#2563eb",
-    borderRadius: 99,
-    transition: "width 0.25s ease",
+  question: {
+    margin: 0,
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#111827",
   },
-  progressLabel: { fontSize: 12, fontWeight: 600, color: "#6b7280", whiteSpace: "nowrap" },
+  hints: {
+    margin: 0,
+    paddingLeft: 20,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    fontSize: 13,
+    color: "#6b7280",
+    lineHeight: 1.6,
+  },
+  formArea: {
+    resize: "vertical",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    fontSize: 14,
+    fontFamily: "inherit",
+    width: "100%",
+    boxSizing: "border-box",
+    lineHeight: 1.6,
+  },
   loaderBox: {
     flex: 1,
     display: "flex",
@@ -398,16 +358,6 @@ const s: Record<string, React.CSSProperties> = {
     width: "100%",
     boxSizing: "border-box",
     outline: "none",
-  },
-  formArea: {
-    resize: "vertical",
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    fontSize: 14,
-    fontFamily: "inherit",
-    width: "100%",
-    boxSizing: "border-box",
   },
   errorBar: {
     display: "flex",

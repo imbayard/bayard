@@ -59,11 +59,7 @@ class ChatRequest(BaseModel):
 
 
 class LessonPlanRequest(BaseModel):
-    topic: str
-    experience: str
-    explore: str
-    avoid: str
-    harshness: str
+    prompt: str
 
 
 class SaveLessonPlanRequest(BaseModel):
@@ -96,13 +92,7 @@ async def chat_stream_endpoint(req: ChatRequest):
 
 @app.post("/lesson-plan/generate")
 async def lesson_plan_generate(req: LessonPlanRequest):
-    markdown, modules = await generate_lesson_plan(
-        topic=req.topic,
-        experience=req.experience,
-        explore=req.explore,
-        avoid=req.avoid,
-        harshness=req.harshness,
-    )
+    markdown, modules = await generate_lesson_plan(prompt=req.prompt)
     logging.info("generate: plan_length=%d modules=%d", len(markdown), len(modules))
     if not markdown:
         logging.warning("generate: plan text is empty")

@@ -5,7 +5,7 @@ from backend.config import MODEL_PLANNER
 
 MODEL = MODEL_PLANNER
 
-PLAN_SYSTEM_PROMPT = """You are an expert curriculum designer. Given a learner's answers to 5 intake questions, produce a lesson plan overview in markdown.
+PLAN_SYSTEM_PROMPT = """You are an expert curriculum designer. Given a learner's free-text description of what they want to learn, produce a lesson plan overview in markdown.
 
 Output ONLY the markdown — no preamble, no commentary, nothing before the H1.
 
@@ -59,27 +59,8 @@ SAVE_MODULES_TOOL = {
 }
 
 
-async def generate_lesson_plan(
-    topic: str,
-    experience: str,
-    explore: str,
-    avoid: str,
-    harshness: str,
-) -> tuple[str, list[dict]]:
-    intake = f"""**What do you want to learn about and why?**
-{topic}
-
-**What is your experience level?**
-{experience}
-
-**Anything specific you want us to explore?**
-{explore}
-
-**Anything you want to avoid?**
-{avoid}
-
-**How harsh should I be with you?**
-{harshness}"""
+async def generate_lesson_plan(prompt: str) -> tuple[str, list[dict]]:
+    intake = prompt
 
     # Step 1: Generate the plan overview markdown
     logging.info("course_planner: step 1 — generating plan overview")

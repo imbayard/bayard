@@ -16,7 +16,7 @@ interface Message {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>("chat");
+  const [view, setView] = useState<View>("dashboard");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -121,13 +121,13 @@ export default function App() {
         <button
           style={{
             ...s.dashBtn,
-            background: view === "dashboard" ? "#2563eb" : "transparent",
-            color: view === "dashboard" ? "#fff" : "#374151",
+            background: view === "chat" ? "#2563eb" : "transparent",
+            color: view === "chat" ? "#fff" : "#374151",
           }}
-          onClick={() => setView(view === "dashboard" ? "chat" : "dashboard")}
-          title="Dashboard"
+          onClick={() => setView(view === "chat" ? "dashboard" : "chat")}
+          title={view === "chat" ? "Dashboard" : "Chat"}
         >
-          ⊞
+          {view === "chat" ? "⊞" : "💬"}
         </button>
       </header>
 
