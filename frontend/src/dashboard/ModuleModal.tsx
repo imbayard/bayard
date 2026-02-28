@@ -6,6 +6,7 @@ import type { Module, Artifact } from "../types";
 interface Props {
   module: Module;
   onClose: () => void;
+  onComplete?: () => void;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -69,9 +70,18 @@ function Flashcard({ front, back }: { front: string; back: string }) {
   );
 }
 
-export default function ModuleModal({ module, onClose }: Props) {
+export default function ModuleModal({ module, onClose, onComplete }: Props) {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [generatingIds, setGeneratingIds] = useState<Set<number>>(new Set());
+  const [completing, setCompleting] = useState(false);
+
+  async function handleComplete() {
+    setCompleting(true);
+    await fetch(`${API_BASE}/module/${module.id}/complete`, { method: "POST" });
+    setCompleting(false);
+    onComplete?.();
+    onClose();
+  }
 
   useEffect(() => {
     if (!module.id) return;
@@ -128,6 +138,14 @@ export default function ModuleModal({ module, onClose }: Props) {
           </div>
           <button style={s.closeBtn} onClick={onClose}>✕</button>
         </div>
+
+        {module.status === "active" && (
+          <div style={s.footer}>
+            <button style={s.completeBtn} onClick={handleComplete} disabled={completing}>
+              {completing ? "Saving…" : "Mark Complete"}
+            </button>
+          </div>
+        )}
 
         <div style={s.body}>
           <p style={s.description}>{module.description}</p>
@@ -321,6 +339,21 @@ const s: Record<string, React.CSSProperties> = {
     padding: "4px 8px",
     borderRadius: 6,
     flexShrink: 0,
+  },
+  footer: {
+    padding: "12px 24px",
+    borderBottom: "1px solid #e5e7eb",
+    flexShrink: 0,
+  },
+  completeBtn: {
+    padding: "8px 18px",
+    borderRadius: 8,
+    border: "none",
+    background: "#16a34a",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: "pointer",
   },
   body: {
     flex: 1,

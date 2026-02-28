@@ -19,6 +19,7 @@ from backend.api.module_store import (
     get_modules,
     get_module,
     update_module,
+    complete_module,
     delete_module,
 )
 from backend.api.artifact_store import (
@@ -150,6 +151,15 @@ async def module_update(module_id: int, req: UpdateModuleRequest):
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     await update_module(module_id, fields)
+    return {"ok": True}
+
+
+@app.post("/module/{module_id}/complete")
+async def module_complete(module_id: int):
+    module = await get_module(module_id)
+    if module is None:
+        raise HTTPException(status_code=404, detail="Module not found")
+    await complete_module(module_id)
     return {"ok": True}
 
 

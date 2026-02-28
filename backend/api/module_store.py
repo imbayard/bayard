@@ -20,14 +20,36 @@ async def create_table() -> None:
 
 
 async def save_modules(plan_id: int, modules: list[dict]) -> None:
-    """Bulk insert modules for a plan."""
+    """Bulk insert modules for a plan. First module starts active; rest locked."""
     async with get_db() as db:
         for i, m in enumerate(modules):
+            status = "active" if i == 0 else "locked"
             await db.execute(
                 """INSERT INTO modules (plan_id, position, name, description, type, status)
                    VALUES (?, ?, ?, ?, ?, ?)""",
-                (plan_id, i + 1, m["name"], m["description"], m["type"], "locked"),
+                (plan_id, i + 1, m["name"], m["description"], m["type"], status),
             )
+        await db.commit()
+
+
+async def complete_module(module_id: int) -> None:
+    """Mark a module completed and unlock the next one in sequence."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT plan_id, position FROM modules WHERE id = ?", (module_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row is None:
+                return
+            plan_id, position = row["plan_id"], row["position"]
+        await db.execute(
+            "UPDATE modules SET status = 'completed' WHERE id = ?", (module_id,)
+        )
+        await db.execute(
+            """UPDATE modules SET status = 'active'
+               WHERE plan_id = ? AND position = ? AND status = 'locked'""",
+            (plan_id, position + 1),
+        )
         await db.commit()
 
 

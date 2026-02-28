@@ -164,7 +164,11 @@ export default function Dashboard() {
       {showLearnForm && <LearnForm onClose={handleFormClose} />}
 
       {selectedModule && (
-        <ModuleModal module={selectedModule} onClose={() => setSelectedModule(null)} />
+        <ModuleModal
+          module={selectedModule}
+          onClose={() => setSelectedModule(null)}
+          onComplete={() => { setSelectedModule(null); openPlan(selectedPlan!); }}
+        />
       )}
 
       {selectedPlan && (
@@ -193,7 +197,7 @@ export default function Dashboard() {
                 <div style={s.modulesSection}>
                   <p style={s.modulesSectionTitle}>Modules</p>
                   {selectedModules.map((m, i) => (
-                    <ModuleCard key={m.id ?? i} module={m} position={i + 1} onOpen={() => setSelectedModule(m)} />
+                    <ModuleCard key={m.id ?? i} module={m} position={i + 1} onOpen={m.status !== "locked" ? () => setSelectedModule(m) : undefined} />
                   ))}
                 </div>
               )}
