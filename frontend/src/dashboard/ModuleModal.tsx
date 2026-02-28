@@ -16,6 +16,59 @@ const TYPE_COLORS: Record<string, string> = {
   applicable: "#16a34a",
 };
 
+function Flashcard({ front, back }: { front: string; back: string }) {
+  const [flipped, setFlipped] = useState(false);
+  return (
+    <div
+      style={{ perspective: "800px", cursor: "pointer" }}
+      onClick={() => setFlipped((f) => !f)}
+    >
+      <div
+        style={{
+          display: "grid",
+          transformStyle: "preserve-3d",
+          transition: "transform 0.4s ease",
+          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+        }}
+      >
+        <div
+          style={{
+            gridArea: "1 / 1",
+            backfaceVisibility: "hidden",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "12px 14px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: 8,
+            background: "#fff",
+          }}
+        >
+          <span style={{ fontWeight: 700, color: "#111827", fontSize: 13 }}>{front}</span>
+          <span style={{ fontSize: 11, color: "#d1d5db" }}>tap to flip</span>
+        </div>
+        <div
+          style={{
+            gridArea: "1 / 1",
+            backfaceVisibility: "hidden",
+            transform: "rotateY(180deg)",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#f9fafb",
+          }}
+        >
+          <span style={{ color: "#374151", fontSize: 13, textAlign: "center" }}>{back}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ModuleModal({ module, onClose }: Props) {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [generatingIds, setGeneratingIds] = useState<Set<number>>(new Set());
@@ -113,11 +166,7 @@ function renderArtifact(artifact: Artifact) {
       return (
         <div style={s.flashcardGrid}>
           {artifact.data.cards.map((card, i) => (
-            <div key={i} style={s.flashcard}>
-              <div style={s.flashcardFront}>{card.front}</div>
-              <div style={s.flashcardDivider} />
-              <div style={s.flashcardBack}>{card.back}</div>
-            </div>
+            <Flashcard key={i} front={card.front} back={card.back} />
           ))}
         </div>
       );
@@ -327,17 +376,6 @@ const s: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
     gap: 8,
   },
-  flashcard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    padding: "10px 12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  },
-  flashcardFront: { fontWeight: 700, color: "#111827" },
-  flashcardDivider: { height: 1, background: "#e5e7eb" },
-  flashcardBack: { color: "#374151" },
   // quiz
   quizList: { margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 12 },
   quizItem: {},
