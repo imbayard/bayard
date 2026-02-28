@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import type { Module } from "../types";
 
 interface Props {
   module: Module;
   position: number;
 }
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const TYPE_COLORS: Record<string, string> = {
   physical: "#7c3aed",
@@ -24,6 +27,16 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 export default function ModuleCard({ module, position }: Props) {
+  const [artifactTypes, setArtifactTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!module.id) return;
+    fetch(`${API_BASE}/module/${module.id}/artifacts`)
+      .then((r) => r.json())
+      .then((d) => setArtifactTypes((d.artifacts ?? []).map((a: { type: string }) => a.type)))
+      .catch(() => {});
+  }, [module.id]);
+
   const typeColor = TYPE_COLORS[module.type] ?? "#6b7280";
   const statusColor = STATUS_COLORS[module.status] ?? "#6b7280";
   const statusIcon = STATUS_ICONS[module.status] ?? "";
@@ -39,6 +52,13 @@ export default function ModuleCard({ module, position }: Props) {
         </span>
       </div>
       <p style={s.description}>{module.description}</p>
+      {artifactTypes.length > 0 && (
+        <div style={s.artifactRow}>
+          {artifactTypes.map((t, i) => (
+            <span key={i} style={s.artifactChip}>{t}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -86,4 +106,16 @@ const s: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
   },
   description: { margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.5 },
+  artifactRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 4,
+  },
+  artifactChip: {
+    background: "#f3f4f6",
+    color: "#374151",
+    fontSize: 11,
+    borderRadius: 6,
+    padding: "2px 8px",
+  },
 };

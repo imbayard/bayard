@@ -1,14 +1,7 @@
 import logging
-import os
 
-from anthropic import AsyncAnthropic
-from dotenv import load_dotenv
-
+from backend.agents.base import client, forced_tool_call
 from backend.config import MODEL_PLANNER
-
-load_dotenv()
-
-_client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 MODEL = MODEL_PLANNER
 
@@ -90,7 +83,7 @@ async def generate_lesson_plan(
 
     # Step 1: Generate the plan overview markdown
     logging.info("course_planner: step 1 — generating plan overview")
-    plan_response = await _client.messages.create(
+    plan_response = await client.messages.create(
         model=MODEL,
         max_tokens=2048,
         system=PLAN_SYSTEM_PROMPT,
@@ -102,24 +95,13 @@ async def generate_lesson_plan(
 
     # Step 2: Extract structured modules (forced tool call)
     logging.info("course_planner: step 2 — extracting modules")
-    extract_response = await _client.messages.create(
-        model=MODEL,
-        max_tokens=2048,
+    result = await forced_tool_call(
         system=EXTRACT_SYSTEM_PROMPT,
-        tools=[SAVE_MODULES_TOOL],
-        tool_choice={"type": "any"},
-        messages=[{
-            "role": "user",
-            "content": f"Learner intake:\n{intake}\n\nCurriculum overview:\n{plan_text}\n\nCall save_modules with the full breakdown for each module.",
-        }],
+        user_content=f"Learner intake:\n{intake}\n\nCurriculum overview:\n{plan_text}\n\nCall save_modules with the full breakdown for each module.",
+        tool=SAVE_MODULES_TOOL,
+        model=MODEL,
     )
-    logging.info("course_planner: step 2 stop_reason=%s content_blocks=%d", extract_response.stop_reason, len(extract_response.content))
-
-    captured_modules: list[dict] = []
-    for block in extract_response.content:
-        logging.info("course_planner: step 2 block type=%s", block.type)
-        if block.type == "tool_use" and block.name == "save_modules":
-            captured_modules = block.input["modules"]
+    captured_modules = result.get("modules", [])
     logging.info("course_planner: captured %d modules", len(captured_modules))
 
     return plan_text, captured_modules

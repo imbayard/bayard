@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
 from backend.agents.course_planner import generate_lesson_plan
+from backend.agents.artifact_seeder import seed_artifacts
 from backend.api.lesson_plan_store import create_table as create_plans_table, set_plan, get_plans, delete_plan, update_plan_status
 from backend.api.module_store import (
     create_table as create_modules_table,
@@ -19,6 +20,13 @@ from backend.api.module_store import (
     update_module,
     delete_module,
 )
+from backend.api.artifact_store import (
+    create_table as create_artifacts_table,
+    get_artifacts,
+    get_artifact,
+    update_artifact,
+    delete_artifact,
+)
 
 
 @asynccontextmanager
@@ -26,6 +34,7 @@ async def lifespan(app: FastAPI):
     await init_mcp()
     await create_plans_table()
     await create_modules_table()
+    await create_artifacts_table()
     yield
     await cleanup_mcp()
 
@@ -68,6 +77,10 @@ class UpdateModuleRequest(BaseModel):
     status: str | None = None
 
 
+class UpdateArtifactRequest(BaseModel):
+    data: dict
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.post("/chat/stream")
@@ -101,6 +114,8 @@ async def lesson_plan_save(req: SaveLessonPlanRequest):
     plan_id = await set_plan(req.title, req.plan)
     if req.modules:
         await save_modules(plan_id, req.modules)
+        saved_modules = await get_modules(plan_id)
+        await seed_artifacts(saved_modules)
     return {"id": plan_id}
 
 
@@ -140,4 +155,30 @@ async def module_update(module_id: int, req: UpdateModuleRequest):
 @app.delete("/module/{module_id}")
 async def module_delete(module_id: int):
     await delete_module(module_id)
+    return {"ok": True}
+
+
+@app.get("/module/{module_id}/artifacts")
+async def module_artifacts(module_id: int):
+    artifacts = await get_artifacts(module_id)
+    return {"artifacts": artifacts}
+
+
+@app.get("/artifact/{artifact_id}")
+async def artifact_get(artifact_id: int):
+    artifact = await get_artifact(artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return artifact
+
+
+@app.put("/artifact/{artifact_id}")
+async def artifact_update(artifact_id: int, req: UpdateArtifactRequest):
+    await update_artifact(artifact_id, req.data)
+    return {"ok": True}
+
+
+@app.delete("/artifact/{artifact_id}")
+async def artifact_delete(artifact_id: int):
+    await delete_artifact(artifact_id)
     return {"ok": True}
