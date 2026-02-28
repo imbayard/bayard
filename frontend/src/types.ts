@@ -16,51 +16,50 @@ export interface LessonPlan {
 
 // --- Artifact types ---
 
-export interface ChecklistData {
-  items: { label: string; completed: boolean }[];
-}
-
-export interface ListBuilderData {
-  prerequisites: string[];
-  steps: { label: string; description?: string }[];
-}
-
-export interface ComparisonTableData {
-  columns: string[];
-  rows: { label: string; values: string[] }[];
-}
-
-export interface FlashcardSetData {
+export interface FlashcardsData {
   cards: { front: string; back: string }[];
 }
 
-export interface GanttChartData {
-  phases: { name: string; start: string; end: string; tasks: string[] }[];
+export interface QuizData {
+  questions: { question: string; options: string[]; answer: string }[];
 }
 
-export interface CodeEditorData {
-  language: string;
-  code: string;
-  runnable: boolean;
+export interface ExerciseData {
+  objective: string;
+  steps: string[];
 }
 
-export interface SystemDiagramData {
-  nodes: { id: string; label: string }[];
-  edges: { from: string; to: string; label?: string }[];
+export interface ReadingData {
+  title: string;
+  body: string;
 }
 
-export interface GeneratedData {
-  markdown: string;
+export interface VideoData {
+  query: string;
+  topics: string[];
+}
+
+export interface ProjectData {
+  description: string;
+  deliverables: string[];
+}
+
+export interface ChecklistData {
+  items: string[];
+}
+
+export interface ReferenceData {
+  sections: { heading: string; content: string }[];
 }
 
 export type Artifact =
-  | { id: number; module_id: number; type: 'checklist';        data: ChecklistData;       created_at: string }
-  | { id: number; module_id: number; type: 'list_builder';     data: ListBuilderData;     created_at: string }
-  | { id: number; module_id: number; type: 'comparison_table'; data: ComparisonTableData; created_at: string }
-  | { id: number; module_id: number; type: 'flashcard_set';    data: FlashcardSetData;    created_at: string }
-  | { id: number; module_id: number; type: 'gantt_chart';      data: GanttChartData;      created_at: string }
-  | { id: number; module_id: number; type: 'code_editor';      data: CodeEditorData;      created_at: string }
-  | { id: number; module_id: number; type: 'system_diagram';   data: SystemDiagramData;   created_at: string }
-  | { id: number; module_id: number; type: 'generated';        data: GeneratedData;       created_at: string }
+  | { id: number; module_id: number; type: 'flashcards'; data: FlashcardsData; created_at: string }
+  | { id: number; module_id: number; type: 'quiz';       data: QuizData;       created_at: string }
+  | { id: number; module_id: number; type: 'exercise';   data: ExerciseData;   created_at: string }
+  | { id: number; module_id: number; type: 'reading';    data: ReadingData;    created_at: string }
+  | { id: number; module_id: number; type: 'video';      data: VideoData;      created_at: string }
+  | { id: number; module_id: number; type: 'project';    data: ProjectData;    created_at: string }
+  | { id: number; module_id: number; type: 'checklist';  data: ChecklistData;  created_at: string }
+  | { id: number; module_id: number; type: 'reference';  data: ReferenceData;  created_at: string }
 
 export type ArtifactType = Artifact['type']

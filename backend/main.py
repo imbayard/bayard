@@ -11,6 +11,7 @@ logging.basicConfig(level=logging.INFO)
 from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
 from backend.agents.course_planner import generate_lesson_plan
 from backend.agents.artifact_seeder import seed_artifacts
+from backend.agents.artifact_generator import generate_artifact
 from backend.api.lesson_plan_store import create_table as create_plans_table, set_plan, get_plans, delete_plan, update_plan_status
 from backend.api.module_store import (
     create_table as create_modules_table,
@@ -182,3 +183,13 @@ async def artifact_update(artifact_id: int, req: UpdateArtifactRequest):
 async def artifact_delete(artifact_id: int):
     await delete_artifact(artifact_id)
     return {"ok": True}
+
+
+@app.post("/artifact/{artifact_id}/generate")
+async def artifact_generate(artifact_id: int):
+    artifact = await get_artifact(artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    module = await get_module(artifact["module_id"])
+    await generate_artifact(artifact, module)
+    return await get_artifact(artifact_id)

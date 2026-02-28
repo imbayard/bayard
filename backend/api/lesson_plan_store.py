@@ -52,6 +52,17 @@ async def delete_plan(plan_id: int) -> None:
         await db.commit()
 
 
+async def get_plan(plan_id: int) -> dict | None:
+    """Return a single lesson plan by id."""
+    async with get_db() as db:
+        async with db.execute(
+            "SELECT id, title, plan, status, created_at FROM lesson_plans WHERE id = ?",
+            (plan_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
 async def get_plans() -> list[dict]:
     """Return all lesson plans ordered newest first."""
     async with get_db() as db:

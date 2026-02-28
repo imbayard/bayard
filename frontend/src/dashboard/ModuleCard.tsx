@@ -4,6 +4,7 @@ import type { Module } from "../types";
 interface Props {
   module: Module;
   position: number;
+  onOpen?: () => void;
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -26,7 +27,7 @@ const STATUS_ICONS: Record<string, string> = {
   completed: "✓",
 };
 
-export default function ModuleCard({ module, position }: Props) {
+export default function ModuleCard({ module, position, onOpen }: Props) {
   const [artifactTypes, setArtifactTypes] = useState<string[]>([]);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export default function ModuleCard({ module, position }: Props) {
   const statusIcon = STATUS_ICONS[module.status] ?? "";
 
   return (
-    <div style={s.card}>
+    <div style={{ ...s.card, ...(onOpen ? { cursor: "pointer" } : {}) }} onClick={onOpen}>
       <div style={s.header}>
         <span style={s.badge}>Module {position}</span>
         <span style={{ ...s.typeBadge, background: typeColor }}>{module.type}</span>

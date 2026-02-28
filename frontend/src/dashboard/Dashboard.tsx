@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import LearnForm from "./LearnForm";
 import ModuleCard from "./ModuleCard";
+import ModuleModal from "./ModuleModal";
 import type { Module, LessonPlan } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [learnHovered, setLearnHovered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedModule, setSelectedModule] = useState<Module | null>(null);
 
   async function fetchPlans() {
     setError(null);
@@ -161,6 +163,10 @@ export default function Dashboard() {
 
       {showLearnForm && <LearnForm onClose={handleFormClose} />}
 
+      {selectedModule && (
+        <ModuleModal module={selectedModule} onClose={() => setSelectedModule(null)} />
+      )}
+
       {selectedPlan && (
         <div style={s.overlay} onClick={closePlan}>
           <div style={s.viewer} onClick={(e) => e.stopPropagation()}>
@@ -187,7 +193,7 @@ export default function Dashboard() {
                 <div style={s.modulesSection}>
                   <p style={s.modulesSectionTitle}>Modules</p>
                   {selectedModules.map((m, i) => (
-                    <ModuleCard key={m.id ?? i} module={m} position={i + 1} />
+                    <ModuleCard key={m.id ?? i} module={m} position={i + 1} onOpen={() => setSelectedModule(m)} />
                   ))}
                 </div>
               )}
