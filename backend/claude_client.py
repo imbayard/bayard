@@ -11,6 +11,10 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from backend.config import MODEL_CHAT
+from backend.agents.course_planner import generate_lesson_plan
+from backend.agents.artifact_seeder import seed_artifacts
+from backend.api.lesson_plan_store import set_plan
+from backend.api.module_store import save_modules, get_modules
 
 load_dotenv()
 
@@ -21,11 +25,35 @@ _client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 MODEL = MODEL_CHAT
 
 SYSTEM_PROMPT = (
-    "You are Coach, a personal AI training and nutrition assistant. "
+    "You are Coach, a personal AI learning and training assistant. "
     "When a user asks about exercises or training for a specific activity or goal, "
     "be concise and specific. "
-    "When exercises have video URLs, include them as markdown links — e.g. [Watch video](url) — so the user can view the demonstration."
+    "When exercises have video URLs, include them as markdown links — e.g. [Watch video](url) — so the user can view the demonstration.\n\n"
+    "When a user wants to learn something new or create a lesson plan:\n"
+    "1. Ask them this question (use a bullet list for the sub-prompts):\n"
+    "   'Tell me what you want to learn about.\n"
+    "   - Why do you want to learn this?\n"
+    "   - What's your current experience level?\n"
+    "   - Anything specific to explore or avoid?\n"
+    "   - How harsh should I be with you?'\n"
+    "2. Once they've answered, call create_lesson_plan with their response as the prompt.\n"
+    "3. After the tool returns, tell them their plan is ready and to switch to the Dashboard to start learning."
 )
+
+CREATE_LESSON_PLAN_TOOL = {
+    "name": "create_lesson_plan",
+    "description": "Generate and save a full lesson plan from the user's intake response. Only call this after the user has answered the intake question.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "prompt": {
+                "type": "string",
+                "description": "The user's free-text response to the intake question",
+            }
+        },
+        "required": ["prompt"],
+    },
+}
 
 _sessions: dict[str, ClientSession] = {}
 _tool_index: dict[str, ClientSession] = {}
@@ -106,7 +134,7 @@ async def cleanup_mcp() -> None:
 
 
 async def _get_all_tools() -> list[dict]:
-    tools = []
+    tools = [CREATE_LESSON_PLAN_TOOL]
     for session in _sessions.values():
         result = await session.list_tools()
         for t in result.tools:
@@ -120,17 +148,35 @@ async def _get_all_tools() -> list[dict]:
     return tools
 
 
+async def _handle_create_lesson_plan(prompt: str) -> str:
+    plan_text, modules = await generate_lesson_plan(prompt)
+    title = next(
+        (line.lstrip("#").strip() for line in plan_text.splitlines() if line.startswith("# ")),
+        "New Lesson Plan",
+    )
+    plan_id = await set_plan(title, plan_text)
+    if modules:
+        await save_modules(plan_id, modules)
+        # Re-fetch from DB so each module carries its DB-assigned id,
+        # which seed_artifacts needs to create artifact rows.
+        saved_modules = await get_modules(plan_id)
+        await seed_artifacts(saved_modules)
+    return f"Lesson plan '{title}' created with {len(modules)} modules."
+
+
 def _preamble_for_tool(name: str, tool_input: dict) -> str:
+    if name == "create_lesson_plan":
+        return "Generating your lesson plan…"
     if name == "search_exercises":
         muscles: list[str] = tool_input.get("muscle_names", [])
         if not muscles:
-            return "Searching for exercises..."
+            return "Searching for exercises…"
         if len(muscles) == 1:
-            return f"Looking for exercises targeting {muscles[0]}..."
+            return f"Looking for exercises targeting {muscles[0]}…"
         last = muscles[-1]
         rest = ", ".join(muscles[:-1])
-        return f"Looking for exercises targeting {rest} and {last}..."
-    return f"Using {name.replace('_', ' ')}..."
+        return f"Looking for exercises targeting {rest} and {last}…"
+    return f"Using {name.replace('_', ' ')}…"
 
 
 async def chat_stream(message: str, history: list) -> AsyncIterator[str]:
@@ -163,19 +209,27 @@ async def chat_stream(message: str, history: list) -> AsyncIterator[str]:
         for block in response.content:
             if block.type != "tool_use":
                 continue
-            session = _tool_index.get(block.name)
-            if session:
+            if block.name == "create_lesson_plan":
                 try:
-                    log.info("Tool call: %s %s", block.name, block.input)
-                    result = await session.call_tool(block.name, block.input)
-                    content = "\n".join(
-                        c.text for c in result.content if hasattr(c, "text")
-                    )
+                    log.info("Tool call: create_lesson_plan")
+                    content = await _handle_create_lesson_plan(block.input["prompt"])
                     log.info("Tool result: %s", content)
                 except Exception as exc:
-                    content = f"Tool error: {exc}"
+                    content = f"Failed to create lesson plan: {exc}"
             else:
-                content = f"Unknown tool: {block.name}"
+                session = _tool_index.get(block.name)
+                if session:
+                    try:
+                        log.info("Tool call: %s %s", block.name, block.input)
+                        result = await session.call_tool(block.name, block.input)
+                        content = "\n".join(
+                            c.text for c in result.content if hasattr(c, "text")
+                        )
+                        log.info("Tool result: %s", content)
+                    except Exception as exc:
+                        content = f"Tool error: {exc}"
+                else:
+                    content = f"Unknown tool: {block.name}"
 
             tool_results.append(
                 {

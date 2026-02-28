@@ -30,7 +30,7 @@ export default function App() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const history = messages;
+    const history = messages.map(({ role, content }) => ({ role, content }));
     const updated: Message[] = [...history, { role: "user", content: text }];
     const assistantIdx = updated.length;
     setMessages([...updated, { role: "assistant", content: "", preamble: "", streaming: true }]);
