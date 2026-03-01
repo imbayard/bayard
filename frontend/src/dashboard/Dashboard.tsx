@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import LearnForm from './LearnForm'
 import ModuleCard from './ModuleCard'
 import ModuleModal from './ModuleModal'
 import type { Module, LessonPlan } from '../types'
@@ -10,10 +9,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL
 
 export default function Dashboard({
   onLessonComplete,
+  onLearnNew,
 }: {
   onLessonComplete?: (title: string) => void
+  onLearnNew?: () => void
 }) {
-  const [showLearnForm, setShowLearnForm] = useState(false)
   const [plans, setPlans] = useState<LessonPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<LessonPlan | null>(null)
@@ -22,7 +22,6 @@ export default function Dashboard({
   const [planCopied, setPlanCopied] = useState(false)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
-  const [learnHovered, setLearnHovered] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedModule, setSelectedModule] = useState<Module | null>(null)
   const [sortBy, setSortBy] = useState<'date' | 'status'>('date')
@@ -58,11 +57,6 @@ export default function Dashboard({
   useEffect(() => {
     fetchPlans()
   }, [])
-
-  function handleFormClose() {
-    setShowLearnForm(false)
-    fetchPlans()
-  }
 
   async function openPlan(plan: LessonPlan) {
     setSelectedPlan(plan)
@@ -258,15 +252,11 @@ export default function Dashboard({
       </section>
 
       <button
-        style={{ ...s.learnBtn, color: learnHovered ? '#111827' : '#9ca3af' }}
-        onClick={() => setShowLearnForm(true)}
-        onMouseEnter={() => setLearnHovered(true)}
-        onMouseLeave={() => setLearnHovered(false)}
+        style={s.learnBtn}
+        onClick={onLearnNew}
       >
         + Learn something new
       </button>
-
-      {showLearnForm && <LearnForm onClose={handleFormClose} />}
 
       {selectedModule && (
         <ModuleModal
@@ -541,8 +531,6 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 400,
     fontSize: 13,
     cursor: 'pointer',
-    letterSpacing: '0.01em',
-    transition: 'color 0.15s',
   },
   // Plan viewer modal
   overlay: {

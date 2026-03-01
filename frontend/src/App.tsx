@@ -133,6 +133,17 @@ export default function App() {
     send(`Analyze my lesson: ${title}`)
   }
 
+  function handleLearnNew() {
+    setView('chat')
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: `What would you like to learn? To put together the right plan for you, tell me:\n\n- Why do you want to learn this?\n- What's your current experience level?\n- Anything specific you want to explore or avoid?\n- How challenging should I be with you?`,
+      },
+    ])
+  }
+
   function sendFromDashboard() {
     if (!input.trim() || loading) return
     setView('chat')
@@ -194,7 +205,7 @@ export default function App() {
           <div ref={bottomRef} />
         </div>
       ) : (
-        <Dashboard onLessonComplete={handleLessonComplete} />
+        <Dashboard onLessonComplete={handleLessonComplete} onLearnNew={handleLearnNew} />
       )}
 
       <div style={s.inputRow}>
