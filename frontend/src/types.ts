@@ -22,6 +22,7 @@ export interface FlashcardsData {
 
 export interface QuizData {
   questions: { question: string; options: string[]; answer: string }[];
+  responses?: { selected: string }[];
 }
 
 export interface ExerciseData {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Module, Artifact } from "../types";
+import type { Module, Artifact, QuizData } from "../types";
 
 interface Props {
   module: Module;
@@ -10,6 +10,14 @@ interface Props {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+function persistArtifact(id: number, data: object) {
+  fetch(`${API_BASE}/artifact/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data }),
+  }).catch(() => {});
+}
 
 const TYPE_COLORS: Record<string, string> = {
   physical: "#7c3aed",
@@ -29,11 +37,7 @@ function Checklist({ artifactId, items, initialChecked }: {
   function toggle(i: number) {
     const next = checked.map((v, j) => (j === i ? !v : v));
     setChecked(next);
-    fetch(`${API_BASE}/artifact/${artifactId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: { items, checked: next } }),
-    }).catch(() => {});
+    persistArtifact(artifactId, { items, checked: next });
   }
 
   return (
@@ -54,6 +58,142 @@ function Checklist({ artifactId, items, initialChecked }: {
           </span>
         </label>
       ))}
+    </div>
+  );
+}
+
+function Quiz({ artifactId, questions, initialResponses }: {
+  artifactId: number;
+  questions: QuizData["questions"];
+  initialResponses: NonNullable<QuizData["responses"]>;
+}) {
+  const [responses, setResponses] = useState<{ selected: string }[]>(initialResponses);
+  const [pending, setPending] = useState<string | null>(null);
+  const [showResult, setShowResult] = useState(false);
+
+  const qIdx = showResult ? responses.length - 1 : responses.length;
+  const q = questions[qIdx];
+  const score = responses.filter((r, i) => r.selected === questions[i].answer).length;
+  const isComplete = !showResult && responses.length === questions.length;
+
+  function persist(next: { selected: string }[]) {
+    persistArtifact(artifactId, { questions, responses: next });
+  }
+
+  function submit() {
+    if (!pending) return;
+    const next = [...responses, { selected: pending }];
+    setResponses(next);
+    setShowResult(true);
+    persist(next);
+  }
+
+  function advance() {
+    setShowResult(false);
+    setPending(null);
+  }
+
+  function retake() {
+    const next: { selected: string }[] = [];
+    setResponses(next);
+    setShowResult(false);
+    setPending(null);
+    persist(next);
+  }
+
+  if (isComplete) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: "#111827" }}>{score}/{questions.length}</span>
+          <span style={{ fontSize: 13, color: "#6b7280" }}>
+            {Math.round((score / questions.length) * 100)}% correct
+          </span>
+        </div>
+        {questions.map((qs, i) => {
+          const correct = responses[i].selected === qs.answer;
+          return (
+            <div key={i} style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 3 }}>
+              <div style={{ fontWeight: 600, color: "#374151" }}>{i + 1}. {qs.question}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ color: correct ? "#16a34a" : "#dc2626" }}>
+                  {correct ? "✓" : "✗"} {responses[i].selected}
+                </span>
+                {!correct && (
+                  <span style={{ color: "#16a34a" }}>→ {qs.answer}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        <button
+          style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "transparent", fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer" }}
+          onClick={retake}
+        >
+          Retake
+        </button>
+      </div>
+    );
+  }
+
+  if (!q) return null;
+
+  const submitted = showResult ? responses[qIdx] : null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+          Question {qIdx + 1} of {questions.length}
+        </span>
+        {responses.length > 0 && (
+          <span style={{ fontSize: 12, color: "#6b7280" }}>
+            {score}/{responses.length} correct
+          </span>
+        )}
+      </div>
+
+      <div style={{ fontWeight: 600, fontSize: 14, color: "#111827", lineHeight: 1.5 }}>{q.question}</div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {q.options.map((opt, i) => {
+          let bg = "#fff", border = "1px solid #d1d5db", color = "#374151";
+          if (submitted) {
+            if (opt === q.answer)                                     { bg = "#dcfce7"; border = "1px solid #16a34a"; color = "#15803d"; }
+            else if (opt === submitted.selected && opt !== q.answer)  { bg = "#fef2f2"; border = "1px solid #dc2626"; color = "#dc2626"; }
+          } else if (opt === pending) {
+            bg = "#eff6ff"; border = "1px solid #2563eb"; color = "#1d4ed8";
+          }
+          return (
+            <button
+              key={i}
+              style={{ padding: "8px 12px", borderRadius: 8, border, background: bg, color, textAlign: "left", cursor: submitted ? "default" : "pointer", fontSize: 13, fontWeight: opt === q.answer && submitted ? 600 : 400 }}
+              onClick={() => { if (!submitted) setPending(opt); }}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        {!submitted ? (
+          <button
+            style={{ padding: "7px 18px", borderRadius: 8, border: "none", background: pending ? "#2563eb" : "#e5e7eb", color: pending ? "#fff" : "#9ca3af", fontWeight: 600, fontSize: 13, cursor: pending ? "pointer" : "default" }}
+            disabled={!pending}
+            onClick={submit}
+          >
+            Submit
+          </button>
+        ) : (
+          <button
+            style={{ padding: "7px 18px", borderRadius: 8, border: "none", background: "#2563eb", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            onClick={advance}
+          >
+            {responses.length === questions.length ? "See Results" : "Next"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -232,19 +372,11 @@ function renderArtifact(artifact: Artifact) {
 
     case "quiz":
       return (
-        <ol style={s.quizList}>
-          {artifact.data.questions.map((q, i) => (
-            <li key={i} style={s.quizItem}>
-              <div style={s.quizQuestion}>{q.question}</div>
-              <ol style={s.optionList} type="a">
-                {q.options.map((opt, j) => (
-                  <li key={j} style={s.optionItem}>{opt}</li>
-                ))}
-              </ol>
-              <div style={s.quizAnswer}>Answer: {q.answer}</div>
-            </li>
-          ))}
-        </ol>
+        <Quiz
+          artifactId={artifact.id}
+          questions={artifact.data.questions}
+          initialResponses={artifact.data.responses ?? []}
+        />
       );
 
     case "exercise":
@@ -450,13 +582,6 @@ const s: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
     gap: 8,
   },
-  // quiz
-  quizList: { margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 12 },
-  quizItem: {},
-  quizQuestion: { fontWeight: 600, color: "#111827", marginBottom: 4 },
-  optionList: { margin: "4px 0", padding: "0 0 0 18px" },
-  optionItem: { marginBottom: 2 },
-  quizAnswer: { marginTop: 4, fontSize: 12, color: "#9ca3af" },
   // exercise
   exerciseObjective: { fontWeight: 700, color: "#111827", marginBottom: 8 },
   stepList: { margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 4 },
