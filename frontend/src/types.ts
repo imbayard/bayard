@@ -46,6 +46,7 @@ export interface ProjectData {
 
 export interface ChecklistData {
   items: string[];
+  checked?: boolean[];
 }
 
 export interface ReferenceData {

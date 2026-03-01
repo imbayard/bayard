@@ -17,6 +17,47 @@ const TYPE_COLORS: Record<string, string> = {
   applicable: "#16a34a",
 };
 
+function Checklist({ artifactId, items, initialChecked }: {
+  artifactId: number;
+  items: string[];
+  initialChecked: boolean[];
+}) {
+  const [checked, setChecked] = useState<boolean[]>(
+    items.map((_, i) => initialChecked[i] ?? false)
+  );
+
+  function toggle(i: number) {
+    const next = checked.map((v, j) => (j === i ? !v : v));
+    setChecked(next);
+    fetch(`${API_BASE}/artifact/${artifactId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: { items, checked: next } }),
+    }).catch(() => {});
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((item, i) => (
+        <label key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={checked[i]}
+            onChange={() => toggle(i)}
+            style={{ marginTop: 2, flexShrink: 0 }}
+          />
+          <span style={{
+            textDecoration: checked[i] ? "line-through" : "none",
+            color: checked[i] ? "#9ca3af" : "#374151",
+          }}>
+            {item}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function Flashcard({ front, back }: { front: string; back: string }) {
   const [flipped, setFlipped] = useState(false);
   return (
@@ -255,11 +296,11 @@ function renderArtifact(artifact: Artifact) {
 
     case "checklist":
       return (
-        <ul style={s.bulletList}>
-          {artifact.data.items.map((item, i) => (
-            <li key={i} style={s.bulletItem}>{item}</li>
-          ))}
-        </ul>
+        <Checklist
+          artifactId={artifact.id}
+          items={artifact.data.items}
+          initialChecked={artifact.data.checked ?? []}
+        />
       );
 
     case "reference":
