@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ModuleCard from './ModuleCard'
 import ModuleModal from './ModuleModal'
+import ScheduleCalendar from './ScheduleCalendar'
 import type { Module, LessonPlan } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -25,6 +26,7 @@ export default function Dashboard({
   const [error, setError] = useState<string | null>(null)
   const [selectedModule, setSelectedModule] = useState<Module | null>(null)
   const [sortBy, setSortBy] = useState<'date' | 'status'>('date')
+  const [scheduleOpen, setScheduleOpen] = useState(false)
 
   const sortedPlans =
     sortBy === 'date'
@@ -257,6 +259,14 @@ export default function Dashboard({
       >
         + Learn something new
       </button>
+
+      <section style={s.section}>
+        <div style={{ ...s.sectionHeader, cursor: 'pointer' }} onClick={() => setScheduleOpen((o) => !o)}>
+          <h2 style={s.sectionTitle}>Schedule</h2>
+          <span style={{ ...s.chevron, transform: scheduleOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▾</span>
+        </div>
+        {scheduleOpen && <ScheduleCalendar />}
+      </section>
 
       {selectedModule && (
         <ModuleModal
