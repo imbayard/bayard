@@ -127,7 +127,7 @@ function Quiz({ artifactId, questions, initialResponses }: {
           );
         })}
         <button
-          style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "transparent", fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer" }}
+          style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: 0, border: "1px solid #d1d5db", background: "transparent", fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer" }}
           onClick={retake}
         >
           Retake
@@ -167,7 +167,7 @@ function Quiz({ artifactId, questions, initialResponses }: {
           return (
             <button
               key={i}
-              style={{ padding: "8px 12px", borderRadius: 8, border, background: bg, color, textAlign: "left", cursor: submitted ? "default" : "pointer", fontSize: 13, fontWeight: opt === q.answer && submitted ? 600 : 400 }}
+              style={{ padding: "8px 12px", borderRadius: 0, border, background: bg, color, textAlign: "left", cursor: submitted ? "default" : "pointer", fontSize: 13, fontWeight: opt === q.answer && submitted ? 600 : 400 }}
               onClick={() => { if (!submitted) setPending(opt); }}
             >
               {opt}
@@ -179,7 +179,7 @@ function Quiz({ artifactId, questions, initialResponses }: {
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         {!submitted ? (
           <button
-            style={{ padding: "7px 18px", borderRadius: 8, border: "none", background: pending ? "#2563eb" : "#e5e7eb", color: pending ? "#fff" : "#9ca3af", fontWeight: 600, fontSize: 13, cursor: pending ? "pointer" : "default" }}
+            style={{ padding: "7px 18px", borderRadius: 0, border: "none", background: pending ? "#2563eb" : "#e5e7eb", color: pending ? "#fff" : "#9ca3af", fontWeight: 600, fontSize: 13, cursor: pending ? "pointer" : "default" }}
             disabled={!pending}
             onClick={submit}
           >
@@ -187,7 +187,7 @@ function Quiz({ artifactId, questions, initialResponses }: {
           </button>
         ) : (
           <button
-            style={{ padding: "7px 18px", borderRadius: 8, border: "none", background: "#2563eb", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            style={{ padding: "7px 18px", borderRadius: 0, border: "none", background: "#2563eb", color: "#fff", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
             onClick={advance}
           >
             {responses.length === questions.length ? "See Results" : "Next"}
@@ -218,7 +218,7 @@ function Flashcard({ front, back }: { front: string; back: string }) {
             gridArea: "1 / 1",
             backfaceVisibility: "hidden",
             border: "1px solid #e5e7eb",
-            borderRadius: 8,
+            borderRadius: 0,
             padding: "12px 14px",
             display: "flex",
             flexDirection: "column",
@@ -236,7 +236,7 @@ function Flashcard({ front, back }: { front: string; back: string }) {
             backfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
             border: "1px solid #e5e7eb",
-            borderRadius: 8,
+            borderRadius: 0,
             padding: "12px 14px",
             display: "flex",
             alignItems: "center",
@@ -476,7 +476,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   modal: {
     background: "#fff",
-    borderRadius: 16,
+    borderRadius: 0,
     width: 640,
     maxHeight: "85vh",
     display: "flex",
@@ -514,7 +514,7 @@ const s: Record<string, React.CSSProperties> = {
     color: "#fff",
     textTransform: "capitalize",
     padding: "2px 8px",
-    borderRadius: 999,
+    borderRadius: 0,
     whiteSpace: "nowrap",
     flexShrink: 0,
   },
@@ -525,7 +525,7 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     color: "#6b7280",
     padding: "4px 8px",
-    borderRadius: 6,
+    borderRadius: 0,
     flexShrink: 0,
   },
   footer: {
@@ -535,7 +535,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   completeBtn: {
     padding: "8px 18px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "none",
     background: "#16a34a",
     color: "#fff",
@@ -563,33 +563,36 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   artifactCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: 10,
-    padding: "14px 16px",
+    border: "1px solid #111827",
+    borderRadius: 0,
     display: "flex",
     flexDirection: "column",
-    gap: 10,
   },
   artifactHeader: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    padding: "8px 14px",
+    borderBottom: "2px solid #111827",
+    background: "#111827",
   },
   artifactLabel: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: "#374151",
+    fontSize: 10,
+    fontWeight: 800,
+    color: "#fff",
     textTransform: "uppercase" as const,
-    letterSpacing: "0.06em",
+    letterSpacing: "0.14em",
   },
   spinner: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#9ca3af",
+    fontStyle: "italic",
   },
   artifactContent: {
     fontSize: 13,
     color: "#374151",
     lineHeight: 1.5,
+    padding: "14px 16px",
   },
   // flashcards
   flashcardGrid: {
@@ -599,19 +602,19 @@ const s: Record<string, React.CSSProperties> = {
   },
   // exercise
   exerciseGrid:     { display: "flex", flexDirection: "column", gap: 8 },
-  exerciseCard:     { display: "flex", alignItems: "center", gap: 10, border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 14px", background: "#fff" },
+  exerciseCard:     { display: "flex", alignItems: "center", gap: 10, border: "1px solid #e5e7eb", borderRadius: 0, padding: "12px 14px", background: "#fff" },
   exerciseName:     { fontWeight: 700, fontSize: 13, color: "#111827", flex: 1 },
   exerciseReps:     { fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" },
   exerciseHelpIcon: {
     position: "relative", display: "inline-flex", alignItems: "center",
-    justifyContent: "center", width: 20, height: 20, borderRadius: 999,
+    justifyContent: "center", width: 20, height: 20, borderRadius: 0,
     background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 700,
     cursor: "default", flexShrink: 0,
   },
   exerciseTooltip: {
     position: "absolute", top: "calc(100% + 6px)", right: 0,
     background: "#111827", color: "#fff", fontSize: 12, lineHeight: 1.5,
-    padding: "8px 10px", borderRadius: 8, width: 220, zIndex: 10,
+    padding: "8px 10px", borderRadius: 0, width: 220, zIndex: 10,
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)", whiteSpace: "normal",
   },
   // reading

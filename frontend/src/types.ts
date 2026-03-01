@@ -12,6 +12,8 @@ export interface LessonPlan {
   plan: string;
   status: string;
   created_at: string;
+  total_modules: number;
+  completed_modules: number;
 }
 
 // --- Artifact types ---

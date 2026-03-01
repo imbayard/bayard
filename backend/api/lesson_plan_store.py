@@ -64,10 +64,18 @@ async def get_plan(plan_id: int) -> dict | None:
 
 
 async def get_plans() -> list[dict]:
-    """Return all lesson plans ordered newest first."""
+    """Return all lesson plans ordered newest first, with module completion counts."""
     async with get_db() as db:
         async with db.execute(
-            "SELECT id, title, plan, status, created_at FROM lesson_plans ORDER BY created_at DESC"
+            """
+            SELECT lp.id, lp.title, lp.plan, lp.status, lp.created_at,
+                   COUNT(m.id) AS total_modules,
+                   SUM(CASE WHEN m.status = 'completed' THEN 1 ELSE 0 END) AS completed_modules
+            FROM lesson_plans lp
+            LEFT JOIN modules m ON m.plan_id = lp.id
+            GROUP BY lp.id
+            ORDER BY lp.created_at DESC
+            """
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]

@@ -212,7 +212,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   modal: {
     background: "#fff",
-    borderRadius: 16,
+    borderRadius: 0,
     padding: "28px 24px",
     width: 560,
     height: "80vh",
@@ -246,7 +246,7 @@ const s: Record<string, React.CSSProperties> = {
   formArea: {
     resize: "vertical",
     padding: "10px 12px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "1px solid #d1d5db",
     fontSize: 14,
     fontFamily: "inherit",
@@ -308,7 +308,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   copyBtn: {
     padding: "3px 10px",
-    borderRadius: 6,
+    borderRadius: 0,
     border: "1px solid #d1d5db",
     background: "transparent",
     cursor: "pointer",
@@ -351,7 +351,7 @@ const s: Record<string, React.CSSProperties> = {
   label: { fontSize: 13, fontWeight: 600, color: "#374151" },
   titleInput: {
     padding: "10px 12px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "1px solid #d1d5db",
     fontSize: 16,
     fontFamily: "inherit",
@@ -364,7 +364,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "8px 12px",
-    borderRadius: 8,
+    borderRadius: 0,
     background: "#fef2f2",
     border: "1px solid #fecaca",
     fontSize: 13,
@@ -381,7 +381,7 @@ const s: Record<string, React.CSSProperties> = {
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   primaryBtn: {
     padding: "8px 20px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "none",
     background: "#2563eb",
     color: "#fff",
@@ -391,7 +391,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   ghostBtn: {
     padding: "8px 16px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "1px solid #d1d5db",
     background: "transparent",
     cursor: "pointer",
