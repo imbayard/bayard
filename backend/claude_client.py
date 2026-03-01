@@ -13,7 +13,8 @@ from mcp.client.stdio import stdio_client
 from backend.config import MODEL_CHAT
 from backend.agents.course_planner import generate_lesson_plan
 from backend.agents.artifact_seeder import seed_artifacts
-from backend.api.lesson_plan_store import set_plan
+from backend.api.artifact_store import get_artifacts
+from backend.api.lesson_plan_store import set_plan, get_plan, get_plans
 from backend.api.module_store import save_modules, get_modules
 
 load_dotenv()
@@ -25,20 +26,20 @@ _client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 MODEL = MODEL_CHAT
 
 SYSTEM_PROMPT = (
-    "You are Coach, a personal AI learning and training assistant. "
-    "When a user asks about exercises or training for a specific activity or goal, "
-    "be concise and specific. "
-    "When exercises have video URLs, include them as markdown links — e.g. [Watch video](url) — so the user can view the demonstration.\n\n"
-    "When a user wants to learn something new or create a lesson plan:\n"
-    "1. Ask them this question (use a bullet list for the sub-prompts):\n"
-    "   'Tell me what you want to learn about.\n"
-    "   - Why do you want to learn this?\n"
-    "   - What's your current experience level?\n"
-    "   - Anything specific to explore or avoid?\n"
-    "   - How harsh should I be with you?'\n"
-    "2. Once they've answered, call create_lesson_plan with their response as the prompt.\n"
-    "3. After the tool returns, tell them their plan is ready and to switch to the Dashboard to start learning."
+    "You are Coach — a direct, no-nonsense personal coach. "
+    "Be terse. No filler, no preamble, no closing summaries.\n\n"
+    "To create a lesson plan: ask the user what they want to learn, why, their experience level, anything to avoid, and how hard to push them. "
+    "Once they answer, call create_lesson_plan. After it returns, tell them to open the Dashboard.\n\n"
+    "To analyze a lesson: call analyze_lesson. "
+    "Report overall performance, module results, quiz scores, strengths, and next steps."
 )
+
+
+LIST_LESSON_PLANS_TOOL = {
+    "name": "list_lesson_plans",
+    "description": "List all saved lesson plans with titles and status.",
+    "input_schema": {"type": "object", "properties": {}, "required": []},
+}
 
 CREATE_LESSON_PLAN_TOOL = {
     "name": "create_lesson_plan",
@@ -133,8 +134,31 @@ async def cleanup_mcp() -> None:
             _mcp_task.cancel()
 
 
+async def _build_analyze_tool() -> dict:
+    plans = await get_plans()
+    if plans:
+        listing = "\n".join(f"  {p['id']}: {p['title']} ({p['status']})" for p in plans)
+        description = f"Analyze a lesson plan. Available plans:\n{listing}"
+        enum = [p["id"] for p in plans]
+    else:
+        description = "Analyze a lesson plan. No plans saved yet."
+        enum = None
+    schema: dict = {"type": "integer", "description": "ID of the lesson plan to analyze"}
+    if enum:
+        schema["enum"] = enum
+    return {
+        "name": "analyze_lesson",
+        "description": description,
+        "input_schema": {
+            "type": "object",
+            "properties": {"plan_id": schema},
+            "required": ["plan_id"],
+        },
+    }
+
+
 async def _get_all_tools() -> list[dict]:
-    tools = [CREATE_LESSON_PLAN_TOOL]
+    tools = [CREATE_LESSON_PLAN_TOOL, await _build_analyze_tool(), LIST_LESSON_PLANS_TOOL]
     for session in _sessions.values():
         result = await session.list_tools()
         for t in result.tools:
@@ -164,9 +188,58 @@ async def _handle_create_lesson_plan(prompt: str) -> str:
     return f"Lesson plan '{title}' created with {len(modules)} modules."
 
 
+async def _handle_list_lesson_plans() -> str:
+    plans = await get_plans()
+    if not plans:
+        return "No lesson plans found."
+    return "\n".join(f"ID {p['id']}: {p['title']} ({p['status']})" for p in plans)
+
+
+async def _handle_analyze_lesson(plan_id: int) -> str:
+    plan = await get_plan(plan_id)
+    if not plan:
+        return f"No lesson plan found with ID {plan_id}."
+    modules = await get_modules(plan_id)
+    lines = [
+        f"# Lesson: {plan['title']}",
+        f"## Curriculum Rubric\n{plan['plan']}",
+        "## Module Results",
+    ]
+    for m in modules:
+        lines.append(f"\n### Module {m['position']}: {m['name']} ({m['type']}, {m['status']})")
+        lines.append(f"Goal: {m['description']}")
+        for a in await get_artifacts(m["id"]):
+            if not a["data"]:
+                continue
+            lines.append(f"\n#### {a['type']}")
+            d = a["data"]
+            if a["type"] == "quiz" and d.get("responses"):
+                qs, rs = d["questions"], d["responses"]
+                score = sum(1 for i, r in enumerate(rs) if r["selected"] == qs[i]["answer"])
+                lines.append(f"Score: {score}/{len(qs)}")
+                for i, (q, r) in enumerate(zip(qs, rs)):
+                    correct = r["selected"] == q["answer"]
+                    answer = q["answer"]
+                    mark = "✓" if correct else f"✗ (correct: {answer})"
+                    lines.append(f"Q{i+1}: {q['question']}\n  User: {r['selected']} {mark}")
+            elif a["type"] == "checklist" and d.get("items"):
+                checked = d.get("checked", [])
+                done = sum(1 for c in checked if c)
+                lines.append(f"Completed: {done}/{len(d['items'])}")
+                for item, c in zip(d["items"], checked + [False] * len(d["items"])):
+                    lines.append(f"  {'✓' if c else '○'} {item}")
+            elif a["type"] == "exercise":
+                lines.append(f"Objective: {d.get('objective', '')}")
+    return "\n".join(lines)
+
+
 def _preamble_for_tool(name: str, tool_input: dict) -> str:
     if name == "create_lesson_plan":
         return "Generating your lesson plan…"
+    if name == "analyze_lesson":
+        return "Analyzing your lesson…"
+    if name == "list_lesson_plans":
+        return "Looking up your lesson plans…"
     if name == "search_exercises":
         muscles: list[str] = tool_input.get("muscle_names", [])
         if not muscles:
@@ -216,6 +289,20 @@ async def chat_stream(message: str, history: list) -> AsyncIterator[str]:
                     log.info("Tool result: %s", content)
                 except Exception as exc:
                     content = f"Failed to create lesson plan: {exc}"
+            elif block.name == "analyze_lesson":
+                try:
+                    log.info("Tool call: analyze_lesson")
+                    content = await _handle_analyze_lesson(block.input["plan_id"])
+                    log.info("Tool result: %s", content[:200])
+                except Exception as exc:
+                    content = f"Failed to analyze lesson: {exc}"
+            elif block.name == "list_lesson_plans":
+                try:
+                    log.info("Tool call: list_lesson_plans")
+                    content = await _handle_list_lesson_plans()
+                    log.info("Tool result: %s", content)
+                except Exception as exc:
+                    content = f"Failed to list lesson plans: {exc}"
             else:
                 session = _tool_index.get(block.name)
                 if session:

@@ -26,15 +26,15 @@ export default function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function send() {
-    const text = input.trim();
+  async function send(triggerMessage?: string) {
+    const text = (triggerMessage ?? input).trim();
     if (!text || loading) return;
 
     const history = messages.map(({ role, content }) => ({ role, content }));
     const updated: Message[] = [...history, { role: "user", content: text }];
     const assistantIdx = updated.length;
     setMessages([...updated, { role: "assistant", content: "", preamble: "", streaming: true }]);
-    setInput("");
+    if (!triggerMessage) setInput("");
     setLoading(true);
 
     try {
@@ -107,6 +107,11 @@ export default function App() {
     }
   }
 
+  function handleLessonComplete(title: string) {
+    setView("chat");
+    send(`Analyze my lesson: ${title}`);
+  }
+
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -171,7 +176,7 @@ export default function App() {
           </div>
         </>
       ) : (
-        <Dashboard />
+        <Dashboard onLessonComplete={handleLessonComplete} />
       )}
     </div>
   );

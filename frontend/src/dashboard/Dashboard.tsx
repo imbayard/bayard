@@ -8,7 +8,7 @@ import type { Module, LessonPlan } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
-export default function Dashboard() {
+export default function Dashboard({ onLessonComplete }: { onLessonComplete?: (title: string) => void }) {
   const [showLearnForm, setShowLearnForm] = useState(false);
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +59,30 @@ export default function Dashboard() {
     setSelectedPlan(null);
     setSelectedModules([]);
     setPlanCollapsed(true);
+  }
+
+  const allModulesDone =
+    selectedModules.length > 0 && selectedModules.every((m) => m.status === "completed");
+
+  async function completePlan() {
+    if (!selectedPlan) return;
+    try {
+      const res = await fetch(`${API_BASE}/lesson-plan/${selectedPlan.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (!res.ok) {
+        setError("Could not complete lesson. Please try again.");
+        return;
+      }
+    } catch {
+      setError("Could not complete lesson. Is the backend running?");
+      return;
+    }
+    const title = selectedPlan.title;
+    closePlan();
+    onLessonComplete?.(title);
   }
 
   function copyPlan() {
@@ -199,6 +223,13 @@ export default function Dashboard() {
                   {selectedModules.map((m, i) => (
                     <ModuleCard key={m.id ?? i} module={m} position={i + 1} onOpen={m.status !== "locked" ? () => setSelectedModule(m) : undefined} />
                   ))}
+                </div>
+              )}
+              {allModulesDone && selectedPlan?.status !== "completed" && (
+                <div style={s.completePlanRow}>
+                  <button style={s.completePlanBtn} onClick={completePlan}>
+                    Complete Lesson →
+                  </button>
                 </div>
               )}
             </div>
@@ -453,5 +484,20 @@ const s: Record<string, React.CSSProperties> = {
     color: "#6b7280",
     textTransform: "uppercase",
     letterSpacing: "0.06em",
+  },
+  completePlanRow: {
+    marginTop: 16,
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  completePlanBtn: {
+    padding: "8px 18px",
+    borderRadius: 8,
+    border: "none",
+    background: "#16a34a",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
   },
 };

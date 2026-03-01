@@ -68,6 +68,10 @@ class SaveLessonPlanRequest(BaseModel):
     modules: list[dict] = []
 
 
+class UpdatePlanStatusRequest(BaseModel):
+    status: str
+
+
 class UpdateModuleRequest(BaseModel):
     name: str | None = None
     description: str | None = None
@@ -118,8 +122,8 @@ async def lesson_plans_list():
 
 
 @app.put("/lesson-plan/{plan_id}")
-async def lesson_plan_update_status(plan_id: int, body: dict):
-    await update_plan_status(plan_id, body["status"])
+async def lesson_plan_update_status(plan_id: int, req: UpdatePlanStatusRequest):
+    await update_plan_status(plan_id, req.status)
     return {"ok": True}
 
 
