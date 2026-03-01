@@ -23,6 +23,8 @@ env/
 # Env / secrets
 .env
 .env.*
+backend/credentials.json
+backend/token.json
 
 # OS
 .DS_Store

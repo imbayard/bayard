@@ -68,3 +68,23 @@ export type Artifact =
   | { id: number; module_id: number; type: 'reference';  data: ReferenceData;  created_at: string }
 
 export type ArtifactType = Artifact['type']
+
+// --- Calendar types ---
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  start: Date
+  end: Date
+  type: 'module' | 'habit' | 'external'
+  series_id?: string   // set on recurring event instances; delete this to remove all occurrences
+  module_id?: number
+}
+
+export interface AllModule {
+  id: number
+  name: string
+  plan_id: number
+  plan_title: string
+  status: 'locked' | 'active' | 'completed'
+}

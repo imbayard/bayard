@@ -90,3 +90,18 @@ async def delete_module(module_id: int) -> None:
     async with get_db() as db:
         await db.execute("DELETE FROM modules WHERE id = ?", (module_id,))
         await db.commit()
+
+
+async def get_all_modules() -> list[dict]:
+    """Return all modules across all plans with their plan title."""
+    async with get_db() as db:
+        async with db.execute(
+            """
+            SELECT m.*, lp.title AS plan_title
+            FROM modules m
+            JOIN lesson_plans lp ON lp.id = m.plan_id
+            ORDER BY lp.created_at DESC, m.position
+            """
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
