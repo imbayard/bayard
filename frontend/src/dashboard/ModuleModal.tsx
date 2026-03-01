@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Module, Artifact, QuizData } from "../types";
+import type { Module, Artifact, QuizData, ExerciseItem } from "../types";
 
 interface Props {
   module: Module;
@@ -251,6 +251,24 @@ function Flashcard({ front, back }: { front: string; back: string }) {
   );
 }
 
+function ExerciseCard({ name, reps, instructions }: ExerciseItem) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div style={s.exerciseCard}>
+      <span style={s.exerciseName}>{name}</span>
+      <span style={s.exerciseReps}>{reps}</span>
+      <span
+        style={s.exerciseHelpIcon}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        ?
+        {hovered && <span style={s.exerciseTooltip}>{instructions}</span>}
+      </span>
+    </div>
+  );
+}
+
 export default function ModuleModal({ module, onClose, onComplete }: Props) {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [generatingIds, setGeneratingIds] = useState<Set<number>>(new Set());
@@ -381,13 +399,10 @@ function renderArtifact(artifact: Artifact) {
 
     case "exercise":
       return (
-        <div>
-          <div style={s.exerciseObjective}>{artifact.data.objective}</div>
-          <ol style={s.stepList}>
-            {artifact.data.steps.map((step, i) => (
-              <li key={i} style={s.stepItem}>{step}</li>
-            ))}
-          </ol>
+        <div style={s.exerciseGrid}>
+          {(artifact.data.exercises ?? []).map((ex, i) => (
+            <ExerciseCard key={i} name={ex.name} reps={ex.reps} instructions={ex.instructions} />
+          ))}
         </div>
       );
 
@@ -583,9 +598,22 @@ const s: Record<string, React.CSSProperties> = {
     gap: 8,
   },
   // exercise
-  exerciseObjective: { fontWeight: 700, color: "#111827", marginBottom: 8 },
-  stepList: { margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 4 },
-  stepItem: {},
+  exerciseGrid:     { display: "flex", flexDirection: "column", gap: 8 },
+  exerciseCard:     { display: "flex", alignItems: "center", gap: 10, border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 14px", background: "#fff" },
+  exerciseName:     { fontWeight: 700, fontSize: 13, color: "#111827", flex: 1 },
+  exerciseReps:     { fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" },
+  exerciseHelpIcon: {
+    position: "relative", display: "inline-flex", alignItems: "center",
+    justifyContent: "center", width: 20, height: 20, borderRadius: 999,
+    background: "#f3f4f6", color: "#6b7280", fontSize: 12, fontWeight: 700,
+    cursor: "default", flexShrink: 0,
+  },
+  exerciseTooltip: {
+    position: "absolute", top: "calc(100% + 6px)", right: 0,
+    background: "#111827", color: "#fff", fontSize: 12, lineHeight: 1.5,
+    padding: "8px 10px", borderRadius: 8, width: 220, zIndex: 10,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)", whiteSpace: "normal",
+  },
   // reading
   readingTitle: { margin: "0 0 8px 0", fontSize: 14, fontWeight: 700, color: "#111827" },
   readingBody: { color: "#374151" },

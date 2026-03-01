@@ -62,20 +62,31 @@ GENERATORS = {
         },
     },
     "exercise": {
-        "system": "Generate a hands-on exercise for this module.",
+        "system": (
+            "Generate a list of 3-6 exercises for this module. "
+            "Each needs a short name, a rep/duration string (e.g. '3 sets × 10 reps', '30 seconds'), "
+            "and 1-2 sentences of form or execution instructions."
+        ),
         "tool": {
             "name": "save_exercise",
-            "description": "Save exercise for a module.",
+            "description": "Save exercise list for a module.",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "objective": {"type": "string"},
-                    "steps": {
+                    "exercises": {
                         "type": "array",
-                        "items": {"type": "string"},
-                    },
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name":         {"type": "string"},
+                                "reps":         {"type": "string"},
+                                "instructions": {"type": "string"},
+                            },
+                            "required": ["name", "reps", "instructions"],
+                        },
+                    }
                 },
-                "required": ["objective", "steps"],
+                "required": ["exercises"],
             },
         },
     },

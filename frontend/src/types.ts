@@ -26,9 +26,10 @@ export interface QuizData {
 }
 
 export interface ExerciseData {
-  objective: string;
-  steps: string[];
+  exercises: { name: string; reps: string; instructions: string }[];
 }
+
+export type ExerciseItem = ExerciseData["exercises"][number];
 
 export interface ReadingData {
   title: string;
