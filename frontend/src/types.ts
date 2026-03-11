@@ -57,6 +57,12 @@ export interface ReferenceData {
   sections: { heading: string; content: string }[];
 }
 
+export interface CodeExerciseData {
+  description: string;
+  starter_code: string;
+  tests?: string;
+}
+
 export type Artifact =
   | { id: number; module_id: number; type: 'flashcards'; data: FlashcardsData; created_at: string }
   | { id: number; module_id: number; type: 'quiz';       data: QuizData;       created_at: string }
@@ -65,7 +71,8 @@ export type Artifact =
   | { id: number; module_id: number; type: 'video';      data: VideoData;      created_at: string }
   | { id: number; module_id: number; type: 'project';    data: ProjectData;    created_at: string }
   | { id: number; module_id: number; type: 'checklist';  data: ChecklistData;  created_at: string }
-  | { id: number; module_id: number; type: 'reference';  data: ReferenceData;  created_at: string }
+  | { id: number; module_id: number; type: 'reference';      data: ReferenceData;      created_at: string }
+  | { id: number; module_id: number; type: 'code_exercise';  data: CodeExerciseData;  created_at: string }
 
 export type ArtifactType = Artifact['type']
 

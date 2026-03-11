@@ -15,6 +15,7 @@ ARTIFACT_TYPES = [
     "project",
     "checklist",
     "reference",
+    "code_exercise",
 ]
 
 SEED_ARTIFACTS_TOOL = {

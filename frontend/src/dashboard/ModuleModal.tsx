@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Module, Artifact, QuizData, ExerciseItem } from "../types";
+import CodeRunner from "./CodeRunner";
 
 interface Props {
   module: Module;
@@ -460,6 +461,15 @@ function renderArtifact(artifact: Artifact) {
             </div>
           ))}
         </div>
+      );
+
+    case "code_exercise":
+      return (
+        <CodeRunner
+          description={artifact.data.description}
+          starterCode={artifact.data.starter_code}
+          tests={artifact.data.tests}
+        />
       );
   }
 }

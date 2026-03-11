@@ -158,6 +158,28 @@ GENERATORS = {
             },
         },
     },
+    "code_exercise": {
+        "system": (
+            "Generate a Python coding exercise for this module. "
+            "Provide a clear problem description, Python starter code with comments "
+            "guiding the learner, and a short test snippet that prints PASS or FAIL "
+            "for each test case. The starter code should be runnable as-is (it can "
+            "print placeholder output) so the learner can hit Run immediately."
+        ),
+        "tool": {
+            "name": "save_code_exercise",
+            "description": "Save a Python code exercise for a module.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "description": {"type": "string"},
+                    "starter_code": {"type": "string"},
+                    "tests": {"type": "string"},
+                },
+                "required": ["description", "starter_code"],
+            },
+        },
+    },
     "reference": {
         "system": "Generate a structured reference sheet for this module.",
         "tool": {
