@@ -71,7 +71,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return [TextContent(text=f"[set_context] Context set with {key}, {value}.")]
 
 
-DB_PATH = pathlib.Path(__file__).parent.parent / "data" / "context.db"
+import os as _os
+_default_dir = pathlib.Path(__file__).parent.parent / "data"
+DB_PATH = pathlib.Path(_os.environ.get("DB_DIR", str(_default_dir))) / "context.db"
 
 
 async def create_table():

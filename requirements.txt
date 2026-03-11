@@ -5,3 +5,5 @@ mcp
 python-dotenv
 httpx
 aiosqlite
+google-api-python-client
+google-auth-oauthlib

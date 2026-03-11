@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -47,9 +48,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+_cors_origins = os.environ.get(
+    "CORS_ORIGINS", "http://localhost:5173"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -103,7 +108,7 @@ class CreateHabitRequest(BaseModel):
 _CREDENTIALS_FILE = Path(__file__).parent / "credentials.json"
 _TOKEN_FILE = Path(__file__).parent / "token.json"
 _OAUTH_SCOPES = ["https://www.googleapis.com/auth/calendar"]
-_OAUTH_REDIRECT = "http://localhost:8000/oauth/callback"
+_OAUTH_REDIRECT = os.environ.get("OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/callback")
 _oauth_flow: Flow | None = None
 
 

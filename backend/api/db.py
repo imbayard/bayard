@@ -1,8 +1,10 @@
+import os
 import pathlib
 import aiosqlite
 from contextlib import asynccontextmanager
 
-DB_PATH = pathlib.Path(__file__).parent.parent / "data" / "lesson-plan.db"
+_default = pathlib.Path(__file__).parent.parent / "data" / "lesson-plan.db"
+DB_PATH = pathlib.Path(os.environ.get("DB_DIR", str(_default.parent))) / "lesson-plan.db"
 
 
 @asynccontextmanager
