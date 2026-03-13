@@ -273,7 +273,13 @@ async def oauth_callback(code: str):
 async def calendar_events(start: str, end: str):
     if not google_calendar.is_authenticated():
         raise HTTPException(401, "Google Calendar not connected.")
-    return {"events": google_calendar.get_events(start, end)}
+    try:
+        return {"events": google_calendar.get_events(start, end)}
+    except Exception as e:
+        if "invalid_grant" in str(e):
+            google_calendar.clear_token()
+            raise HTTPException(401, "Token expired. Please reconnect Google Calendar.")
+        raise HTTPException(502, f"Google Calendar error: {e}")
 
 
 @app.post("/calendar/module-blocks")

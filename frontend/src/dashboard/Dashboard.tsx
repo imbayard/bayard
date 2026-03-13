@@ -369,12 +369,14 @@ export default function Dashboard({
 const s: Record<string, React.CSSProperties> = {
   dashboard: {
     flex: 1,
+    minHeight: 0,
     padding: '24px 20px',
     display: 'flex',
     flexDirection: 'column',
     gap: 24,
+    overflowY: 'auto',
   },
-  section: { display: 'flex', flexDirection: 'column', gap: 12 },
+  section: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 },
   errorBar: {
     display: 'flex',
     alignItems: 'center',

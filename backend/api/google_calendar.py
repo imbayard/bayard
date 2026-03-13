@@ -22,6 +22,14 @@ def is_authenticated() -> bool:
     return TOKEN_FILE.exists()
 
 
+def clear_token() -> None:
+    global _service, _timezone
+    if TOKEN_FILE.exists():
+        TOKEN_FILE.unlink()
+    _service = None
+    _timezone = None
+
+
 def get_service():
     global _service, _timezone
     if not TOKEN_FILE.exists():

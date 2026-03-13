@@ -78,6 +78,10 @@ export default function ScheduleCalendar() {
       const res = await fetch(
         `${API_BASE}/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`
       )
+      if (res.status === 401) {
+        setAuthenticated(false)
+        return
+      }
       if (!res.ok) return
       const data = await res.json()
       setEvents(
@@ -155,7 +159,7 @@ export default function ScheduleCalendar() {
         onSelectEvent={onSelectEvent}
         onRangeChange={onRangeChange}
         eventPropGetter={(event) => ({ className: `event-${event.type}` })}
-        style={{ height: 500 }}
+        style={{ height: 500, maxWidth: '100%' }}
       />
       {slot && (
         <EventModal
