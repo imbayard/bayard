@@ -15,6 +15,7 @@ from backend.claude_client import chat_stream, cleanup_mcp, init_mcp
 from backend.agents.course_planner import generate_lesson_plan
 from backend.agents.artifact_seeder import seed_artifacts
 from backend.agents.artifact_generator import generate_artifact
+from backend.agents.mediator import mediator_stream
 from backend.api.lesson_plan_store import create_table as create_plans_table, set_plan, get_plans, delete_plan, update_plan_status
 from backend.api.module_store import (
     create_table as create_modules_table,
@@ -105,6 +106,21 @@ class CreateHabitRequest(BaseModel):
     duration_minutes: int
 
 
+class MediatorHistoryEntry(BaseModel):
+    speaker: str
+    name: str
+    content: str
+
+
+class MediatorRequest(BaseModel):
+    topic: str
+    bot_a_name: str
+    bot_a_points: list[str]
+    bot_b_name: str
+    bot_b_points: list[str]
+    history: list[MediatorHistoryEntry] = []
+
+
 _CREDENTIALS_FILE = Path(__file__).parent / "credentials.json"
 _TOKEN_FILE = Path(__file__).parent / "token.json"
 _OAUTH_SCOPES = ["https://www.googleapis.com/auth/calendar"]
@@ -118,6 +134,19 @@ _oauth_flow: Flow | None = None
 async def chat_stream_endpoint(req: ChatRequest):
     return StreamingResponse(
         chat_stream(req.message, req.history),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/mediator/stream")
+async def mediator_stream_endpoint(req: MediatorRequest):
+    return StreamingResponse(
+        mediator_stream(
+            req.topic, req.bot_a_name, req.bot_a_points,
+            req.bot_b_name, req.bot_b_points,
+            [h.model_dump() for h in req.history],
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

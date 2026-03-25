@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Dashboard from './dashboard/Dashboard'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL
+import Mediator from './mediator/Mediator'
+import { API_BASE } from './lib/config'
+import { readSSEStream } from './lib/sse'
+import { ghostBtnStyle, primaryBtnStyle, labelStyle, textStyle, markdownStyle, cursorStyle, inputRowStyle, textareaStyle } from './lib/styles'
 
 type Role = 'user' | 'assistant'
-type View = 'chat' | 'dashboard'
+type View = 'chat' | 'dashboard' | 'mediator'
 
 interface Message {
   role: Role
@@ -49,64 +51,35 @@ export default function App() {
 
       if (!res.ok || !res.body) throw new Error('Stream request failed')
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      outer: while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const events = buffer.split('\n\n')
-        buffer = events.pop() ?? ''
-
-        for (const raw of events) {
-          if (!raw.trim()) continue
-          const lines = raw.split('\n')
-          let eventType = ''
-          let eventData = ''
-          for (const line of lines) {
-            if (line.startsWith('event: ')) eventType = line.slice(7)
-            else if (line.startsWith('data: ')) eventData = line.slice(6)
-          }
-
-          if (eventType === 'preamble') {
-            setMessages((prev) => {
-              const next = [...prev]
-              next[assistantIdx] = {
-                ...next[assistantIdx],
-                preamble: eventData,
-              }
-              return next
-            })
-          } else if (eventType === 'response.message') {
-            const token = eventData.replace(/\\n/g, '\n')
-            setMessages((prev) => {
-              const next = [...prev]
-              const msg = next[assistantIdx]
-              next[assistantIdx] = {
-                ...msg,
-                content: msg.content + token,
-                preamble: '',
-                streaming: true,
-              }
-              return next
-            })
-          } else if (eventType === 'done') {
-            setMessages((prev) => {
-              const next = [...prev]
-              next[assistantIdx] = {
-                ...next[assistantIdx],
-                streaming: false,
-                preamble: '',
-              }
-              return next
-            })
-            break outer
-          }
+      await readSSEStream(res.body, (eventType, eventData) => {
+        if (eventType === 'preamble') {
+          setMessages((prev) => {
+            const next = [...prev]
+            next[assistantIdx] = { ...next[assistantIdx], preamble: eventData }
+            return next
+          })
+        } else if (eventType === 'response.message') {
+          const token = eventData.replace(/\\n/g, '\n')
+          setMessages((prev) => {
+            const next = [...prev]
+            const msg = next[assistantIdx]
+            next[assistantIdx] = {
+              ...msg,
+              content: msg.content + token,
+              preamble: '',
+              streaming: true,
+            }
+            return next
+          })
+        } else if (eventType === 'done') {
+          setMessages((prev) => {
+            const next = [...prev]
+            next[assistantIdx] = { ...next[assistantIdx], streaming: false, preamble: '' }
+            return next
+          })
+          return 'stop'
         }
-      }
+      })
     } catch {
       setMessages((prev) => {
         const next = [...prev]
@@ -168,12 +141,17 @@ export default function App() {
     <div style={s.container}>
       <header style={s.header}>
         <span style={s.headerTitle}>Coach</span>
-        <button
-          style={s.navBtn}
-          onClick={() => setView(view === 'chat' ? 'dashboard' : 'chat')}
-        >
-          {view === 'chat' ? 'Dashboard →' : '← Chat'}
-        </button>
+        <div style={s.navGroup}>
+          {view !== 'chat' && (
+            <button style={s.navBtn} onClick={() => setView('chat')}>Chat</button>
+          )}
+          {view !== 'dashboard' && (
+            <button style={s.navBtn} onClick={() => setView('dashboard')}>Dashboard</button>
+          )}
+          {view !== 'mediator' && (
+            <button style={s.navBtn} onClick={() => setView('mediator')}>Mediator</button>
+          )}
+        </div>
       </header>
 
       {view === 'chat' ? (
@@ -204,27 +182,31 @@ export default function App() {
           )}
           <div ref={bottomRef} />
         </div>
+      ) : view === 'mediator' ? (
+        <Mediator />
       ) : (
         <Dashboard onLessonComplete={handleLessonComplete} onLearnNew={handleLearnNew} />
       )}
 
-      <div style={s.inputRow}>
-        <textarea
-          style={s.textarea}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={view === 'chat' ? onKeyDown : onDashboardKeyDown}
-          placeholder="Message Coach…"
-          rows={2}
-        />
-        <button
-          style={s.button}
-          onClick={view === 'chat' ? () => send() : sendFromDashboard}
-          disabled={loading}
-        >
-          {loading ? '…' : 'Send'}
-        </button>
-      </div>
+      {view !== 'mediator' && (
+        <div style={s.inputRow}>
+          <textarea
+            style={s.textarea}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={view === 'chat' ? onKeyDown : onDashboardKeyDown}
+            placeholder="Message Coach…"
+            rows={2}
+          />
+          <button
+            style={s.button}
+            onClick={view === 'chat' ? () => send() : sendFromDashboard}
+            disabled={loading}
+          >
+            {loading ? '…' : 'Send'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -256,17 +238,11 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
     letterSpacing: '0.14em',
   },
-  navBtn: {
-    fontSize: 10,
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    letterSpacing: '0.14em',
-    color: '#9ca3af',
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 0,
+  navGroup: {
+    display: 'flex',
+    gap: 16,
   },
+  navBtn: ghostBtnStyle,
   messages: {
     flex: 1,
     overflowY: 'auto',
@@ -288,24 +264,16 @@ const s: Record<string, React.CSSProperties> = {
     paddingLeft: 14,
     maxWidth: '80%',
   },
-  role: {
-    fontSize: 10,
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    letterSpacing: '0.14em',
-    color: '#9ca3af',
-    display: 'block',
-    marginBottom: 6,
-  },
-  text: { margin: 0, fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' },
-  markdown: { fontSize: 14, lineHeight: 1.6 },
+  role: { ...labelStyle, color: '#9ca3af', marginBottom: 6 },
+  text: textStyle,
+  markdown: markdownStyle,
   preamble: {
     margin: '0 0 6px 0',
     fontSize: 12,
     fontStyle: 'italic',
     color: '#9ca3af',
   },
-  cursor: { display: 'inline-block' },
+  cursor: cursorStyle,
   emptyChat: {
     margin: 0,
     fontSize: 13,
@@ -314,30 +282,7 @@ const s: Record<string, React.CSSProperties> = {
     marginTop: 'auto',
     marginBottom: 'auto',
   },
-  inputRow: {
-    display: 'flex',
-    borderTop: '2px solid #111827',
-  },
-  textarea: {
-    flex: 1,
-    resize: 'none',
-    padding: '12px 16px',
-    border: 'none',
-    borderRight: '1px solid #e5e7eb',
-    fontSize: 14,
-    fontFamily: 'inherit',
-    outline: 'none',
-  },
-  button: {
-    padding: '0 24px',
-    border: 'none',
-    background: '#111827',
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    letterSpacing: '0.14em',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
+  inputRow: inputRowStyle,
+  textarea: textareaStyle,
+  button: primaryBtnStyle,
 }
