@@ -118,7 +118,10 @@ class MediatorRequest(BaseModel):
     bot_a_points: list[str]
     bot_b_name: str
     bot_b_points: list[str]
-    history: list[MediatorHistoryEntry] = []
+    thread_a: list[MediatorHistoryEntry] = []
+    thread_b: list[MediatorHistoryEntry] = []
+    target: str = "continue"  # "continue", "a", or "b"
+    question: str = ""
 
 
 _CREDENTIALS_FILE = Path(__file__).parent / "credentials.json"
@@ -145,7 +148,10 @@ async def mediator_stream_endpoint(req: MediatorRequest):
         mediator_stream(
             req.topic, req.bot_a_name, req.bot_a_points,
             req.bot_b_name, req.bot_b_points,
-            [h.model_dump() for h in req.history],
+            [h.model_dump() for h in req.thread_a],
+            [h.model_dump() for h in req.thread_b],
+            req.target,
+            req.question,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},

@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { API_BASE } from '../lib/config'
 import { readSSEStream } from '../lib/sse'
-import { ghostBtnStyle, primaryBtnStyle, labelStyle, textStyle, markdownStyle, cursorStyle, inputRowStyle, textareaStyle } from '../lib/styles'
+import { ghostBtnStyle, primaryBtnStyle, labelStyle, textStyle, markdownStyle, cursorStyle, textareaStyle } from '../lib/styles'
 
 type Phase = 'setup' | 'debate'
 
@@ -12,6 +12,7 @@ interface MediatorMsg {
   name: string
   content: string
   streaming?: boolean
+  target?: 'a' | 'b'  // which side a mediator message is directed at
 }
 
 interface SetupState {
@@ -47,26 +48,38 @@ export default function Mediator() {
       .filter(Boolean)
   }
 
+  function buildThread(msgs: MediatorMsg[], side: 'a' | 'b') {
+    return msgs
+      .filter((m) => m.speaker === side || (m.speaker === 'mediator' && (!m.target || m.target === side)))
+      .map((m) => ({ speaker: m.speaker, name: m.name, content: m.content }))
+  }
+
   async function startDebate() {
     if (!setup.topic.trim() || !setup.botAPoints.trim() || !setup.botBPoints.trim()) return
     setPhase('debate')
     setMessages([])
-    await runRound([])
+    await runRound('continue', '', [])
   }
 
-  async function sendMediator() {
-    const text = input.trim()
-    if (!text || loading) return
-    const mediatorMsg: MediatorMsg = { speaker: 'mediator', name: 'You', content: text }
-    const updated = [...messages, mediatorMsg]
-    setMessages(updated)
-    setInput('')
-    await runRound(
-      updated.map((m) => ({ speaker: m.speaker, name: m.name, content: m.content }))
-    )
+  async function sendAction(target: 'continue' | 'a' | 'b') {
+    if (loading) return
+    const question = input.trim()
+    let snapshot = messages
+    if (question && target !== 'continue') {
+      const label = target === 'a' ? (setup.botAName || 'Side A') : (setup.botBName || 'Side B')
+      const mediatorMsg: MediatorMsg = { speaker: 'mediator', name: 'You', content: `To ${label}: ${question}`, target }
+      snapshot = [...messages, mediatorMsg]
+      setMessages(snapshot)
+      setInput('')
+    }
+    await runRound(target, question, snapshot)
   }
 
-  async function runRound(history: { speaker: string; name: string; content: string }[]) {
+  async function runRound(
+    target: string,
+    question: string,
+    snapshot: MediatorMsg[],
+  ) {
     setLoading(true)
 
     try {
@@ -79,7 +92,10 @@ export default function Mediator() {
           bot_a_points: parsePoints(setup.botAPoints),
           bot_b_name: setup.botBName || 'Side B',
           bot_b_points: parsePoints(setup.botBPoints),
-          history,
+          thread_a: buildThread(snapshot, 'a'),
+          thread_b: buildThread(snapshot, 'b'),
+          target,
+          question,
         }),
       })
 
@@ -132,7 +148,6 @@ export default function Mediator() {
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      sendMediator()
     }
   }
 
@@ -245,19 +260,39 @@ export default function Mediator() {
         <div ref={bottomRef} />
       </div>
 
-      <div style={s.inputRow}>
+      <div style={s.inputArea}>
         <textarea
           style={s.textarea}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={loading ? 'Bots are debating…' : 'Ask a question or guide the debate…'}
+          placeholder={loading ? 'Bots are debating…' : 'Type a question for one side…'}
           rows={2}
           disabled={loading}
         />
-        <button style={s.sendBtn} onClick={sendMediator} disabled={loading}>
-          {loading ? '…' : 'Send'}
-        </button>
+        <div style={s.actionRow}>
+          <button
+            style={{ ...s.askBtn, borderColor: '#2563eb', color: '#2563eb' }}
+            onClick={() => sendAction('a')}
+            disabled={loading || !input.trim()}
+          >
+            Ask {setup.botAName || 'Side A'}
+          </button>
+          <button
+            style={s.continueBtn}
+            onClick={() => sendAction('continue')}
+            disabled={loading}
+          >
+            Continue
+          </button>
+          <button
+            style={{ ...s.askBtn, borderColor: '#dc2626', color: '#dc2626' }}
+            onClick={() => sendAction('b')}
+            disabled={loading || !input.trim()}
+          >
+            Ask {setup.botBName || 'Side B'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -384,7 +419,32 @@ const s: Record<string, React.CSSProperties> = {
   text: textStyle,
   markdown: markdownStyle,
   cursor: cursorStyle,
-  inputRow: inputRowStyle,
-  textarea: textareaStyle,
-  sendBtn: primaryBtnStyle,
+  inputArea: {
+    padding: '12px 20px',
+    borderTop: '1px solid #e5e7eb',
+    flexShrink: 0,
+  },
+  textarea: {
+    ...textareaStyle,
+    width: '100%',
+    marginBottom: 8,
+    boxSizing: 'border-box' as const,
+  },
+  actionRow: {
+    display: 'flex',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  askBtn: {
+    ...ghostBtnStyle,
+    border: '2px solid',
+    padding: '6px 16px',
+    fontWeight: 600,
+    flex: 1,
+  },
+  continueBtn: {
+    ...primaryBtnStyle,
+    padding: '6px 16px',
+    flex: 1,
+  },
 }

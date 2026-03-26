@@ -6,15 +6,52 @@ from backend.config import MODEL_CHAT
 def _system_prompt(label: str, topic: str, points: list[str]) -> str:
     bullet_list = "\n".join(f"- {p}" for p in points)
     return (
-        f"You are {label} in a structured debate on the topic: \"{topic}\".\n\n"
-        f"Your position is defined by these points:\n{bullet_list}\n\n"
-        "Rules for every response:\n"
-        "1. Keep it to 2-3 sentences MAX. This is a conversation, not an essay.\n"
-        "2. Be direct and punchy — react to what was just said, push back, concede points.\n"
-        "3. Use markdown: **bold** for emphasis, `code` for technical terms.\n"
-        "4. No bullet points, no lists, no headers. Just talk.\n"
-        "5. NEVER prefix your response with your name or label. Just speak directly."
+        f'You are an expert advisor for the {label} position on: "{topic}".\n\n'
+        f"Your position:\n{bullet_list}\n\n"
+        "The mediator will share what the opponent said. Help them craft a sharp response.\n\n"
+        "STRICT rules:\n"
+        "- 1-3 sentences ONLY. Never more. Be punchy.\n"
+        "- No bullet points, no lists, no headers, no preamble.\n"
+        "- Never prefix with your name.\n"
+        "- Use **bold** for emphasis."
     )
+
+
+def _last_bot_response(thread: list[dict]) -> str | None:
+    for entry in reversed(thread):
+        if entry["speaker"] != "mediator":
+            return entry["content"]
+    return None
+
+
+def _build_msgs(thread: list[dict]) -> list[dict]:
+    msgs = []
+    for m in thread:
+        if m["speaker"] == "mediator":
+            msgs.append({"role": "user", "content": m["content"]})
+        else:
+            msgs.append({"role": "assistant", "content": m["content"]})
+    return msgs
+
+
+async def _stream_bot(bot_id, name, system, msgs):
+    """Yield SSE events for a single bot turn. Returns full response text."""
+    yield f"event: speaker\ndata: {json.dumps({'id': bot_id, 'name': name})}\n\n"
+
+    full_content = ""
+    async with client.messages.stream(
+        model=MODEL_CHAT,
+        max_tokens=256,
+        system=system,
+        messages=msgs,
+    ) as stream:
+        async for text in stream.text_stream:
+            full_content += text
+            yield f"event: delta\ndata: {json.dumps({'id': bot_id, 'text': text})}\n\n"
+
+    yield f"event: turn_done\ndata: {json.dumps({'id': bot_id, 'content': full_content})}\n\n"
+    # Stash the full content so the caller can read it
+    yield full_content
 
 
 async def mediator_stream(
@@ -23,56 +60,87 @@ async def mediator_stream(
     bot_a_points: list[str],
     bot_b_name: str,
     bot_b_points: list[str],
-    history: list[dict],
+    thread_a: list[dict],
+    thread_b: list[dict],
+    target: str,
+    question: str,
 ):
-    """Run 4 turns (A→B→A→B) and yield SSE events for each."""
-
+    """
+    Single-turn round (except opening which is 2 turns).
+      "a"        — A speaks (with optional mediator question)
+      "b"        — B speaks (with optional mediator question)
+      "continue" — whichever side didn't speak last goes next
+    Opening (both threads empty): both speak, A then B.
+    """
     system_a = _system_prompt(bot_a_name, topic, bot_a_points)
     system_b = _system_prompt(bot_b_name, topic, bot_b_points)
 
-    # Build separate message histories for each bot.
-    # Each bot sees the full conversation but from their own system prompt.
-    def build_messages(perspective: str) -> list[dict]:
-        msgs = []
-        for m in history:
-            speaker = m["speaker"]
-            content = m["content"]
-            if speaker == "mediator":
-                msgs.append({"role": "user", "content": f"[Mediator]: {content}"})
-            elif speaker == perspective:
-                msgs.append({"role": "assistant", "content": content})
-            else:
-                msgs.append({"role": "user", "content": f"[{m['name']}]: {content}"})
-        return msgs
+    last_a = _last_bot_response(thread_a)
+    last_b = _last_bot_response(thread_b)
 
-    turn_order = [
-        ("a", bot_a_name, system_a),
-        ("b", bot_b_name, system_b),
-        ("a", bot_a_name, system_a),
-        ("b", bot_b_name, system_b),
-    ]
+    # Opening: both threads empty → both bots give opening statements
+    opening = not thread_a and not thread_b
 
-    for bot_id, name, system in turn_order:
-        msgs = build_messages(bot_id)
+    if opening:
+        order = [
+            ("a", bot_a_name, system_a, thread_a, None, bot_b_name, ""),
+            ("b", bot_b_name, system_b, thread_b, None, bot_a_name, ""),
+        ]
+    elif target == "a":
+        order = [("a", bot_a_name, system_a, thread_a, last_b, bot_b_name, question)]
+    elif target == "b":
+        order = [("b", bot_b_name, system_b, thread_b, last_a, bot_a_name, question)]
+    else:  # continue — opposite of whoever spoke last
+        a_len = len([m for m in thread_a if m["speaker"] == "a"])
+        b_len = len([m for m in thread_b if m["speaker"] == "b"])
+        if a_len > b_len:
+            order = [("b", bot_b_name, system_b, thread_b, last_a, bot_a_name, "")]
+        else:
+            order = [("a", bot_a_name, system_a, thread_a, last_b, bot_b_name, "")]
 
-        # Signal which bot is about to speak
-        yield f"event: speaker\ndata: {json.dumps({'id': bot_id, 'name': name})}\n\n"
+    first_response = None
 
-        # Stream response
+    for (
+        bot_id,
+        name,
+        system,
+        thread,
+        opponent_last,
+        opponent_name,
+        mediator_text,
+    ) in order:
+        # During opening, second bot gets first bot's fresh response
+        if opening and first_response is not None:
+            opponent_last = first_response
+
+        msgs = _build_msgs(thread)
+
+        # Build the new user message
+        parts = []
+        if opponent_last:
+            parts.append(f"[{opponent_name}'s latest statement]: {opponent_last}")
+        if mediator_text:
+            parts.append(f"[Mediator]: {mediator_text}")
+
+        if parts:
+            msgs.append({"role": "user", "content": "\n\n".join(parts)})
+        elif not msgs:
+            msgs.append(
+                {
+                    "role": "user",
+                    "content": "The mediator has opened the floor. Present your opening perspective.",
+                }
+            )
+
+        # Stream this bot's response
         full_content = ""
-        async with client.messages.stream(
-            model=MODEL_CHAT,
-            max_tokens=256,
-            system=system,
-            messages=msgs if msgs else [{"role": "user", "content": "Begin your opening argument."}],
-        ) as stream:
-            async for text in stream.text_stream:
-                full_content += text
-                yield f"event: delta\ndata: {json.dumps({'id': bot_id, 'text': text})}\n\n"
+        async for chunk in _stream_bot(bot_id, name, system, msgs):
+            if not chunk.startswith("event:"):
+                full_content = chunk  # last yield is the full text
+            else:
+                yield chunk
 
-        yield f"event: turn_done\ndata: {json.dumps({'id': bot_id, 'content': full_content})}\n\n"
-
-        # Add this turn to history so the next bot sees it
-        history.append({"speaker": bot_id, "name": name, "content": full_content})
+        if first_response is None:
+            first_response = full_content
 
     yield "event: done\ndata: {}\n\n"
