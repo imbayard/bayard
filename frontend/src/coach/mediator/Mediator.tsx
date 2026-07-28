@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { API_BASE } from '../lib/config'
-import { readSSEStream } from '../lib/sse'
-import { ghostBtnStyle, primaryBtnStyle, labelStyle, textStyle, markdownStyle, cursorStyle, textareaStyle } from '../lib/styles'
+import { API_BASE } from '../../lib/config'
+import { readSSEStream } from '../../lib/sse'
+import { ghostBtnStyle, primaryBtnStyle, labelStyle, textStyle, markdownStyle, cursorStyle, textareaStyle } from '../../lib/styles'
 
 type Phase = 'setup' | 'debate'
 

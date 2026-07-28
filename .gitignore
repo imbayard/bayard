@@ -44,3 +44,6 @@ backend/data/
 
 # Context
 *.md
+
+# Claude
+.claude/settings.local.json
