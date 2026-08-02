@@ -1,4 +1,5 @@
-import type { Platform } from '@benchpoints/core';
+// Relative import (see adapters.ts) — avoids Netlify's workspace-package externalization bug.
+import type { Platform } from '../../../bench-core/dist/index.js';
 
 export function parsePlatform(value: string): Platform {
   if (value !== 'sleeper' && value !== 'espn') {

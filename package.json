@@ -10,8 +10,5 @@
     "dev": "pnpm --filter frontend dev",
     "build": "pnpm -r build",
     "lint": "pnpm --filter frontend lint"
-  },
-  "dependencies": {
-    "@benchpoints/api": "workspace:*"
   }
 }
