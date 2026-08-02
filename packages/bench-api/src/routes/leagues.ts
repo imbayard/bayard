@@ -1,5 +1,6 @@
-import type { League } from '@benchpoints/core';
-import { MOCK_ESPN_OWNER_ID, MOCK_SLEEPER_OWNER_ID } from '@benchpoints/core';
+// Relative import (see adapters.ts) — avoids Netlify's workspace-package externalization bug.
+import type { League } from '../../../bench-core/dist/index.js';
+import { MOCK_ESPN_OWNER_ID, MOCK_SLEEPER_OWNER_ID } from '../../../bench-core/dist/index.js';
 import { Hono } from 'hono';
 import { AdapterNotConfiguredError, adapterFor, sleeperAdapter } from '../adapters.js';
 import { env } from '../env.js';
