@@ -1,7 +1,9 @@
+# Home site (Vite SPA). Builds from the pnpm workspace root so the lockfile resolves.
+# pnpm is auto-detected via the root package.json "packageManager" field (corepack).
 [build]
-  base = "frontend"
-  command = "npm run build"
-  publish = "dist"
+  base = ""
+  command = "pnpm install --frozen-lockfile && pnpm --filter frontend build"
+  publish = "frontend/dist"
 
 [[redirects]]
   from = "/*"

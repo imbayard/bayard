@@ -24,7 +24,7 @@ export default function Home({ onOpen }: { onOpen: (id: AppId) => void }) {
     <div style={s.container}>
       <header style={s.header}>
         <span style={s.headerTitle}>Bayard</span>
-        <span style={s.headerSub}>Projects</span>
+        <span style={s.headerSub}>My Projects</span>
       </header>
 
       <div style={s.body}>

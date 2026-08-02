@@ -1,0 +1,14 @@
+{
+  "name": "bayard",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build",
+    "lint": "pnpm --filter frontend lint"
+  }
+}
