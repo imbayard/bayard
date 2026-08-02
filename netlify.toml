@@ -1,20 +1,27 @@
 # Single-app monorepo on one Netlify site.
 # Builds from the pnpm workspace root so the lockfile resolves; pnpm is auto-detected
-# via the root package.json "packageManager" field (corepack).
-# `pnpm build` compiles the bench packages (core, api) before the Vite app, so the
-# bench Netlify Function can bundle @benchpoints/api's built dist.
+# via the root package.json "packageManager" field (corepack). The three build steps are
+# chained directly here (not via a nested package.json script that itself calls pnpm) —
+# nested pnpm-in-pnpm script invocation doesn't reliably resolve on PATH everywhere.
+#
+# Step 3 (bundle-functions.mjs) self-bundles netlify/functions-src/*.ts into
+# netlify/functions/*.mjs via esbuild, inlining every dependency (workspace packages
+# AND plain npm packages like hono). Necessary because Netlify's own function-packaging
+# step externalizes node_modules imports without reliably including them in the deployed
+# zip (MODULE_NOT_FOUND at runtime despite a green build) — pre-bundling ourselves ships
+# a self-contained function with nothing left for that step to resolve.
 [build]
   base = ""
-  command = "pnpm install --frozen-lockfile && pnpm -r build"
+  command = "pnpm install --frozen-lockfile && pnpm -r build && node scripts/bundle-functions.mjs"
   publish = "frontend/dist"
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "esbuild"
 
-# BenchPoints API is served by netlify/functions/bench.ts, bound to /api/bench/* via
-# the function's own `config.path`. The SPA fallback below is unforced, so it only
-# applies when nothing else (static file or function) matches — it does not shadow the API.
+# BenchPoints API is served by netlify/functions/bench.mjs (built from
+# netlify/functions-src/bench.ts), bound to /api/bench/* via the function's own
+# `config.path`. The SPA fallback below is unforced, so it only applies when nothing
+# else (static file or function) matches — it does not shadow the API.
 [[redirects]]
   from = "/*"
   to = "/index.html"

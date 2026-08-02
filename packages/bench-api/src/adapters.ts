@@ -1,7 +1,3 @@
-// Relative import, not the package specifier: Netlify's function bundler externalizes
-// pnpm workspace packages (symlinked outside node_modules) instead of inlining them,
-// which throws MODULE_NOT_FOUND at runtime. A relative path to the built dist makes
-// esbuild treat this as first-party source and inline it.
 import {
   EspnAdapter,
   LruCache,
@@ -9,7 +5,7 @@ import {
   mockSleeperAdapter,
   SleeperAdapter,
   type PlatformAdapter,
-} from '../../bench-core/dist/index.js';
+} from '@benchpoints/core';
 import { env } from './env.js';
 
 const cache = new LruCache();

@@ -7,6 +7,11 @@ dist-ssr/
 .turbo/
 .next/
 
+# Generated: netlify/functions/ is the esbuild output of netlify/functions-src/
+# (see scripts/bundle-functions.mjs). Source of truth is functions-src/.
+netlify/functions/*.mjs
+netlify/functions/*.cjs
+
 # Logs
 logs/
 *.log
