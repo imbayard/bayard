@@ -1,0 +1,85 @@
+{
+  "players": [
+    {
+      "id": 1001,
+      "player": {
+        "id": 1001,
+        "fullName": "Player A",
+        "defaultPosition": "RB",
+        "proTeamId": 0,
+        "stats": [
+          {
+            "id": "112025",
+            "seasonId": 2025,
+            "scoringPeriodId": 5,
+            "statSourceId": 1,
+            "statSplitTypeId": 1,
+            "appliedTotal": 17.4
+          },
+          {
+            "id": "002025",
+            "seasonId": 2025,
+            "scoringPeriodId": 5,
+            "statSourceId": 0,
+            "statSplitTypeId": 1,
+            "appliedTotal": 12.1
+          },
+          {
+            "id": "102025",
+            "seasonId": 2025,
+            "scoringPeriodId": 0,
+            "statSourceId": 1,
+            "statSplitTypeId": 0,
+            "appliedTotal": 210.6
+          }
+        ]
+      }
+    },
+    {
+      "id": 1002,
+      "player": {
+        "id": 1002,
+        "fullName": "Player B",
+        "defaultPosition": "WR",
+        "proTeamId": 0,
+        "stats": [
+          {
+            "id": "112025",
+            "seasonId": 2025,
+            "scoringPeriodId": 5,
+            "statSourceId": 1,
+            "statSplitTypeId": 1,
+            "appliedTotal": 9.8
+          }
+        ]
+      }
+    },
+    {
+      "id": 1003,
+      "player": {
+        "id": 1003,
+        "fullName": "Player C",
+        "defaultPosition": "TE",
+        "proTeamId": 0,
+        "stats": [
+          {
+            "id": "002025",
+            "seasonId": 2025,
+            "scoringPeriodId": 5,
+            "statSourceId": 0,
+            "statSplitTypeId": 1,
+            "appliedTotal": 6.2
+          },
+          {
+            "id": "102025",
+            "seasonId": 2025,
+            "scoringPeriodId": 0,
+            "statSourceId": 1,
+            "statSplitTypeId": 0,
+            "appliedTotal": 95.3
+          }
+        ]
+      }
+    }
+  ]
+}

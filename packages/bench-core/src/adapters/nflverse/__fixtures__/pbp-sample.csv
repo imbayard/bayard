@@ -1,0 +1,12 @@
+posteam,play_type,sack,qb_dropback,qb_scramble,pass_attempt,rush_attempt,epa,season,week,desc
+KC,pass,0,1,0,1,0,0.5,2024,1,"Mahomes pass short right, complete"
+KC,pass,1,1,0,0,0,-1.2,2024,1,"sacked, ball loose but recovered"
+KC,run,0,0,0,0,1,0.3,2024,1,Pacheco up the middle
+KC,run,0,0,0,0,1,NA,2024,1,"kneel, no epa charted"
+SF,run,0,1,1,0,0,1.0,2024,1,"Purdy scrambles, says ""go"""
+SF,run,0,0,0,0,1,-0.5,2024,1,McCaffrey left end
+LA,pass,0,,0,1,0,0.2,2024,1,derived dropback via pass_attempt
+LA,pass,1,,0,0,0,-2.0,2024,1,derived dropback via sack
+LA,run,0,,1,0,0,0.8,2024,1,derived dropback via scramble
+LA,run,0,,0,0,1,0.1,2024,1,Kyren Williams run
+,no_play,0,0,0,0,0,NA,2024,1,timeout

@@ -1,0 +1,33 @@
+{
+  "name": "@benchpoints/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BenchPoints API — Hono HTTP layer over the core adapters",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./app": {
+      "types": "./dist/app.d.ts",
+      "import": "./dist/app.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && node --env-file=../../.env dist/index.js",
+    "start": "node --env-file=../../.env dist/index.js"
+  },
+  "dependencies": {
+    "@benchpoints/core": "workspace:*",
+    "@hono/node-server": "^1.13.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.8.0"
+  }
+}

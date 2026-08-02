@@ -1,10 +1,20 @@
-# Home site (Vite SPA). Builds from the pnpm workspace root so the lockfile resolves.
-# pnpm is auto-detected via the root package.json "packageManager" field (corepack).
+# Single-app monorepo on one Netlify site.
+# Builds from the pnpm workspace root so the lockfile resolves; pnpm is auto-detected
+# via the root package.json "packageManager" field (corepack).
+# `pnpm build` compiles the bench packages (core, api) before the Vite app, so the
+# bench Netlify Function can bundle @benchpoints/api's built dist.
 [build]
   base = ""
-  command = "pnpm install --frozen-lockfile && pnpm --filter frontend build"
+  command = "pnpm install --frozen-lockfile && pnpm -r build"
   publish = "frontend/dist"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# BenchPoints API is served by netlify/functions/bench.ts, bound to /api/bench/* via
+# the function's own `config.path`. The SPA fallback below is unforced, so it only
+# applies when nothing else (static file or function) matches — it does not shadow the API.
 [[redirects]]
   from = "/*"
   to = "/index.html"

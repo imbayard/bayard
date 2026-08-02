@@ -1,0 +1,87 @@
+{
+  "league": {
+    "league_id": "9999999999",
+    "name": "Fixture Dynasty League",
+    "season": "2025",
+    "status": "in_season",
+    "total_rosters": 2,
+    "roster_positions": ["QB", "RB", "WR", "TE", "FLEX", "BN", "BN"],
+    "scoring_settings": { "rec": 1, "pass_td": 4, "rush_td": 6 },
+    "settings": { "type": 2, "best_ball": 0, "leg": 3 }
+  },
+  "users": [
+    {
+      "user_id": "u1",
+      "display_name": "bayar",
+      "metadata": { "team_name": "Bench Mob" }
+    },
+    { "user_id": "u2", "display_name": "rival", "metadata": null }
+  ],
+  "rosters": [
+    {
+      "roster_id": 1,
+      "owner_id": "u1",
+      "players": ["4046", "6794", "9509", "BUF", "1234"],
+      "starters": ["4046", "6794", "0"],
+      "reserve": ["1234"],
+      "taxi": ["9509"],
+      "settings": {
+        "wins": 2,
+        "losses": 1,
+        "ties": 0,
+        "fpts": 312,
+        "fpts_decimal": 42,
+        "fpts_against": 280,
+        "fpts_against_decimal": 10
+      }
+    },
+    {
+      "roster_id": 2,
+      "owner_id": "u2",
+      "players": ["4034", "5849"],
+      "starters": ["4034"],
+      "reserve": null,
+      "taxi": null,
+      "settings": {
+        "wins": 1,
+        "losses": 2,
+        "ties": 0,
+        "fpts": 290,
+        "fpts_decimal": 0
+      }
+    }
+  ],
+  "matchups": [
+    { "roster_id": 1, "matchup_id": 1, "points": 87.4, "starters": ["4046", "6794"] },
+    { "roster_id": 2, "matchup_id": 1, "points": 92.1, "starters": ["4034"] }
+  ],
+  "players": {
+    "4046": {
+      "player_id": "4046",
+      "full_name": "Patrick Mahomes",
+      "first_name": "Patrick",
+      "last_name": "Mahomes",
+      "position": "QB",
+      "team": "KC",
+      "injury_status": null,
+      "bye_week": 10
+    },
+    "6794": {
+      "player_id": "6794",
+      "full_name": "Justin Jefferson",
+      "first_name": "Justin",
+      "last_name": "Jefferson",
+      "position": "WR",
+      "team": "MIN",
+      "injury_status": "questionable",
+      "bye_week": 6
+    },
+    "BUF": {
+      "player_id": "BUF",
+      "first_name": "Buffalo",
+      "last_name": "Bills",
+      "position": "DEF",
+      "team": "BUF"
+    }
+  }
+}
