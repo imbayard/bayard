@@ -8,7 +8,10 @@
   },
   "scripts": {
     "dev": "pnpm --filter frontend dev",
-    "build": "pnpm --filter frontend build",
+    "build": "pnpm -r build",
     "lint": "pnpm --filter frontend lint"
+  },
+  "dependencies": {
+    "@benchpoints/api": "workspace:*"
   }
 }

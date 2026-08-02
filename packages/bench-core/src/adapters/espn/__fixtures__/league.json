@@ -1,0 +1,165 @@
+{
+  "league": {
+    "id": 123456789,
+    "name": "Fixture ESPN League",
+    "season": 2025,
+    "scoringPeriodId": 3,
+    "status": {
+      "latestScoringPeriod": 3
+    },
+    "settings": {
+      "scoringSettings": {
+        "scoringItems": [
+          { "statId": 53, "points": 1 },
+          { "statId": 4, "points": 4 },
+          { "statId": 25, "points": 6 }
+        ]
+      },
+      "rosterSettings": {
+        "lineupSlotCounts": {
+          "0": 1,
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "6": 1,
+          "8": 1,
+          "9": 2
+        }
+      },
+      "keeperCount": 0
+    },
+    "teams": [
+      {
+        "id": 1,
+        "abbrev": "TM1",
+        "name": "Bench Mob",
+        "points": 342.5,
+        "record": {
+          "overall": {
+            "wins": 2,
+            "losses": 1,
+            "ties": 0,
+            "pointsFor": 342.5,
+            "pointsAgainst": 300.1
+          }
+        },
+        "owners": [
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "roster": {
+          "entries": [
+            { "playerId": 16747, "lineupSlotId": 0, "status": "ACTIVE" },
+            { "playerId": 16745, "lineupSlotId": 3, "status": "ACTIVE" },
+            { "playerId": 99999, "lineupSlotId": 8, "status": "ACTIVE" },
+            { "playerId": 16748, "lineupSlotId": 9, "status": "BENCH" },
+            { "playerId": 16750, "lineupSlotId": 9, "status": "BENCH" },
+            { "playerId": 16751, "lineupSlotId": 11, "status": "BENCH" }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "abbrev": "TM2",
+        "name": "Second Team",
+        "points": 300.1,
+        "record": {
+          "overall": {
+            "wins": 1,
+            "losses": 2,
+            "ties": 0,
+            "pointsFor": 300.1,
+            "pointsAgainst": 342.5
+          }
+        },
+        "owners": [
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440001"
+          }
+        ],
+        "roster": {
+          "entries": [
+            { "playerId": 16743, "lineupSlotId": 0, "status": "ACTIVE" },
+            { "playerId": 16742, "lineupSlotId": 3, "status": "ACTIVE" },
+            { "playerId": 99998, "lineupSlotId": 8, "status": "ACTIVE" },
+            { "playerId": 16752, "lineupSlotId": 9, "status": "BENCH" }
+          ]
+        }
+      }
+    ],
+    "schedule": [
+      {
+        "id": 1,
+        "matchupPeriodId": 3,
+        "away": {
+          "teamId": 1,
+          "points": 87.4
+        },
+        "home": {
+          "teamId": 2,
+          "points": 92.1
+        }
+      }
+    ]
+  },
+  "players": {
+    "16747": {
+      "id": 16747,
+      "firstName": "Patrick",
+      "lastName": "Mahomes",
+      "fullName": "Patrick Mahomes",
+      "proTeamId": 12,
+      "defaultPositionId": 1
+    },
+    "16745": {
+      "id": 16745,
+      "firstName": "Justin",
+      "lastName": "Jefferson",
+      "fullName": "Justin Jefferson",
+      "proTeamId": 16,
+      "defaultPositionId": 3,
+      "injuryStatus": "QUESTIONABLE"
+    },
+    "99999": {
+      "id": 99999,
+      "firstName": "Buffalo",
+      "lastName": "Bills",
+      "fullName": "Buffalo Bills",
+      "proTeamId": 2,
+      "defaultPositionId": 16
+    },
+    "16748": {
+      "id": 16748,
+      "firstName": "Travis",
+      "lastName": "Kelce",
+      "fullName": "Travis Kelce",
+      "proTeamId": 12,
+      "defaultPositionId": 4
+    },
+    "16743": {
+      "id": 16743,
+      "firstName": "Josh",
+      "lastName": "Allen",
+      "fullName": "Josh Allen",
+      "proTeamId": 2,
+      "defaultPositionId": 1
+    },
+    "16742": {
+      "id": 16742,
+      "firstName": "Tyreek",
+      "lastName": "Hill",
+      "fullName": "Tyreek Hill",
+      "proTeamId": 15,
+      "defaultPositionId": 3
+    },
+    "99998": {
+      "id": 99998,
+      "firstName": "Miami",
+      "lastName": "Dolphins",
+      "fullName": "Miami Dolphins",
+      "proTeamId": 15,
+      "defaultPositionId": 16
+    }
+  }
+}

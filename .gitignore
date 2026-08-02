@@ -3,6 +3,9 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
+.turbo/
+.next/
 
 # Logs
 logs/

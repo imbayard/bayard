@@ -1,6 +1,6 @@
 import { labelStyle } from './lib/styles'
 
-export type AppId = 'coach'
+export type AppId = 'coach' | 'bench'
 
 interface Widget {
   id: AppId
@@ -16,6 +16,12 @@ const WIDGETS: Widget[] = [
     name: 'Coach',
     version: '1.0',
     blurb: 'Learning plans, coaching chat, and a debate mediator.',
+  },
+  {
+    id: 'bench',
+    name: 'Bench Points',
+    version: '0.1',
+    blurb: 'Your fantasy football portfolio across platforms, one screen.',
   },
 ]
 
