@@ -5,6 +5,7 @@
  * mapper) runs unchanged, so mock mode exercises the same normalization code as production.
  */
 import type {
+  SleeperDraft,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -151,6 +152,13 @@ export const sleeperRostersById: Record<string, SleeperRoster[]> = {
       settings: { wins: 4, losses: 2, ties: 0, fpts: 698, fpts_decimal: 50, fpts_against: 655, fpts_against_decimal: 0 },
     },
   ],
+};
+
+export const sleeperDraftsByLeagueId: Record<string, SleeperDraft[]> = {
+  // Scheduled, upcoming draft.
+  'mock-sleeper-1': [{ draft_id: 'mock-sleeper-1-draft', start_time: 1787270400000, status: 'pre_draft' }],
+  // Draft exists but has no scheduled time yet.
+  'mock-sleeper-2': [{ draft_id: 'mock-sleeper-2-draft', start_time: null, status: 'pre_draft' }],
 };
 
 export const sleeperMatchupsById: Record<string, SleeperMatchup[]> = {

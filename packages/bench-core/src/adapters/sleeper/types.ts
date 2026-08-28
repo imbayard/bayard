@@ -40,6 +40,14 @@ export interface SleeperLeague {
   settings: SleeperLeagueSettings;
 }
 
+/** GET /league/{league_id}/drafts — array, most recent draft first. */
+export interface SleeperDraft {
+  draft_id: string;
+  /** Epoch ms; null if the draft hasn't been scheduled yet. */
+  start_time: number | null;
+  status: string;
+}
+
 export interface SleeperLeagueUser {
   user_id: string;
   display_name: string;

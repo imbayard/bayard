@@ -8,7 +8,7 @@ import type {
   SleeperRoster,
 } from './types.js';
 
-export function mapLeague(raw: SleeperLeague, currentWeek: number): League {
+export function mapLeague(raw: SleeperLeague, currentWeek: number, draftDate: string | null): League {
   return {
     platform: 'sleeper',
     externalLeagueId: raw.league_id,
@@ -19,6 +19,7 @@ export function mapLeague(raw: SleeperLeague, currentWeek: number): League {
     rosterSlots: raw.roster_positions ?? [],
     teamCount: raw.total_rosters,
     currentWeek,
+    draftDate,
   };
 }
 

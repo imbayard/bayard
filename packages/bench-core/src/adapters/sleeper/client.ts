@@ -1,5 +1,6 @@
 import type { Cache } from '../../cache/cache.js';
 import type {
+  SleeperDraft,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -19,6 +20,7 @@ const TTL = {
   user: 60 * 60 * 1000, // 1h
   leagues: 5 * 60 * 1000, // 5m
   rosters: 5 * 60 * 1000, // 5m
+  drafts: 5 * 60 * 1000, // 5m
   matchups: 30 * 1000, // 30s
   players: 24 * 60 * 60 * 1000, // 24h
   state: 5 * 60 * 1000, // 5m
@@ -82,6 +84,11 @@ export class SleeperClient {
 
   getRosters(leagueId: string): Promise<SleeperRoster[]> {
     return this.fetchJson(`/league/${encodeURIComponent(leagueId)}/rosters`, TTL.rosters);
+  }
+
+  /** Most recent draft first. */
+  getDraftsForLeague(leagueId: string): Promise<SleeperDraft[]> {
+    return this.fetchJson(`/league/${encodeURIComponent(leagueId)}/drafts`, TTL.drafts);
   }
 
   getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]> {

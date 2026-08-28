@@ -67,7 +67,7 @@ export default function ScheduleCalendar() {
   const [slot, setSlot] = useState<{ start: Date; end: Date } | null>(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/oauth/status`)
+    fetch(`${API_BASE}/integrations/oauth/status`)
       .then((r) => r.json())
       .then((d) => setAuthenticated(d.authenticated))
       .catch(() => setAuthenticated(false))
@@ -76,7 +76,7 @@ export default function ScheduleCalendar() {
   async function fetchEvents(start: Date, end: Date) {
     try {
       const res = await fetch(
-        `${API_BASE}/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`
+        `${API_BASE}/integrations/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`
       )
       if (res.status === 401) {
         setAuthenticated(false)
@@ -120,7 +120,7 @@ export default function ScheduleCalendar() {
       : event.id
 
     try {
-      const res = await fetch(`${API_BASE}/calendar/events/${encodeURIComponent(idToDelete)}`, {
+      const res = await fetch(`${API_BASE}/integrations/calendar/events/${encodeURIComponent(idToDelete)}`, {
         method: 'DELETE',
       })
       if (!res.ok) throw new Error()
@@ -136,7 +136,7 @@ export default function ScheduleCalendar() {
     return (
       <div style={s.authPrompt}>
         <p style={s.authText}>Connect Google Calendar to use the scheduler.</p>
-        <a href={`${API_BASE}/oauth/start`} style={s.authBtn}>
+        <a href={`${API_BASE}/integrations/oauth/start`} style={s.authBtn}>
           Connect Google Calendar
         </a>
       </div>

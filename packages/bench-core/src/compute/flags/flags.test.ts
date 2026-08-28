@@ -305,4 +305,9 @@ describe('computeBenchIqFlags', () => {
   it('returns no flags for a clean roster', () => {
     expect(computeBenchIqFlags(cleanRoster, cleanPlayers, 1, ROSTER_SLOTS)).toEqual([]);
   });
+
+  it('returns no flags for an empty (undrafted) roster', () => {
+    const emptyRoster: Roster = { externalTeamId: '1', entries: [] };
+    expect(computeBenchIqFlags(emptyRoster, cleanPlayers, 1, ROSTER_SLOTS)).toEqual([]);
+  });
 });

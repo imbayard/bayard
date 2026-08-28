@@ -10,4 +10,5 @@ export const env = {
   espnS2: optional('ESPN_S2'),
   espnSeason: Number(process.env['ESPN_SEASON'] ?? new Date().getFullYear()),
   debug: process.env['DEBUG'] === '1',
+  integrationsBaseUrl: process.env['INTEGRATIONS_BASE_URL'] ?? 'http://localhost:8000',
 };

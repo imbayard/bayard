@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import Dashboard from './dashboard/Dashboard'
 import Mediator from './mediator/Mediator'
 import { API_BASE } from '../lib/config'
+import { usePathname, navigate } from '../lib/router'
 import { readSSEStream } from '../lib/sse'
 import { ghostBtnStyle, primaryBtnStyle, labelStyle, textStyle, markdownStyle, cursorStyle, inputRowStyle, textareaStyle } from '../lib/styles'
 
@@ -18,7 +19,12 @@ interface Message {
 }
 
 export default function CoachApp({ onExitToHome }: { onExitToHome: () => void }) {
-  const [view, setView] = useState<View>('dashboard')
+  const path = usePathname()
+  const segment = path.split('/')[2]
+  const view: View = segment === 'chat' || segment === 'mediator' ? segment : 'dashboard'
+  function setView(v: View) {
+    navigate(v === 'dashboard' ? '/coach' : `/coach/${v}`)
+  }
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)

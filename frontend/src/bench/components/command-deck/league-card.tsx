@@ -1,17 +1,40 @@
 
+import { useState } from 'react';
 import { Link } from '@bench/lib/nav';
 import { Badge } from '@bench/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@bench/components/ui/card';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { PlatformBadge } from '@bench/components/system/platform-badge';
+import { scheduleDraft } from '@bench/lib/api';
+import { useMockMode } from '@bench/lib/mock-mode';
 import type { LeagueSummary } from '@bench/lib/queries';
-import { formatRecord } from '@bench/lib/utils';
+import { formatDraftDate, formatRecord } from '@bench/lib/utils';
+
+type ScheduleStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export function LeagueCard({ summary }: { summary: LeagueSummary }) {
   const { league, isLoading, isError, myTeam, opponent, myMatchup, opponentMatchup, benchIq } =
     summary;
   const criticalCount = benchIq?.flags.filter((f) => f.level === 'critical').length ?? 0;
   const warningCount = benchIq?.flags.filter((f) => f.level === 'warning').length ?? 0;
+  const [mock] = useMockMode();
+  const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatus>('idle');
+
+  function handleScheduleDraft(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (scheduleStatus === 'saving') return;
+    setScheduleStatus('saving');
+    scheduleDraft(league.platform, league.externalLeagueId, mock)
+      .then(() => {
+        setScheduleStatus('saved');
+        setTimeout(() => setScheduleStatus('idle'), 1500);
+      })
+      .catch(() => {
+        setScheduleStatus('error');
+        setTimeout(() => setScheduleStatus('idle'), 1500);
+      });
+  }
 
   return (
     <Link
@@ -23,6 +46,26 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
           <CardTitle className="flex items-center gap-2">
             <span className="truncate">{league.name}</span>
             <PlatformBadge platform={league.platform} />
+            <Badge
+              variant={scheduleStatus === 'error' ? 'destructive' : 'default'}
+              className={
+                scheduleStatus === 'error'
+                  ? 'ml-auto'
+                  : `ml-auto border-brand bg-transparent text-brand${
+                      league.draftDate ? ' cursor-pointer hover:bg-brand/10' : ''
+                    }`
+              }
+              onClick={league.draftDate ? handleScheduleDraft : undefined}
+              title={league.draftDate ? 'Schedule draft to calendar' : undefined}
+            >
+              {scheduleStatus === 'saving'
+                ? 'Scheduling…'
+                : scheduleStatus === 'saved'
+                  ? 'Added'
+                  : scheduleStatus === 'error'
+                    ? 'Failed'
+                    : formatDraftDate(league.draftDate)}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">

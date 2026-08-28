@@ -35,6 +35,7 @@ describe('mapLeague', () => {
       rosterSlots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'DEF', 'BN', 'BN'],
       teamCount: 2,
       currentWeek: 3,
+      draftDate: '2025-08-13T00:00:00.000Z',
     });
   });
 
@@ -47,6 +48,17 @@ describe('mapLeague', () => {
       },
     } as EspnLeagueResponse;
     expect(mapLeague(keeper).leagueType).toBe('keeper');
+  });
+
+  it('nulls draftDate when draftSettings is absent', () => {
+    const noDraftSettings = {
+      ...leagueData,
+      settings: {
+        ...leagueData.settings,
+        draftSettings: undefined,
+      },
+    } as EspnLeagueResponse;
+    expect(mapLeague(noDraftSettings).draftDate).toBeNull();
   });
 });
 

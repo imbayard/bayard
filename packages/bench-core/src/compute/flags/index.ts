@@ -19,6 +19,10 @@ export function computeBenchIqFlags(
   rosterSlots: string[],
   rosteredPlayerIds: Set<string> = new Set(),
 ): BenchIqFlag[] {
+  // An empty roster means the team hasn't drafted yet (or the league hasn't started) —
+  // nothing to flag until there are actually players on it.
+  if (roster.entries.length === 0) return [];
+
   return [
     ...byeWeekStarterFlags(roster, players, currentWeek),
     ...startingInactiveFlags(roster, players),

@@ -106,6 +106,10 @@ export interface EspnLeagueSettings {
     lineupSlotCounts: Record<number, number>;
   };
   keeperCount?: number;
+  /** ESPN nests the draft date under `draftSettings.date` — an epoch-millisecond timestamp for the league's scheduled/completed draft. */
+  draftSettings?: {
+    date?: number;
+  };
 }
 
 export interface EspnLeagueResponse {

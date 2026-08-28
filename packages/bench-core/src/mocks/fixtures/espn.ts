@@ -30,6 +30,8 @@ export const espnLeague: EspnLeagueResponse = {
     // QB, RB x2, WR x2, TE, FLEX, K, DEF, BN x3 — same shape as the Sleeper mock leagues' roster.
     rosterSettings: { lineupSlotCounts: { 0: 1, 2: 2, 4: 2, 5: 1, 6: 1, 7: 1, 8: 1, 9: 3 } },
     keeperCount: 0,
+    // Late-August draft ahead of the mock 2026 season.
+    draftSettings: { date: Date.UTC(2026, 7, 28, 0, 0, 0) },
   },
   teams: [
     {

@@ -35,8 +35,9 @@ export type EnrichedRoster = Omit<Roster, 'entries'> & {
   entries: EnrichedRosterEntry[];
 };
 
-async function get<T>(path: string, mock: boolean): Promise<T> {
+async function request<T>(method: string, path: string, mock: boolean): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
+    method,
     headers: { 'x-bp-mock': mock ? '1' : '0' },
   });
   if (!res.ok) {
@@ -47,9 +48,17 @@ async function get<T>(path: string, mock: boolean): Promise<T> {
     } catch {
       // non-JSON error body; status alone is enough
     }
-    throw new Error(`GET ${path} failed (${res.status})${detail}`);
+    throw new Error(`${method} ${path} failed (${res.status})${detail}`);
   }
   return res.json() as Promise<T>;
+}
+
+function get<T>(path: string, mock: boolean): Promise<T> {
+  return request<T>('GET', path, mock);
+}
+
+function post<T>(path: string, mock: boolean): Promise<T> {
+  return request<T>('POST', path, mock);
 }
 
 export function fetchLeagues(mock: boolean): Promise<LeaguesResponse> {
@@ -85,4 +94,12 @@ export function fetchBenchIq(
   mock: boolean,
 ): Promise<BenchIqResponse> {
   return get(`/leagues/${platform}/${leagueId}/bench-iq`, mock);
+}
+
+export function scheduleDraft(
+  platform: Platform,
+  leagueId: string,
+  mock: boolean,
+): Promise<{ id: string }> {
+  return post(`/leagues/${platform}/${leagueId}/schedule-draft`, mock);
 }

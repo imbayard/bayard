@@ -30,7 +30,12 @@ export class SleeperAdapter implements PlatformAdapter {
       this.client.getLeagues(externalUserId, season),
     ]);
     const currentWeek = Math.max(1, state.week);
-    return leagues.map((l) => mapLeague(l, currentWeek));
+    const drafts = await Promise.all(leagues.map((l) => this.client.getDraftsForLeague(l.league_id)));
+    return leagues.map((l, i) => {
+      const startTime = drafts[i]?.[0]?.start_time ?? null;
+      const draftDate = startTime != null ? new Date(startTime).toISOString() : null;
+      return mapLeague(l, currentWeek, draftDate);
+    });
   }
 
   async getTeams(externalLeagueId: string): Promise<Team[]> {

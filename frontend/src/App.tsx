@@ -1,16 +1,17 @@
-import { useState } from 'react'
+import { usePathname, navigate } from './lib/router'
 import Home, { type AppId } from './Home'
 import CoachApp from './coach/CoachApp'
 import BenchApp from './bench/BenchApp'
 
 export default function App() {
-  const [open, setOpen] = useState<AppId | null>(null)
+  const path = usePathname()
+  const appId = path.split('/')[1] as AppId | ''
 
-  if (open === 'coach') {
-    return <CoachApp onExitToHome={() => setOpen(null)} />
+  if (appId === 'coach') {
+    return <CoachApp onExitToHome={() => navigate('/')} />
   }
-  if (open === 'bench') {
-    return <BenchApp onExitToHome={() => setOpen(null)} />
+  if (appId === 'bench') {
+    return <BenchApp onExitToHome={() => navigate('/')} />
   }
-  return <Home onOpen={setOpen} />
+  return <Home onOpen={(id) => navigate(`/${id}`)} />
 }

@@ -1,6 +1,7 @@
 import { LruCache } from '../cache/lru-cache.js';
 import { SleeperClient } from '../adapters/sleeper/client.js';
 import type {
+  SleeperDraft,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -12,6 +13,7 @@ import type {
 } from '../adapters/sleeper/types.js';
 import {
   MOCK_SLEEPER_OWNER_ID,
+  sleeperDraftsByLeagueId,
   sleeperLeaguesById,
   sleeperLeagueUsersById,
   sleeperMatchupsById,
@@ -56,6 +58,10 @@ export class MockSleeperClient extends SleeperClient {
 
   override async getRosters(leagueId: string): Promise<SleeperRoster[]> {
     return sleeperRostersById[leagueId] ?? [];
+  }
+
+  override async getDraftsForLeague(leagueId: string): Promise<SleeperDraft[]> {
+    return sleeperDraftsByLeagueId[leagueId] ?? [];
   }
 
   override async getMatchups(leagueId: string): Promise<SleeperMatchup[]> {

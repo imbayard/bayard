@@ -1,12 +1,10 @@
 import logging
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, RedirectResponse
-from google_auth_oauthlib.flow import Flow
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +25,8 @@ from backend.api.module_store import (
     delete_module,
     get_all_modules,
 )
-from backend.api import google_calendar
+from backend.integrations import calendar as gcal
+from backend.integrations.routes import router as integrations_router, callback_router as oauth_callback_router
 from backend.api.artifact_store import (
     create_table as create_artifacts_table,
     get_artifacts,
@@ -59,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(integrations_router)
+app.include_router(oauth_callback_router)
 
 
 # ── Request models ────────────────────────────────────────────────────────────
@@ -122,13 +124,6 @@ class MediatorRequest(BaseModel):
     thread_b: list[MediatorHistoryEntry] = []
     target: str = "continue"  # "continue", "a", or "b"
     question: str = ""
-
-
-_CREDENTIALS_FILE = Path(__file__).parent / "credentials.json"
-_TOKEN_FILE = Path(__file__).parent / "token.json"
-_OAUTH_SCOPES = ["https://www.googleapis.com/auth/calendar"]
-_OAUTH_REDIRECT = os.environ.get("OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/callback")
-_oauth_flow: Flow | None = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -270,73 +265,24 @@ async def modules_all():
     return {"modules": await get_all_modules()}
 
 
-# ── OAuth ──────────────────────────────────────────────────────────────────────
-
-@app.get("/oauth/status")
-async def oauth_status():
-    return {"authenticated": google_calendar.is_authenticated()}
-
-
-@app.get("/oauth/start")
-async def oauth_start():
-    global _oauth_flow
-    if not _CREDENTIALS_FILE.exists():
-        raise HTTPException(400, "credentials.json not found in backend/. See setup instructions.")
-    _oauth_flow = Flow.from_client_secrets_file(
-        str(_CREDENTIALS_FILE),
-        scopes=_OAUTH_SCOPES,
-        redirect_uri=_OAUTH_REDIRECT,
-    )
-    auth_url, _ = _oauth_flow.authorization_url(prompt="consent")
-    return RedirectResponse(auth_url)
-
-
-@app.get("/oauth/callback")
-async def oauth_callback(code: str):
-    global _oauth_flow
-    if _oauth_flow is None:
-        raise HTTPException(400, "No OAuth flow in progress. Visit /oauth/start first.")
-    _oauth_flow.fetch_token(code=code)
-    _TOKEN_FILE.write_text(_oauth_flow.credentials.to_json())
-    _oauth_flow = None
-    return {"ok": True, "message": "Authenticated! You can close this tab."}
-
-
-# ── Calendar ───────────────────────────────────────────────────────────────────
-
-@app.get("/calendar/events")
-async def calendar_events(start: str, end: str):
-    if not google_calendar.is_authenticated():
-        raise HTTPException(401, "Google Calendar not connected.")
-    try:
-        return {"events": google_calendar.get_events(start, end)}
-    except Exception as e:
-        if "invalid_grant" in str(e):
-            google_calendar.clear_token()
-            raise HTTPException(401, "Token expired. Please reconnect Google Calendar.")
-        raise HTTPException(502, f"Google Calendar error: {e}")
-
+# ── Calendar (coach-specific: module blocks & habits) ───────────────────────────
+# Auth, generic event CRUD, and email now live under /integrations (backend/integrations/).
 
 @app.post("/calendar/module-blocks")
 async def calendar_create_module_block(req: CreateModuleBlockRequest):
     module = await get_module(req.module_id)
     if module is None:
         raise HTTPException(404, "Module not found")
-    event_id = google_calendar.create_module_block(
-        req.module_id, module["name"], req.start_time, req.end_time
+    event_id = gcal.create_event(
+        "coach", module["name"], req.start_time, req.end_time,
+        event_type="module", extra_props={"module_id": str(req.module_id)},
     )
     return {"id": event_id}
 
 
 @app.post("/calendar/habits")
 async def calendar_create_habit(req: CreateHabitRequest):
-    event_id = google_calendar.create_habit(
-        req.title, req.days_of_week, req.start_time, req.duration_minutes
+    event_id = gcal.create_habit(
+        "coach", req.title, req.days_of_week, req.start_time, req.duration_minutes
     )
     return {"id": event_id}
-
-
-@app.delete("/calendar/events/{event_id:path}")
-async def calendar_delete_event(event_id: str):
-    google_calendar.delete_event(event_id)
-    return {"ok": True}

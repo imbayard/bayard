@@ -33,6 +33,9 @@ export function mapLeague(raw: EspnLeagueResponse): League {
   const leagueType = detectLeagueType(raw);
   const currentWeek = raw.scoringPeriodId || 1;
 
+  const draftDateMs = raw.settings?.draftSettings?.date;
+  const draftDate = draftDateMs ? new Date(draftDateMs).toISOString() : null;
+
   return {
     platform: 'espn',
     externalLeagueId: String(raw.id),
@@ -43,6 +46,7 @@ export function mapLeague(raw: EspnLeagueResponse): League {
     rosterSlots: expandRosterSlots(raw.settings?.rosterSettings.lineupSlotCounts ?? {}),
     teamCount: raw.teams?.length ?? 0,
     currentWeek,
+    draftDate,
   };
 }
 

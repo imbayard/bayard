@@ -12,6 +12,8 @@ export interface League {
   rosterSlots: string[];
   teamCount: number;
   currentWeek: number;
+  /** ISO 8601 timestamp of the league's draft, or null if unscheduled/unknown. */
+  draftDate: string | null;
 }
 
 export interface Team {
