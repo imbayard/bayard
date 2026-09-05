@@ -1,3 +1,20 @@
+/*
+ * Fantasy position colors, in the spirit of Sleeper's board: one hue per position so a
+ * roster or draft board is scannable at a glance. Defined globally (not under
+ * `.bench-scope`) so any page can use them; resolve them through `lib/positions.ts`
+ * rather than hardcoding a hue at the call site. Lightness is held around 0.7 so each
+ * one reads on Coach's white ground and Bench's near-black alike.
+ */
+:root {
+  --pos-qb: oklch(0.68 0.2 5);
+  --pos-rb: oklch(0.72 0.15 172);
+  --pos-wr: oklch(0.68 0.15 250);
+  --pos-te: oklch(0.74 0.15 65);
+  --pos-k: oklch(0.68 0.17 300);
+  --pos-def: oklch(0.66 0.04 250);
+  --pos-unknown: oklch(0.62 0.01 250);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

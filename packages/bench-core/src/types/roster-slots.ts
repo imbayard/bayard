@@ -7,7 +7,7 @@ export function starterSlotTypes(rosterSlots: string[]): string[] {
 
 /**
  * Which player positions can fill a given roster slot label. Covers Sleeper's known
- * `roster_positions` vocabulary. Slots not listed here (exotic/IDP slots, etc.) fall back
+ * `roster_positions` vocabulary plus ESPN's composite slot labels. Slots not listed here (exotic/IDP slots, etc.) fall back
  * to an exact-position match via `eligiblePositionsForSlot`.
  */
 const ELIGIBLE_POSITIONS: Record<string, string[]> = {
@@ -16,6 +16,9 @@ const ELIGIBLE_POSITIONS: Record<string, string[]> = {
   REC_FLEX: ['WR', 'TE'],
   SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
   OP: ['QB', 'RB', 'WR', 'TE'],
+  // ESPN spells its composite slots out (see adapters/espn/constants.ts LINEUP_SLOT_MAP).
+  'RB/WR': ['RB', 'WR'],
+  'QB/RB/WR/TE': ['QB', 'RB', 'WR', 'TE'],
 };
 
 /** Positions eligible to fill `slot`; defaults to an exact match when the slot has no special eligibility. */

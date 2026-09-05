@@ -1,6 +1,7 @@
 
 import type { League } from '@benchpoints/core';
 import { Badge } from '@bench/components/ui/badge';
+import { PositionTag } from '@bench/components/system/position-tag';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import type { EnrichedRosterEntry } from '@bench/lib/api';
 import { useBenchIq, useRosters } from '@bench/lib/queries';
@@ -27,9 +28,7 @@ function PlayerRow({ entry, currentWeek }: { entry: EnrichedRosterEntry; current
       <span className="w-12 shrink-0 text-right text-base font-bold tabular-nums">
         {player.projectedPoints !== null ? player.projectedPoints.toFixed(1) : '—'}
       </span>
-      <span className="w-9 shrink-0 text-xs font-medium text-muted-foreground">
-        {player.position}
-      </span>
+      <PositionTag position={player.position} className="shrink-0" />
       <span className="min-w-0 flex-1 truncate text-sm font-medium">{player.fullName}</span>
       {player.injuryStatus && (
         <Badge

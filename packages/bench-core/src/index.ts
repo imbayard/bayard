@@ -23,5 +23,7 @@ export { EspnClient, EspnApiError } from './adapters/espn/client.js';
 export { EspnAdapter } from './adapters/espn/adapter.js';
 export type * from './adapters/espn/types.js';
 export type { BenchIqFlag } from './compute/types.js';
+export { computeRosterNeeds } from './compute/roster-needs.js';
+export type { PositionNeed, RosterNeeds } from './compute/roster-needs.js';
 export * from './compute/flags/index.js';
 export * from './mocks/index.js';

@@ -12,7 +12,9 @@
       "Bash(grep -Hm1 ^description: /c/Users/bayar/dev/bayard/.claude/skills/*/SKILL.md)",
       "Bash(python -m uvicorn backend.main:app --reload --port 8000)",
       "Bash(pnpm --filter frontend dev)",
-      "Bash(pip show *)"
+      "Bash(pip show *)",
+      "WebFetch(domain:docs.sleeper.com)",
+      "Bash(python -c \"import json;d=json.load\\(open\\('draft.json'\\)\\);print\\(json.dumps\\(d,indent=1\\)[:2500]\\)\")"
     ]
   }
 }

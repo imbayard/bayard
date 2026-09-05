@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./compute/roster-needs": {
+      "types": "./dist/compute/roster-needs.d.ts",
+      "import": "./dist/compute/roster-needs.js"
     }
   },
   "scripts": {
