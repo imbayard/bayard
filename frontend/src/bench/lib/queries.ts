@@ -1,8 +1,9 @@
 
-import type { League, Matchup, Platform, Team } from '@benchpoints/core';
+import type { DraftBoard, League, Matchup, Platform, Team } from '@benchpoints/core';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import {
   fetchBenchIq,
+  fetchDraft,
   fetchLeagues,
   fetchMatchups,
   fetchRosters,
@@ -72,6 +73,29 @@ export function benchIqQuery(platform: Platform, leagueId: string, mock: boolean
 export function useBenchIq(platform: Platform, leagueId: string) {
   const [mock] = useMockMode();
   return useQuery(benchIqQuery(platform, leagueId, mock));
+}
+
+/** Matches the client's draftPicks TTL — a live board is only ever ~10s stale. */
+const DRAFT_POLL_MS = 10_000;
+
+export function draftQuery(platform: Platform, leagueId: string, mock: boolean) {
+  return {
+    queryKey: ['draft', platform, leagueId, mock] as const,
+    queryFn: () => fetchDraft(platform, leagueId, mock),
+    staleTime: DRAFT_POLL_MS,
+    // Poll only while picks are actually coming in.
+    refetchInterval: (query: { state: { data?: DraftBoard } }) =>
+      isDraftRunning(query.state.data) ? DRAFT_POLL_MS : false,
+  };
+}
+
+function isDraftRunning(board: DraftBoard | undefined): boolean {
+  return board?.draft.status === 'drafting' || board?.draft.status === 'paused';
+}
+
+export function useDraft(platform: Platform, leagueId: string) {
+  const [mock] = useMockMode();
+  return useQuery(draftQuery(platform, leagueId, mock));
 }
 
 /**

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  draftSlotForPick,
+  mapDraft,
+  mapDraftPicks,
   mapLeague,
   mapMatchups,
   mapPlayer,
@@ -9,6 +12,8 @@ import {
   normalizeInjuryStatus,
 } from './mapper.js';
 import type {
+  SleeperDraft,
+  SleeperDraftPick,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -161,5 +166,123 @@ describe('normalizeInjuryStatus', () => {
     expect(normalizeInjuryStatus('')).toBeNull();
     expect(normalizeInjuryStatus(null)).toBeNull();
     expect(normalizeInjuryStatus(undefined)).toBeNull();
+  });
+});
+
+const runningDraft: SleeperDraft = {
+  draft_id: 'd1',
+  league_id: 'l1',
+  status: 'drafting',
+  type: 'snake',
+  season: '2026',
+  settings: { teams: 4, rounds: 3, reversal_round: 0 },
+  start_time: 1787270400000,
+  last_picked: 1787271900000,
+  slot_to_roster_id: { '1': 7, '2': 3, '3': 5, '4': 9 },
+};
+
+describe('mapDraft', () => {
+  it('normalizes the draft and derives who is on the clock', () => {
+    const result = mapDraft(runningDraft, 5);
+
+    expect(result).toEqual({
+      externalDraftId: 'd1',
+      externalLeagueId: 'l1',
+      status: 'drafting',
+      type: 'snake',
+      rounds: 3,
+      teamCount: 4,
+      startTime: '2026-08-21T00:00:00.000Z',
+      lastPickedAt: '2026-08-21T00:25:00.000Z',
+      slotByTeamId: { '7': 1, '3': 2, '5': 3, '9': 4 },
+      totalPicks: 12,
+      madePicks: 5,
+      currentPickNo: 6,
+      // Pick 6 is round 2 of a snake, third from the end -> slot 3 -> roster 5
+      onTheClockTeamId: '5',
+    });
+  });
+
+  it('has nobody on the clock before the draft starts or once it is over', () => {
+    expect(mapDraft({ ...runningDraft, status: 'pre_draft' }, 0).currentPickNo).toBeNull();
+    expect(mapDraft({ ...runningDraft, status: 'complete' }, 12).onTheClockTeamId).toBeNull();
+    expect(mapDraft(runningDraft, 12).currentPickNo).toBeNull();
+  });
+
+  it('falls back to an empty board when the draft order is not set yet', () => {
+    const result = mapDraft({ ...runningDraft, status: 'pre_draft', slot_to_roster_id: null }, 0);
+    expect(result.slotByTeamId).toEqual({});
+    expect(result.onTheClockTeamId).toBeNull();
+  });
+});
+
+describe('draftSlotForPick', () => {
+  it('alternates direction each round for a snake', () => {
+    const slots = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => draftSlotForPick(n, 4, 'snake', 0));
+    expect(slots).toEqual([1, 2, 3, 4, 4, 3, 2, 1]);
+  });
+
+  it('repeats the reversed round when third-round reversal is on', () => {
+    const rounds = [1, 2, 3, 4].map((r) =>
+      [1, 2, 3, 4].map((i) => draftSlotForPick((r - 1) * 4 + i, 4, 'snake', 3)),
+    );
+    expect(rounds).toEqual([
+      [1, 2, 3, 4],
+      [4, 3, 2, 1],
+      [4, 3, 2, 1],
+      [1, 2, 3, 4],
+    ]);
+  });
+
+  it('keeps one order every round for linear, and has no board for auction', () => {
+    expect([5, 6, 7, 8].map((n) => draftSlotForPick(n, 4, 'linear', 0))).toEqual([1, 2, 3, 4]);
+    expect(draftSlotForPick(1, 4, 'auction', 0)).toBeNull();
+  });
+});
+
+describe('mapDraftPicks', () => {
+  const pick = (over: Partial<SleeperDraftPick>): SleeperDraftPick => ({
+    draft_id: 'd1',
+    player_id: '4984',
+    pick_no: 1,
+    round: 1,
+    draft_slot: 1,
+    picked_by: 'u1',
+    roster_id: 7,
+    is_keeper: null,
+    metadata: { first_name: 'Josh', last_name: 'Allen', position: 'QB', team: 'BUF', injury_status: '' },
+    ...over,
+  });
+
+  it('sorts by pick, flattens player metadata, and normalizes keepers', () => {
+    const result = mapDraftPicks([pick({ pick_no: 2, draft_slot: 2, roster_id: 3 }), pick({})], {
+      '7': 1,
+      '3': 2,
+    });
+
+    expect(result.map((p) => p.pickNo)).toEqual([1, 2]);
+    expect(result[0]).toEqual({
+      pickNo: 1,
+      round: 1,
+      slot: 1,
+      externalTeamId: '7',
+      externalPlayerId: '4984',
+      playerName: 'Josh Allen',
+      position: 'QB',
+      nflTeam: 'BUF',
+      isKeeper: false,
+    });
+  });
+
+  it('identifies the team by board slot when the pick carries no roster', () => {
+    const [result] = mapDraftPicks([pick({ roster_id: null, draft_slot: 2 })], { '7': 1, '3': 2 });
+    expect(result?.externalTeamId).toBe('3');
+  });
+
+  it('falls back to the player id when the pick has no name metadata', () => {
+    const [result] = mapDraftPicks([pick({ metadata: null })], {});
+    expect(result?.playerName).toBe('4984');
+    expect(result?.position).toBe('UNK');
+    expect(result?.nflTeam).toBeNull();
   });
 });

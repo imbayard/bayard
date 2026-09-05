@@ -1,9 +1,18 @@
 import type { Cache } from '../../cache/cache.js';
-import type { League, Matchup, Player, Roster, Team } from '../../types/league.js';
+import type { DraftBoard, League, Matchup, Player, Roster, Team } from '../../types/league.js';
 import type { PlatformAdapter } from '../../types/platform.js';
 import { starterSlotTypes } from '../../types/roster-slots.js';
 import { SleeperClient } from './client.js';
-import { mapLeague, mapMatchups, mapPlayer, mapProjections, mapRoster, mapTeams } from './mapper.js';
+import {
+  mapDraft,
+  mapDraftPicks,
+  mapLeague,
+  mapMatchups,
+  mapPlayer,
+  mapProjections,
+  mapRoster,
+  mapTeams,
+} from './mapper.js';
 import type { SleeperNflState } from './types.js';
 
 export class SleeperAdapter implements PlatformAdapter {
@@ -53,6 +62,22 @@ export class SleeperAdapter implements PlatformAdapter {
     ]);
     const slots = starterSlotTypes(league.roster_positions ?? []);
     return rosters.map((r) => mapRoster(r, slots));
+  }
+
+  /** The league's most recent draft plus every pick made so far; null if the league has no draft. */
+  async getDraft(externalLeagueId: string): Promise<DraftBoard | null> {
+    const drafts = await this.client.getDraftsForLeague(externalLeagueId);
+    const summary = drafts[0];
+    if (!summary) return null;
+
+    // The list endpoint omits slot_to_roster_id, so the detail call is what makes picks
+    // attributable to teams.
+    const [detail, rawPicks] = await Promise.all([
+      this.client.getDraft(summary.draft_id),
+      this.client.getDraftPicks(summary.draft_id),
+    ]);
+    const draft = mapDraft(detail, rawPicks.length);
+    return { draft, picks: mapDraftPicks(rawPicks, draft.slotByTeamId) };
   }
 
   async getMatchups(externalLeagueId: string, week: number): Promise<Matchup[]> {

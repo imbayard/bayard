@@ -1,5 +1,18 @@
-import type { League, Matchup, Player, Roster, RosterEntry, Team } from '../../types/league.js';
 import type {
+  Draft,
+  DraftPick,
+  DraftStatus,
+  DraftType,
+  League,
+  Matchup,
+  Player,
+  Roster,
+  RosterEntry,
+  Team,
+} from '../../types/league.js';
+import type {
+  SleeperDraft,
+  SleeperDraftPick,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -138,4 +151,98 @@ export function normalizeInjuryStatus(raw: string | null | undefined): string | 
     .split(/\s+/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
+}
+
+const DRAFT_STATUSES = new Set<string>(['pre_draft', 'drafting', 'paused', 'complete']);
+const DRAFT_TYPES = new Set<string>(['snake', 'linear', 'auction']);
+
+/**
+ * `madePicks` comes from the picks endpoint — the draft object itself only reports
+ * `last_picked`, so the pick count (and with it, who's on the clock) has to be passed in.
+ */
+export function mapDraft(raw: SleeperDraft, madePicks: number): Draft {
+  const teamCount = raw.settings?.teams ?? Object.keys(raw.slot_to_roster_id ?? {}).length;
+  const rounds = raw.settings?.rounds ?? 0;
+  const status: DraftStatus = DRAFT_STATUSES.has(raw.status) ? (raw.status as DraftStatus) : 'pre_draft';
+  const type: DraftType = raw.type && DRAFT_TYPES.has(raw.type) ? (raw.type as DraftType) : 'snake';
+  const totalPicks = rounds * teamCount;
+
+  const slotByTeamId: Record<string, number> = {};
+  for (const [slot, rosterId] of Object.entries(raw.slot_to_roster_id ?? {})) {
+    slotByTeamId[String(rosterId)] = Number(slot);
+  }
+
+  const running = status === 'drafting' || status === 'paused';
+  const currentPickNo = running && madePicks < totalPicks ? madePicks + 1 : null;
+  const slotOnTheClock =
+    currentPickNo == null
+      ? null
+      : draftSlotForPick(currentPickNo, teamCount, type, raw.settings?.reversal_round ?? 0);
+  const onTheClockTeamId =
+    slotOnTheClock == null
+      ? null
+      : (Object.entries(slotByTeamId).find(([, slot]) => slot === slotOnTheClock)?.[0] ?? null);
+
+  return {
+    externalDraftId: raw.draft_id,
+    externalLeagueId: raw.league_id ?? null,
+    status,
+    type,
+    rounds,
+    teamCount,
+    startTime: raw.start_time != null ? new Date(raw.start_time).toISOString() : null,
+    lastPickedAt: raw.last_picked != null ? new Date(raw.last_picked).toISOString() : null,
+    slotByTeamId,
+    totalPicks,
+    madePicks,
+    currentPickNo,
+    onTheClockTeamId,
+  };
+}
+
+/**
+ * Board column for a pick number. Snake alternates each round; `reversalRound` (Sleeper's
+ * 3rd-round reversal, 0 when off) flips the direction from that round onward, so with
+ * reversal_round=3 the order runs 1..n, n..1, n..1, 1..n. Auction has no board order.
+ */
+export function draftSlotForPick(
+  pickNo: number,
+  teamCount: number,
+  type: DraftType,
+  reversalRound: number,
+): number | null {
+  if (type === 'auction' || teamCount <= 0) return null;
+  const round = Math.ceil(pickNo / teamCount);
+  const indexInRound = pickNo - (round - 1) * teamCount; // 1-based
+  if (type === 'linear') return indexInRound;
+  const reversed = reversalRound > 0 && round >= reversalRound ? round % 2 === 1 : round % 2 === 0;
+  return reversed ? teamCount - indexInRound + 1 : indexInRound;
+}
+
+/**
+ * `slotByTeamId` (from the draft) is the fallback for picks that carry no `roster_id` —
+ * standalone mock drafts have no rosters, so the board column is the only team identity there.
+ */
+export function mapDraftPicks(raw: SleeperDraftPick[], slotByTeamId: Record<string, number>): DraftPick[] {
+  const teamIdBySlot = new Map(Object.entries(slotByTeamId).map(([teamId, slot]) => [slot, teamId]));
+  return [...raw]
+    .sort((a, b) => a.pick_no - b.pick_no)
+    .map((p) => {
+      const meta = p.metadata;
+      const assembled = [meta?.first_name, meta?.last_name].filter(Boolean).join(' ');
+      return {
+        pickNo: p.pick_no,
+        round: p.round,
+        slot: p.draft_slot,
+        externalTeamId:
+          p.roster_id != null
+            ? String(p.roster_id)
+            : (teamIdBySlot.get(p.draft_slot) ?? String(p.draft_slot)),
+        externalPlayerId: p.player_id,
+        playerName: assembled !== '' ? assembled : p.player_id,
+        position: meta?.position ?? 'UNK',
+        nflTeam: meta?.team && meta.team !== '' ? meta.team : null,
+        isKeeper: p.is_keeper === true,
+      };
+    });
 }

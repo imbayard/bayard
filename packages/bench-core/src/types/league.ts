@@ -60,3 +60,51 @@ export interface Player {
   /** Projected fantasy points for the current week; null when no projection is available. */
   projectedPoints: number | null;
 }
+
+export type DraftStatus = 'pre_draft' | 'drafting' | 'paused' | 'complete';
+
+export type DraftType = 'snake' | 'linear' | 'auction';
+
+export interface Draft {
+  externalDraftId: string;
+  /** Null for standalone mock drafts, which belong to no league. */
+  externalLeagueId: string | null;
+  status: DraftStatus;
+  type: DraftType;
+  rounds: number;
+  teamCount: number;
+  /** ISO 8601 scheduled start, or null if unscheduled. */
+  startTime: string | null;
+  /** ISO 8601 timestamp of the most recent pick; null before the draft starts. */
+  lastPickedAt: string | null;
+  /** externalTeamId -> board column (1-based). Empty until the draft order is set. */
+  slotByTeamId: Record<string, number>;
+  totalPicks: number;
+  madePicks: number;
+  /** 1-based pick currently on the clock; null unless the draft is running. */
+  currentPickNo: number | null;
+  /** Team on the clock; null unless the draft is running, or when the order is unknown. */
+  onTheClockTeamId: string | null;
+}
+
+export interface DraftPick {
+  /** 1-based, across the whole draft */
+  pickNo: number;
+  round: number;
+  /** Board column (1-based) */
+  slot: number;
+  externalTeamId: string;
+  externalPlayerId: string;
+  /** Denormalized off the pick itself, so a board renders without the full player map. */
+  playerName: string;
+  position: string;
+  nflTeam: string | null;
+  isKeeper: boolean;
+}
+
+/** A draft plus every pick made so far — what the draft board renders from. */
+export interface DraftBoard {
+  draft: Draft;
+  /** Ascending by pickNo. Empty before the draft starts. */
+  picks: DraftPick[];
+}

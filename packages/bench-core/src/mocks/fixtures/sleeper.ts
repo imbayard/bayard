@@ -6,6 +6,7 @@
  */
 import type {
   SleeperDraft,
+  SleeperDraftPick,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -155,11 +156,92 @@ export const sleeperRostersById: Record<string, SleeperRoster[]> = {
 };
 
 export const sleeperDraftsByLeagueId: Record<string, SleeperDraft[]> = {
-  // Scheduled, upcoming draft.
-  'mock-sleeper-1': [{ draft_id: 'mock-sleeper-1-draft', start_time: 1787270400000, status: 'pre_draft' }],
+  // Scheduled draft, currently in progress.
+  'mock-sleeper-1': [{ draft_id: 'mock-sleeper-1-draft', start_time: 1787270400000, status: 'drafting' }],
   // Draft exists but has no scheduled time yet.
   'mock-sleeper-2': [{ draft_id: 'mock-sleeper-2-draft', start_time: null, status: 'pre_draft' }],
 };
+
+/** GET /draft/{draft_id} — the detail shape, which adds the draft order the list endpoint omits. */
+export const sleeperDraftsById: Record<string, SleeperDraft> = {
+  'mock-sleeper-1-draft': {
+    draft_id: 'mock-sleeper-1-draft',
+    league_id: 'mock-sleeper-1',
+    status: 'drafting',
+    type: 'snake',
+    season: '2026',
+    sport: 'nfl',
+    settings: { teams: 2, rounds: 5, pick_timer: 90, slots_qb: 1, slots_rb: 2, slots_wr: 2 },
+    start_time: 1787270400000,
+    last_picked: 1787271900000,
+    draft_order: { [MOCK_SLEEPER_OWNER_ID]: 1, 'mock-sleeper-1-opp-owner': 2 },
+    slot_to_roster_id: { '1': 1, '2': 2 },
+    metadata: { name: 'Redraft Rebels Draft', description: '', scoring_type: 'ppr' },
+  },
+  'mock-sleeper-2-draft': {
+    draft_id: 'mock-sleeper-2-draft',
+    league_id: 'mock-sleeper-2',
+    status: 'pre_draft',
+    type: 'linear',
+    season: '2026',
+    sport: 'nfl',
+    settings: { teams: 2, rounds: 5 },
+    start_time: null,
+    last_picked: null,
+    // Order isn't set until the draft is about to start.
+    draft_order: null,
+    slot_to_roster_id: null,
+    metadata: { name: 'Dynasty Dumpster Fire Draft', description: '', scoring_type: 'ppr' },
+  },
+};
+
+/**
+ * Snake draft, 2 teams, mid-round-3 — enough picks to exercise round wrapping and the
+ * "on the clock" case (pick 6 of a 2x5 board has not been made yet).
+ */
+export const sleeperDraftPicksById: Record<string, SleeperDraftPick[]> = {
+  'mock-sleeper-1-draft': [
+    draftPick(1, 1, 1, 1, MOCK_SLEEPER_OWNER_ID, 'p-rr-rb1', 'Deshawn Fields', 'RB', 'SF'),
+    draftPick(2, 1, 2, 2, 'mock-sleeper-1-opp-owner', 'p-rr-opp-qb', 'Grady Holt', 'QB', 'PHI'),
+    draftPick(3, 2, 2, 2, 'mock-sleeper-1-opp-owner', 'p-rr-wr2', 'Devon Sharpe', 'WR', 'CIN'),
+    draftPick(4, 2, 1, 1, MOCK_SLEEPER_OWNER_ID, 'p-rr-wr1', 'Jaylen Cross', 'WR', 'MIA'),
+    draftPick(5, 3, 1, 1, MOCK_SLEEPER_OWNER_ID, 'p-rr-qb', 'Trent Marshall', 'QB', 'BUF'),
+  ],
+  'mock-sleeper-2-draft': [],
+};
+
+function draftPick(
+  pickNo: number,
+  round: number,
+  draftSlot: number,
+  rosterId: number,
+  pickedBy: string,
+  playerId: string,
+  fullName: string,
+  position: string,
+  team: string,
+): SleeperDraftPick {
+  const [firstName, ...rest] = fullName.split(' ');
+  return {
+    draft_id: 'mock-sleeper-1-draft',
+    player_id: playerId,
+    pick_no: pickNo,
+    round,
+    draft_slot: draftSlot,
+    picked_by: pickedBy,
+    roster_id: rosterId,
+    is_keeper: null,
+    metadata: {
+      player_id: playerId,
+      first_name: firstName,
+      last_name: rest.join(' '),
+      position,
+      team,
+      status: 'Active',
+      injury_status: '',
+    },
+  };
+}
 
 export const sleeperMatchupsById: Record<string, SleeperMatchup[]> = {
   'mock-sleeper-1': [

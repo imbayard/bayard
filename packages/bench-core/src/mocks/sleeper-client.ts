@@ -2,6 +2,7 @@ import { LruCache } from '../cache/lru-cache.js';
 import { SleeperClient } from '../adapters/sleeper/client.js';
 import type {
   SleeperDraft,
+  SleeperDraftPick,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -13,6 +14,8 @@ import type {
 } from '../adapters/sleeper/types.js';
 import {
   MOCK_SLEEPER_OWNER_ID,
+  sleeperDraftPicksById,
+  sleeperDraftsById,
   sleeperDraftsByLeagueId,
   sleeperLeaguesById,
   sleeperLeagueUsersById,
@@ -62,6 +65,16 @@ export class MockSleeperClient extends SleeperClient {
 
   override async getDraftsForLeague(leagueId: string): Promise<SleeperDraft[]> {
     return sleeperDraftsByLeagueId[leagueId] ?? [];
+  }
+
+  override async getDraft(draftId: string): Promise<SleeperDraft> {
+    const draft = sleeperDraftsById[draftId];
+    if (!draft) throw new Error(`No mock Sleeper draft "${draftId}"`);
+    return draft;
+  }
+
+  override async getDraftPicks(draftId: string): Promise<SleeperDraftPick[]> {
+    return sleeperDraftPicksById[draftId] ?? [];
   }
 
   override async getMatchups(leagueId: string): Promise<SleeperMatchup[]> {

@@ -4,6 +4,7 @@ import { Link } from '@bench/lib/nav';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { PlatformBadge } from '@bench/components/system/platform-badge';
 import { useLeagues, useLeagueSummaries } from '@bench/lib/queries';
+import { DraftBoard } from './draft-board';
 import { FlagList } from './flag-list';
 import { MatchupHeader } from './matchup-header';
 import { RosterView } from './roster-view';
@@ -94,6 +95,10 @@ export function LeagueDetailView({ platform, leagueId }: { platform: Platform; l
       </div>
       {summary && <MatchupHeader summary={summary} />}
       <FlagList league={league} />
+      <section aria-label="Draft">
+        <h2 className="mb-2 text-sm font-medium text-muted-foreground">Draft</h2>
+        <DraftBoard league={league} />
+      </section>
       <section aria-label="Roster">
         <h2 className="mb-2 text-sm font-medium text-muted-foreground">Roster</h2>
         <RosterView league={league} />

@@ -1,6 +1,7 @@
 import type { Cache } from '../../cache/cache.js';
 import type {
   SleeperDraft,
+  SleeperDraftPick,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
@@ -8,6 +9,7 @@ import type {
   SleeperPlayersResponse,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperTradedPick,
   SleeperUser,
 } from './types.js';
 
@@ -21,6 +23,7 @@ const TTL = {
   leagues: 5 * 60 * 1000, // 5m
   rosters: 5 * 60 * 1000, // 5m
   drafts: 5 * 60 * 1000, // 5m
+  draftPicks: 10 * 1000, // 10s — polled live while a draft is running
   matchups: 30 * 1000, // 30s
   players: 24 * 60 * 60 * 1000, // 24h
   state: 5 * 60 * 1000, // 5m
@@ -89,6 +92,23 @@ export class SleeperClient {
   /** Most recent draft first. */
   getDraftsForLeague(leagueId: string): Promise<SleeperDraft[]> {
     return this.fetchJson(`/league/${encodeURIComponent(leagueId)}/drafts`, TTL.drafts);
+  }
+
+  getDraftsForUser(userId: string, season: number): Promise<SleeperDraft[]> {
+    return this.fetchJson(`/user/${encodeURIComponent(userId)}/drafts/nfl/${season}`, TTL.drafts);
+  }
+
+  getDraft(draftId: string): Promise<SleeperDraft> {
+    return this.fetchJson(`/draft/${encodeURIComponent(draftId)}`, TTL.drafts);
+  }
+
+  /** Picks already made, ascending by pick_no. Empty until the draft starts. */
+  getDraftPicks(draftId: string): Promise<SleeperDraftPick[]> {
+    return this.fetchJson(`/draft/${encodeURIComponent(draftId)}/picks`, TTL.draftPicks);
+  }
+
+  getTradedDraftPicks(draftId: string): Promise<SleeperTradedPick[]> {
+    return this.fetchJson(`/draft/${encodeURIComponent(draftId)}/traded_picks`, TTL.drafts);
   }
 
   getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]> {

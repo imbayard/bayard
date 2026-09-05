@@ -79,6 +79,21 @@ leagues.get('/leagues/:platform/:leagueId/teams', async (c) => {
   return c.json(teams);
 });
 
+leagues.get('/leagues/:platform/:leagueId/draft', async (c) => {
+  const platform = parsePlatform(c.req.param('platform'));
+  const leagueId = c.req.param('leagueId');
+  const adapter = adapterFor(platform, isMockRequested(c));
+
+  if (!adapter.getDraft) {
+    return c.json({ error: `Draft boards are not supported for platform "${platform}"` }, 400);
+  }
+  const board = await adapter.getDraft(leagueId);
+  if (!board) {
+    return c.json({ error: `No draft found for league "${leagueId}"` }, 404);
+  }
+  return c.json(board);
+});
+
 leagues.post('/leagues/:platform/:leagueId/schedule-draft', async (c) => {
   const platform = parsePlatform(c.req.param('platform'));
   const leagueId = c.req.param('leagueId');

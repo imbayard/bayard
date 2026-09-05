@@ -40,12 +40,90 @@ export interface SleeperLeague {
   settings: SleeperLeagueSettings;
 }
 
-/** GET /league/{league_id}/drafts — array, most recent draft first. */
+export interface SleeperDraftSettings {
+  teams?: number;
+  rounds?: number;
+  pick_timer?: number;
+  /** Starter/bench slot counts, e.g. slots_qb, slots_rb, slots_bn */
+  [key: string]: number | undefined;
+}
+
+/**
+ * GET /league/{league_id}/drafts (array, most recent first),
+ * GET /user/{user_id}/drafts/nfl/{season} (array),
+ * GET /draft/{draft_id} (single).
+ *
+ * `draft_order` and `slot_to_roster_id` are only populated once the draft order is
+ * set — they are null on both the league/user list endpoints and on a pre-order draft.
+ */
 export interface SleeperDraft {
   draft_id: string;
+  /** Null for standalone mock drafts, which belong to no league. */
+  league_id?: string | null;
+  /** 'pre_draft' | 'drafting' | 'paused' | 'complete' */
+  status: string;
+  /** 'snake' | 'linear' | 'auction' */
+  type?: string;
+  season?: string;
+  sport?: string;
+  settings?: SleeperDraftSettings | null;
   /** Epoch ms; null if the draft hasn't been scheduled yet. */
   start_time: number | null;
-  status: string;
+  /** Epoch ms of the most recent pick; null before the draft starts. */
+  last_picked?: number | null;
+  /** user_id -> draft slot (1-based). Null until the order is set. */
+  draft_order?: Record<string, number> | null;
+  /** Draft slot (as a string) -> roster_id. Null until the order is set. */
+  slot_to_roster_id?: Record<string, number> | null;
+  metadata?: {
+    name?: string;
+    description?: string;
+    scoring_type?: string;
+  } | null;
+}
+
+/** Denormalized player fields Sleeper stamps onto each pick. */
+export interface SleeperDraftPickMetadata {
+  player_id?: string;
+  first_name?: string;
+  last_name?: string;
+  position?: string;
+  team?: string;
+  number?: string;
+  /** Roster status, e.g. 'Active' | 'Injured Reserve' */
+  status?: string;
+  /** '' when healthy */
+  injury_status?: string;
+  /** Auction drafts only — winning bid, as a string. */
+  amount?: string;
+}
+
+/** GET /draft/{draft_id}/picks — one entry per pick already made, ascending by pick_no. */
+export interface SleeperDraftPick {
+  draft_id: string;
+  player_id: string;
+  /** 1-based, across the whole draft */
+  pick_no: number;
+  round: number;
+  /** 1-based column in the draft board */
+  draft_slot: number;
+  /** Sleeper user_id of the drafter; '' or null for autopick/commissioner picks. */
+  picked_by: string | null;
+  /** Null in standalone mock drafts (no rosters exist). Documented as a string, returned as a number. */
+  roster_id: number | string | null;
+  is_keeper: boolean | null;
+  metadata?: SleeperDraftPickMetadata | null;
+}
+
+/** GET /draft/{draft_id}/traded_picks */
+export interface SleeperTradedPick {
+  season: string;
+  round: number;
+  /** Roster the pick originally belonged to */
+  roster_id: number;
+  previous_owner_id: number;
+  /** Roster that currently holds the pick */
+  owner_id: number;
 }
 
 export interface SleeperLeagueUser {

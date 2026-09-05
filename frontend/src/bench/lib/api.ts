@@ -1,5 +1,6 @@
 import type {
   BenchIqFlag,
+  DraftBoard,
   League,
   Matchup,
   Platform,
@@ -102,4 +103,12 @@ export function scheduleDraft(
   mock: boolean,
 ): Promise<{ id: string }> {
   return post(`/leagues/${platform}/${leagueId}/schedule-draft`, mock);
+}
+
+/**
+ * The league's most recent draft and every pick made so far. 404s when the league has
+ * no draft, and 400s for platforms with no draft support (ESPN today).
+ */
+export function fetchDraft(platform: Platform, leagueId: string, mock: boolean): Promise<DraftBoard> {
+  return get(`/leagues/${platform}/${leagueId}/draft`, mock);
 }
