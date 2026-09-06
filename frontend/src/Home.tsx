@@ -1,4 +1,11 @@
+import { useEffect, useState } from 'react'
 import { labelStyle } from './lib/styles'
+import {
+  PROVIDERS,
+  fetchAllStatuses,
+  startUrl,
+  type ProviderStatus,
+} from './lib/integrations'
 
 export type AppId = 'coach' | 'bench' | 'health'
 
@@ -32,6 +39,18 @@ const WIDGETS: Widget[] = [
 ]
 
 export default function Home({ onOpen }: { onOpen: (id: AppId) => void }) {
+  const [statuses, setStatuses] = useState<Record<string, ProviderStatus>>({})
+
+  useEffect(() => {
+    let stale = false
+    fetchAllStatuses().then((next) => {
+      if (!stale) setStatuses(next)
+    })
+    return () => {
+      stale = true
+    }
+  }, [])
+
   return (
     <div style={s.container}>
       <header style={s.header}>
@@ -51,6 +70,37 @@ export default function Home({ onOpen }: { onOpen: (id: AppId) => void }) {
               <span style={s.cardOpen}>Open →</span>
             </button>
           ))}
+        </div>
+
+        <div style={s.connections}>
+          <span style={s.connectionsLabel}>Connections</span>
+          {PROVIDERS.map((provider) => {
+            const status = statuses[provider.id]
+            const unconfigured = status?.configured === false
+            const connected = Boolean(status?.authenticated)
+            return (
+              <div key={provider.id} style={s.connection}>
+                <span
+                  style={{
+                    ...s.dot,
+                    background: connected ? '#10b981' : unconfigured ? '#d1d5db' : '#f43f5e',
+                  }}
+                />
+                <span style={s.connectionName}>{provider.name}</span>
+                <span style={s.connectionBlurb}>{provider.blurb}</span>
+                {unconfigured ? (
+                  <span style={s.connectionNote}>Not configured</span>
+                ) : (
+                  // A plain link, not fetch: the backend answers with a redirect
+                  // to the provider's consent screen, so the browser has to
+                  // follow it.
+                  <a href={startUrl(provider)} style={s.connectionAction}>
+                    {connected ? 'Reconnect' : 'Connect'} →
+                  </a>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -139,5 +189,49 @@ const s: Record<string, React.CSSProperties> = {
   cardOpen: {
     ...labelStyle,
     color: '#111827',
+  },
+  connections: {
+    marginTop: 24,
+    borderTop: '2px solid #111827',
+    paddingTop: 14,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  connectionsLabel: {
+    ...labelStyle,
+    color: '#9ca3af',
+  },
+  connection: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 10,
+    fontSize: 13,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    flexShrink: 0,
+    alignSelf: 'center',
+  },
+  connectionName: {
+    fontWeight: 700,
+    color: '#111827',
+  },
+  connectionBlurb: {
+    color: '#9ca3af',
+    fontSize: 12,
+  },
+  connectionAction: {
+    ...labelStyle,
+    color: '#111827',
+    marginLeft: 'auto',
+    textDecoration: 'none',
+    borderBottom: '1px solid #111827',
+  },
+  connectionNote: {
+    ...labelStyle,
+    color: '#9ca3af',
+    marginLeft: 'auto',
   },
 }
