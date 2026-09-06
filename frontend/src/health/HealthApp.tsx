@@ -1,6 +1,13 @@
 import { Component, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { labelStyle, ghostBtnStyle } from '../lib/styles'
-import StrainRecoveryChart, { TONE_COLOR, ACCENT } from './StrainRecoveryChart'
+import StrainRecoveryChart, {
+  TONE_COLOR,
+  ACCENT,
+  RECOVERY_FILL,
+  STRAIN_FILL,
+  RECOVERY_FILL_OPACITY,
+  STRAIN_FILL_OPACITY,
+} from './StrainRecoveryChart'
 import {
   fetchCoverage,
   fetchGraph,
@@ -145,17 +152,7 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
           <div style={s.legend}>
             {payload.series.map((series) => (
               <span key={series.key} style={s.legendItem}>
-                <span
-                  style={{
-                    ...(series.render === 'line' ? s.legendLine : s.legendSwatch),
-                    background: series.bands
-                      ? undefined
-                      : series.render === 'line'
-                        ? ACCENT[series.accent ?? 'good'].base
-                        : '#6b7280',
-                    ...(series.bands ? s.legendBanded : null),
-                  }}
-                />
+                <span style={swatchFor(series)} />
                 {series.label}
               </span>
             ))}
@@ -164,7 +161,16 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
                 .find((x) => x.bands)
                 ?.bands?.map((band) => (
                   <span key={band.label} style={s.legendItem}>
-                    <span style={{ ...s.legendSwatch, background: TONE_COLOR[band.tone] }} />
+                    {/* Bands ride as an outline on the bar, so the key shows an
+                        outline too rather than a solid chip. */}
+                    <span
+                      style={{
+                        ...s.legendSwatch,
+                        background: RECOVERY_FILL,
+                        opacity: RECOVERY_FILL_OPACITY + 0.25,
+                        border: `1.5px solid ${TONE_COLOR[band.tone]}`,
+                      }}
+                    />
                     {band.label} {band.min}–{band.max}
                   </span>
                 ))}
@@ -193,6 +199,21 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
       </div>
     </div>
   )
+}
+
+/** Legend chips are built from the chart's own tokens so the two cannot drift:
+ *  a bar shows its fill at its real opacity, a line shows its accent stroke. */
+function swatchFor(series: ChartPayload['series'][number]): React.CSSProperties {
+  if (series.render === 'line') {
+    return { ...s.legendLine, background: ACCENT[series.accent ?? 'good'].base }
+  }
+  const banded = Boolean(series.bands)
+  return {
+    ...s.legendSwatch,
+    background: banded ? RECOVERY_FILL : STRAIN_FILL,
+    opacity: (banded ? RECOVERY_FILL_OPACITY : STRAIN_FILL_OPACITY) + 0.25,
+    border: banded ? '1.5px solid #9ca3af' : '1px solid #d1d5db',
+  }
 }
 
 /** A throw inside the chart would otherwise unmount the whole app and leave a
@@ -406,13 +427,10 @@ const s: Record<string, React.CSSProperties> = {
     gap: 6,
   },
   legendSwatch: {
-    width: 10,
-    height: 10,
+    width: 11,
+    height: 11,
     display: 'inline-block',
-    border: '1px solid #d1d5db',
-  },
-  legendBanded: {
-    background: 'linear-gradient(90deg, #f43f5e 33%, #f59e0b 33% 67%, #10b981 67%)',
+    boxSizing: 'border-box',
   },
   legendLine: {
     width: 14,

@@ -47,7 +47,11 @@ const STRAIN_FILL = '#6b7280'
 
 export default function StrainRecoveryChart({ payload }: { payload: ChartPayload }) {
   const { chart, series, points } = payload
-  const bars = series.filter((s) => s.render === 'bar')
+  // Recovery leads each group: it is the series the chart is named for, and
+  // Recharts lays bars out left-to-right in the order they are declared.
+  const bars = series
+    .filter((s) => s.render === 'bar')
+    .sort((a, b) => Number(Boolean(b.bands)) - Number(Boolean(a.bands)))
   const lines = series.filter((s) => s.render === 'line')
   // The right axis is the same 0-100 scale relabelled in the series' own units,
   // not an independent second scale — two real scales on one plot is the classic
@@ -91,7 +95,14 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
             </filter>
           ))}
         </defs>
-        <CartesianGrid stroke="#e5e7eb" vertical={!dense} />
+        {/* Alternating column wash so one period reads apart from the next
+            without adding gaps between the flush bars. */}
+        <CartesianGrid
+          stroke="#e5e7eb"
+          vertical={!dense}
+          verticalFill={['#f8fafc', 'transparent']}
+          fillOpacity={1}
+        />
         <XAxis
           dataKey="x_label"
           tick={{ fontSize: 9, fill: MUTED }}
@@ -249,4 +260,13 @@ const t: Record<string, React.CSSProperties> = {
   value: { color: INK, fontWeight: 700 },
 }
 
-export { TONE_COLOR, ACCENT }
+// Exported so the legend paints from the same tokens as the marks rather than
+// its own copy, which is how the two drifted apart.
+export {
+  TONE_COLOR,
+  ACCENT,
+  RECOVERY_FILL,
+  STRAIN_FILL,
+  RECOVERY_FILL_OPACITY,
+  STRAIN_FILL_OPACITY,
+}
