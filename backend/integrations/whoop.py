@@ -26,6 +26,9 @@ SCOPES = [
 # never lands on a token that dies in flight.
 _EXPIRY_SKEW = 60
 
+# Backfills fire dozens of paged requests; WHOOP rate-limits them.
+_MAX_RETRIES = 5
+
 
 def client_id() -> str:
     return os.environ.get("WHOOP_CLIENT_ID", "")
@@ -103,21 +106,28 @@ def get(path: str, **params) -> dict:
     url = f"{API_BASE}{path}"
     params = {k: v for k, v in params.items() if v is not None}
 
-    response = httpx.get(
-        url,
-        headers={"Authorization": f"Bearer {access_token}"},
-        params=params,
-        timeout=30.0,
-    )
-    # A token can still be rejected inside the skew window (e.g. another refresh
-    # rotated it). Refresh once and retry before giving up.
-    if response.status_code == 401:
-        access_token = _refresh(_load())["access_token"]
-        response = httpx.get(
+    def fetch(token: str):
+        return httpx.get(
             url,
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers={"Authorization": f"Bearer {token}"},
             params=params,
             timeout=30.0,
         )
+
+    # Pages are capped at 25 records, so a backfill fires dozens of requests in
+    # a row and will trip WHOOP's rate limit. Back off and retry rather than
+    # letting a 429 abort a sync halfway through.
+    for attempt in range(_MAX_RETRIES):
+        response = fetch(access_token)
+        # A token can still be rejected inside the skew window (e.g. another
+        # refresh rotated it). Refresh once and retry before giving up.
+        if response.status_code == 401:
+            access_token = _refresh(_load())["access_token"]
+            response = fetch(access_token)
+        if response.status_code != 429:
+            break
+        wait = float(response.headers.get("Retry-After") or 2 ** attempt)
+        time.sleep(min(wait, 60))
+
     response.raise_for_status()
     return response.json()

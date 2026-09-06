@@ -27,6 +27,8 @@ from backend.api.module_store import (
 )
 from backend.integrations import calendar as gcal
 from backend.integrations.routes import router as integrations_router, callback_router as oauth_callback_router
+from backend.health.routes import router as health_router
+from backend.health.store import create_table as create_health_table
 from backend.api.artifact_store import (
     create_table as create_artifacts_table,
     get_artifacts,
@@ -42,6 +44,7 @@ async def lifespan(app: FastAPI):
     await create_plans_table()
     await create_modules_table()
     await create_artifacts_table()
+    await create_health_table()
     yield
     await cleanup_mcp()
 
@@ -61,6 +64,7 @@ app.add_middleware(
 
 app.include_router(integrations_router)
 app.include_router(oauth_callback_router)
+app.include_router(health_router)
 
 
 # ── Request models ────────────────────────────────────────────────────────────
