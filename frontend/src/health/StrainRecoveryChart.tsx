@@ -35,6 +35,11 @@ const ACCENT: Record<Accent, { base: string; light: string }> = {
   info: { base: '#3b82f6', light: '#93c5fd' },
 }
 
+// Bar fills are held well back so the trendlines carry the chart. The band
+// outline stays at full strength — it is the information; the fill is only mass.
+const RECOVERY_FILL_OPACITY = 0.35
+const STRAIN_FILL_OPACITY = 0.3
+
 const INK = '#111827'
 const MUTED = '#9ca3af'
 const RECOVERY_FILL = '#1f2937'
@@ -134,10 +139,16 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
               <Cell
                 key={i}
                 fill={s.bands ? RECOVERY_FILL : STRAIN_FILL}
-                // Only strain fades while a cycle is open: it is still
+                // Only strain fades further while a cycle is open: it is still
                 // accumulating. Recovery is scored once at wake, so today's is
-                // as final as any other day's and renders at full strength.
-                fillOpacity={!s.bands && p.partial ? 0.45 : 1}
+                // as final as any other day's.
+                fillOpacity={
+                  s.bands
+                    ? RECOVERY_FILL_OPACITY
+                    : p.partial
+                      ? STRAIN_FILL_OPACITY / 2
+                      : STRAIN_FILL_OPACITY
+                }
                 stroke={s.bands ? TONE_COLOR[(p.band as Tone) ?? 'neutral'] : '#fff'}
                 strokeWidth={s.bands ? outlineWidth : 1}
               />
