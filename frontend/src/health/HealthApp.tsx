@@ -55,8 +55,11 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
           {(payload?.summary ?? []).map((tile) => (
             <div key={tile.label} style={s.tile}>
               <span style={s.tileLabel}>{tile.label}</span>
-              <span style={{ ...s.tileValue, color: TONE_COLOR[tile.tone ?? 'neutral'] }}>
-                {tile.value}
+              <span style={s.tileValueRow}>
+                {tile.tone && tile.tone !== 'neutral' && (
+                  <span style={{ ...s.tileDot, background: TONE_COLOR[tile.tone] }} />
+                )}
+                <span style={s.tileValue}>{tile.value}</span>
               </span>
               {tile.delta && <span style={s.tileDelta}>{tile.delta}</span>}
             </div>
@@ -98,7 +101,7 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
                 <span
                   style={{
                     ...(series.render === 'line' ? s.legendLine : s.legendSwatch),
-                    background: series.bands ? undefined : series.render === 'line' ? '#111827' : '#6b7280',
+                    background: series.bands ? undefined : series.render === 'line' ? '#111827' : '#e5e7eb',
                     ...(series.bands ? s.legendBanded : null),
                   }}
                 />
@@ -236,10 +239,21 @@ const s: Record<string, React.CSSProperties> = {
     ...labelStyle,
     color: '#9ca3af',
   },
+  tileValueRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tileDot: {
+    width: 8,
+    height: 8,
+    flexShrink: 0,
+  },
   tileValue: {
     fontSize: 24,
     fontWeight: 800,
     letterSpacing: '-0.02em',
+    color: '#111827',
   },
   tileDelta: {
     fontSize: 11,
@@ -337,9 +351,10 @@ const s: Record<string, React.CSSProperties> = {
     width: 10,
     height: 10,
     display: 'inline-block',
+    border: '1px solid #d1d5db',
   },
   legendBanded: {
-    background: 'linear-gradient(90deg, #9f1239 33%, #f59e0b 33% 67%, #047857 67%)',
+    background: 'linear-gradient(90deg, #f43f5e 33%, #f59e0b 33% 67%, #10b981 67%)',
   },
   legendLine: {
     width: 14,

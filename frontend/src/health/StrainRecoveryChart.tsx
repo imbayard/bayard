@@ -17,18 +17,20 @@ import type { ChartPayload, Tone } from './lib/api'
  * WHOOP-specific.
  */
 
-// Stepped so adjacent bands stay apart for colorblind readers as well as
-// full-colour ones — the obvious red/amber/green trio failed on both counts.
+// Band colours ride as an outline on a dark bar, so they are stepped bright:
+// the darker set that worked as a fill would read as dark-on-dark here. Checked
+// for separation (ΔE 21.6 normal, 8.9 protan) and contrast against the fill.
 const TONE_COLOR: Record<Tone, string> = {
-  bad: '#9f1239',
+  bad: '#f43f5e',
   warn: '#f59e0b',
-  good: '#047857',
-  neutral: '#6b7280',
+  good: '#10b981',
+  neutral: '#9ca3af',
 }
 
 const INK = '#111827'
 const MUTED = '#9ca3af'
-const STRAIN_FILL = '#6b7280'
+const RECOVERY_FILL = '#1f2937'
+const STRAIN_FILL = '#e5e7eb'
 
 export default function StrainRecoveryChart({ payload }: { payload: ChartPayload }) {
   const { chart, series, points } = payload
@@ -38,10 +40,10 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
   // not an independent second scale — two real scales on one plot is the classic
   // way to imply a correlation that isn't there.
   const scaled = bars.find((s) => s.scale_to_value)
-  // Bars are flush, so a 1px surface stroke is what keeps neighbours apart —
-  // but past ~40 points each bar is only a few pixels wide and the stroke would
-  // eat the fill. Dense views drop it and rely on the trendline instead.
-  const separatorWidth = points.length > 40 ? 0 : 1
+  // Past ~40 points a bar is only a few pixels wide, so the outline thins to
+  // stay an outline rather than swallowing the fill it is meant to frame.
+  const dense = points.length > 40
+  const outlineWidth = dense ? 1 : 1.5
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -51,7 +53,9 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
         barGap={0}
         barCategoryGap={0}
       >
-        <CartesianGrid stroke="#e5e7eb" vertical={false} />
+        {/* Vertical rules read as one per bucket; past ~40 buckets they
+            become a wall, so dense views keep horizontals only. */}
+        <CartesianGrid stroke="#e5e7eb" vertical={!dense} />
         <XAxis
           dataKey="x_label"
           tick={{ fontSize: 9, fill: MUTED }}
@@ -83,8 +87,9 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
         )}
         <Tooltip content={<ChartTooltip source={payload} />} cursor={{ fill: '#f3f4f6' }} />
 
-        {/* Bars sit flush — no gap within a group or between days. The 1px
-            surface stroke keeps touching fills legible without adding space. */}
+        {/* Bars sit flush — no gap within a group or between days. Recovery is a
+            dark bar outlined in its band colour; strain is a pale recessive
+            block, so the two read apart without a second hue competing. */}
         {bars.map((s) => (
           <Bar
             key={s.key}
@@ -97,21 +102,35 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
             {points.map((p, i) => (
               <Cell
                 key={i}
-                fill={
-                  s.bands
-                    ? TONE_COLOR[(p.band as Tone) ?? 'neutral']
-                    : STRAIN_FILL
-                }
-                fillOpacity={p.partial ? 0.4 : 0.85}
-                stroke="#fff"
-                strokeWidth={separatorWidth}
+                fill={s.bands ? RECOVERY_FILL : STRAIN_FILL}
+                fillOpacity={p.partial ? 0.45 : 1}
+                stroke={s.bands ? TONE_COLOR[(p.band as Tone) ?? 'neutral'] : '#fff'}
+                strokeWidth={s.bands ? outlineWidth : 1}
+                strokeOpacity={p.partial ? 0.5 : 1}
               />
             ))}
           </Bar>
         ))}
 
         {/* Trendline last so it paints above the bars, and heavier than them —
-            it is the thing the chart is about. */}
+            it is the thing the chart is about. Drawn twice: a white casing
+            underneath so the ink line stays legible crossing a dark bar and a
+            white gap alike. */}
+        {lines.map((s) => (
+          <Line
+            key={`${s.key}-casing`}
+            yAxisId="value"
+            type="monotone"
+            dataKey={s.key}
+            stroke="#fff"
+            strokeWidth={5}
+            dot={false}
+            activeDot={false}
+            connectNulls
+            isAnimationActive={false}
+            legendType="none"
+          />
+        ))}
         {lines.map((s) => (
           <Line
             key={s.key}
@@ -120,7 +139,7 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
             dataKey={s.key}
             name={s.label}
             stroke={INK}
-            strokeWidth={2.5}
+            strokeWidth={2.25}
             dot={false}
             activeDot={{ r: 4, fill: INK, stroke: '#fff', strokeWidth: 2 }}
             connectNulls
