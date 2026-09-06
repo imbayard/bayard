@@ -1,26 +1,22 @@
 import { useEffect, useState } from 'react'
 import { labelStyle, ghostBtnStyle } from '../lib/styles'
+import StrainRecoveryChart, { TONE_COLOR } from './StrainRecoveryChart'
 import {
   fetchGraph,
   TIMEFRAMES,
   TIMEFRAME_LABELS,
   type ChartPayload,
   type Timeframe,
-  type Tone,
 } from './lib/api'
-
-const TONE_COLOR: Record<Tone, string> = {
-  good: '#15803d',
-  warn: '#a16207',
-  bad: '#b91c1c',
-  neutral: '#111827',
-}
 
 export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }) {
   const [timeframe, setTimeframe] = useState<Timeframe>('7d')
   const [payload, setPayload] = useState<ChartPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // The amber band sits below 3:1 against white, so a table view is required
+  // relief rather than a nicety — it is also the fastest way to read exact days.
+  const [view, setView] = useState<'chart' | 'table'>('chart')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -57,25 +53,58 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
           ))}
         </div>
 
-        {/* Chart component lands in this window — the payload is already
-            plot-ready. Showing the raw JSON until it does. */}
         <div style={s.chartSlot}>
           <div style={s.chartHead}>
             <span style={s.chartTitle}>{payload?.chart.title ?? 'Strain & Recovery'}</span>
-            {payload && (
-              <span style={s.chartMeta}>
-                {payload.points.length} {payload.chart.bucket} points
-              </span>
-            )}
+            <div style={s.chartHeadRight}>
+              {payload && (
+                <span style={s.chartMeta}>
+                  {payload.points.length} {payload.chart.bucket}
+                </span>
+              )}
+              <button style={s.viewToggle} onClick={() => setView(view === 'chart' ? 'table' : 'chart')}>
+                {view === 'chart' ? 'Table' : 'Chart'}
+              </button>
+            </div>
           </div>
-          <div style={s.chartBody}>
+          <div style={view === 'chart' ? s.chartBody : s.tableBody}>
             {loading && <span style={s.note}>Loading…</span>}
-            {error && <span style={{ ...s.note, color: '#b91c1c' }}>{error}</span>}
-            {!loading && !error && payload && (
-              <pre style={s.json}>{JSON.stringify(payload, null, 2)}</pre>
+            {error && <span style={{ ...s.note, color: '#9f1239' }}>{error}</span>}
+            {!loading && !error && payload && view === 'chart' && (
+              <StrainRecoveryChart payload={payload} />
+            )}
+            {!loading && !error && payload && view === 'table' && (
+              <DataTable payload={payload} />
             )}
           </div>
         </div>
+
+        {payload && (
+          <div style={s.legend}>
+            {payload.series.map((series) => (
+              <span key={series.key} style={s.legendItem}>
+                <span
+                  style={{
+                    ...(series.render === 'line' ? s.legendLine : s.legendSwatch),
+                    background: series.bands ? undefined : series.render === 'line' ? '#111827' : '#6b7280',
+                    ...(series.bands ? s.legendBanded : null),
+                  }}
+                />
+                {series.label}
+              </span>
+            ))}
+            <span style={s.legendBands}>
+              {payload.series
+                .find((x) => x.bands)
+                ?.bands?.map((band) => (
+                  <span key={band.label} style={s.legendItem}>
+                    <span style={{ ...s.legendSwatch, background: TONE_COLOR[band.tone] }} />
+                    {band.label} {band.min}–{band.max}
+                  </span>
+                ))}
+            </span>
+          </div>
+        )}
 
         <div style={s.timeframeRow}>
           {TIMEFRAMES.map((tf) => (
@@ -90,6 +119,38 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
         </div>
       </div>
     </div>
+  )
+}
+
+function DataTable({ payload }: { payload: ChartPayload }) {
+  return (
+    <table style={s.table}>
+      <thead>
+        <tr>
+          <th style={s.th}>{payload.chart.x_label}</th>
+          {payload.series.map((series) => (
+            <th key={series.key} style={{ ...s.th, textAlign: 'right' }}>
+              {series.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {payload.points.map((point) => (
+          <tr key={point.x}>
+            <td style={s.td}>
+              {point.x_label as string}
+              {point.partial ? ' *' : ''}
+            </td>
+            {payload.series.map((series) => (
+              <td key={series.key} style={{ ...s.td, textAlign: 'right' }}>
+                {(point[`${series.key}_label`] ?? point[series.key] ?? '—') as string}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 
@@ -179,21 +240,88 @@ const s: Record<string, React.CSSProperties> = {
     ...labelStyle,
     color: '#9ca3af',
   },
+  chartHeadRight: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 12,
+  },
+  viewToggle: {
+    ...labelStyle,
+    color: '#111827',
+    background: 'transparent',
+    border: 'none',
+    borderBottom: '1px solid #111827',
+    padding: 0,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
   chartBody: {
     flex: 1,
-    overflow: 'auto',
+    padding: '10px 6px 4px',
     display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 0,
   },
-  json: {
-    margin: 0,
+  tableBody: {
+    flex: 1,
+    overflow: 'auto',
+    minHeight: 0,
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
     fontSize: 11,
-    lineHeight: 1.5,
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  },
+  th: {
+    ...labelStyle,
+    color: '#9ca3af',
+    textAlign: 'left',
+    padding: '8px 12px',
+    borderBottom: '1px solid #111827',
+    position: 'sticky',
+    top: 0,
+    background: '#fff',
+  },
+  td: {
+    padding: '6px 12px',
+    borderBottom: '1px solid #f3f4f6',
     color: '#374151',
-    whiteSpace: 'pre',
+  },
+  legend: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 14,
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#6b7280',
+  },
+  legendItem: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendSwatch: {
+    width: 10,
+    height: 10,
+    display: 'inline-block',
+  },
+  legendBanded: {
+    background: 'linear-gradient(90deg, #9f1239 33%, #f59e0b 33% 67%, #047857 67%)',
+  },
+  legendLine: {
+    width: 14,
+    height: 3,
+    display: 'inline-block',
+  },
+  legendBands: {
+    display: 'inline-flex',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginLeft: 'auto',
   },
   note: {
     ...labelStyle,
