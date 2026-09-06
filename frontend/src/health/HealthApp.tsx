@@ -57,16 +57,24 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
           ))}
         </div>
 
+        {/* Chart component lands in this window — the payload is already
+            plot-ready. Showing the raw JSON until it does. */}
         <div style={s.chartSlot}>
-          {loading && <span style={s.note}>Loading…</span>}
-          {error && <span style={{ ...s.note, color: '#b91c1c' }}>{error}</span>}
-          {!loading && !error && payload && (
-            // Chart component lands here — the payload is already plot-ready.
-            <span style={s.note}>
-              {payload.points.length} {payload.chart.bucket} points ·{' '}
-              {payload.series.map((x) => x.label).join(' · ')}
-            </span>
-          )}
+          <div style={s.chartHead}>
+            <span style={s.chartTitle}>{payload?.chart.title ?? 'Strain & Recovery'}</span>
+            {payload && (
+              <span style={s.chartMeta}>
+                {payload.points.length} {payload.chart.bucket} points
+              </span>
+            )}
+          </div>
+          <div style={s.chartBody}>
+            {loading && <span style={s.note}>Loading…</span>}
+            {error && <span style={{ ...s.note, color: '#b91c1c' }}>{error}</span>}
+            {!loading && !error && payload && (
+              <pre style={s.json}>{JSON.stringify(payload, null, 2)}</pre>
+            )}
+          </div>
         </div>
 
         <div style={s.timeframeRow}>
@@ -149,12 +157,43 @@ const s: Record<string, React.CSSProperties> = {
     color: '#6b7280',
   },
   chartSlot: {
-    minHeight: 260,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    height: 360,
     border: '1px solid #111827',
     background: '#fff',
+  },
+  chartHead: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    padding: '10px 14px',
+    borderBottom: '1px solid #111827',
+    flexShrink: 0,
+  },
+  chartTitle: {
+    ...labelStyle,
+    color: '#111827',
+  },
+  chartMeta: {
+    ...labelStyle,
+    color: '#9ca3af',
+  },
+  chartBody: {
+    flex: 1,
+    overflow: 'auto',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    padding: 14,
+  },
+  json: {
+    margin: 0,
+    fontSize: 11,
+    lineHeight: 1.5,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    color: '#374151',
+    whiteSpace: 'pre',
   },
   note: {
     ...labelStyle,
