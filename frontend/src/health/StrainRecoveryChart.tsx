@@ -1,6 +1,5 @@
 import {
   Bar,
-  CartesianGrid,
   ComposedChart,
   Line,
   ResponsiveContainer,
@@ -93,14 +92,6 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
             </filter>
           ))}
         </defs>
-        {/* Alternating column wash so one period reads apart from the next
-            without adding gaps between the flush bars. */}
-        <CartesianGrid
-          stroke="#e5e7eb"
-          vertical={!dense}
-          verticalFill={['#f8fafc', 'transparent']}
-          fillOpacity={1}
-        />
         <XAxis
           dataKey="x_label"
           tick={{ fontSize: 9, fill: MUTED }}
