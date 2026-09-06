@@ -19,16 +19,26 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
   const [view, setView] = useState<'chart' | 'table'>('chart')
 
   useEffect(() => {
-    const controller = new AbortController()
+    // Ignore a superseded response rather than aborting the request. Under
+    // StrictMode the effect runs twice on mount, and cancelling the first fetch
+    // surfaces as NS_BINDING_ABORTED in the network panel — a dev-only artifact
+    // that reads like a real failure. Payloads are small enough to let land.
+    let stale = false
     setLoading(true)
     setError(null)
-    fetchGraph(timeframe, controller.signal)
-      .then(setPayload)
-      .catch((e) => {
-        if (e.name !== 'AbortError') setError(e.message)
+    fetchGraph(timeframe)
+      .then((data) => {
+        if (!stale) setPayload(data)
       })
-      .finally(() => setLoading(false))
-    return () => controller.abort()
+      .catch((e) => {
+        if (!stale) setError(e.message)
+      })
+      .finally(() => {
+        if (!stale) setLoading(false)
+      })
+    return () => {
+      stale = true
+    }
   }, [timeframe])
 
   return (
