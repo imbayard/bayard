@@ -1,7 +1,6 @@
 import {
   Bar,
   CartesianGrid,
-  Cell,
   ComposedChart,
   Line,
   ResponsiveContainer,
@@ -47,11 +46,10 @@ const STRAIN_FILL = '#6b7280'
 
 export default function StrainRecoveryChart({ payload }: { payload: ChartPayload }) {
   const { chart, series, points } = payload
-  // Recovery leads each group: it is the series the chart is named for, and
-  // Recharts lays bars out left-to-right in the order they are declared.
-  const bars = series
-    .filter((s) => s.render === 'bar')
-    .sort((a, b) => Number(Boolean(b.bands)) - Number(Boolean(a.bands)))
+  const bars = series.filter((s) => s.render === 'bar')
+  // The banded series is the outer bar (capacity); the other nests inside it.
+  const recoveryBar = bars.find((s) => s.bands)
+  const strainBar = bars.find((s) => !s.bands)
   const lines = series.filter((s) => s.render === 'line')
   // The right axis is the same 0-100 scale relabelled in the series' own units,
   // not an independent second scale — two real scales on one plot is the classic
@@ -134,38 +132,28 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
         )}
         <Tooltip content={<ChartTooltip source={payload} />} cursor={{ fill: '#f3f4f6' }} />
 
-        {/* Bars sit flush — no gap within a group or between days. Recovery is a
-            dark bar outlined in its band colour; strain is a pale recessive
-            block, so the two read apart without a second hue competing. */}
-        {bars.map((s) => (
+        {/* One bar per period: recovery is the capacity the day started with,
+            strain the portion of it actually spent. Nesting them makes the
+            comparison a height against a height — strain rising past the top of
+            the recovery bar is an overreach, falling well short is capacity
+            left on the table. Both already share the 0-100 axis, so this is a
+            real comparison rather than two scales side by side. */}
+        {recoveryBar && (
           <Bar
-            key={s.key}
             yAxisId="value"
-            dataKey={s.key}
-            name={s.label}
-            barSize={undefined}
+            dataKey={recoveryBar.key}
+            name={recoveryBar.label}
             isAnimationActive={false}
-          >
-            {points.map((p, i) => (
-              <Cell
-                key={i}
-                fill={s.bands ? RECOVERY_FILL : STRAIN_FILL}
-                // Only strain fades further while a cycle is open: it is still
-                // accumulating. Recovery is scored once at wake, so today's is
-                // as final as any other day's.
-                fillOpacity={
-                  s.bands
-                    ? RECOVERY_FILL_OPACITY
-                    : p.partial
-                      ? STRAIN_FILL_OPACITY / 2
-                      : STRAIN_FILL_OPACITY
-                }
-                stroke={s.bands ? TONE_COLOR[(p.band as Tone) ?? 'neutral'] : '#fff'}
-                strokeWidth={s.bands ? outlineWidth : 1}
+            background={{ fill: 'transparent' }}
+            shape={
+              <NestedBar
+                strainKey={strainBar?.key ?? 'strain'}
+                valueMax={chart.value_max}
+                outlineWidth={outlineWidth}
               />
-            ))}
-          </Bar>
-        ))}
+            }
+          />
+        )}
 
         {/* Trendlines last so they paint above the bars. Each wears a gradient
             stroke plus a coloured outer glow, which is what makes them read as
@@ -194,6 +182,87 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
         ))}
       </ComposedChart>
     </ResponsiveContainer>
+  )
+}
+
+interface NestedBarProps {
+  // Supplied by Recharts when it clones the shape element.
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  payload?: Record<string, number | string | boolean | null>
+  background?: { y: number; height: number }
+  // Supplied by us.
+  strainKey: string
+  valueMax: number
+  outlineWidth: number
+}
+
+/** Recovery as the outer bar, strain nested inside it.
+ *
+ *  Both are measured from the same baseline with the same pixels-per-unit, so
+ *  the inner bar's height can be read directly against the outer one. Strain is
+ *  drawn even when it exceeds recovery — that overshoot is the signal, so it is
+ *  never clipped to the capacity bar. */
+function NestedBar({
+  x,
+  y,
+  width,
+  height,
+  payload,
+  background,
+  strainKey,
+  valueMax,
+  outlineWidth,
+}: NestedBarProps) {
+  if (x == null || width == null || width <= 0) return null
+
+  const band = (payload?.band as Tone | null) ?? 'neutral'
+  const partial = Boolean(payload?.partial)
+  const strain = payload?.[strainKey]
+  const recovery = payload?.recovery
+
+  // Prefer the plot rect for scale: it is defined even on days with no recovery
+  // bar to measure against. Fall back to the bar's own geometry.
+  const baseline =
+    background != null ? background.y + background.height : (y ?? 0) + (height ?? 0)
+  const unit =
+    background != null && valueMax > 0
+      ? background.height / valueMax
+      : typeof recovery === 'number' && recovery > 0 && height != null
+        ? height / recovery
+        : 0
+
+  const innerWidth = Math.max(1, width * 0.46)
+  const innerX = x + (width - innerWidth) / 2
+  const strainHeight = typeof strain === 'number' && unit > 0 ? strain * unit : 0
+
+  return (
+    <g>
+      {height != null && height > 0 && (
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill={RECOVERY_FILL}
+          fillOpacity={RECOVERY_FILL_OPACITY}
+          stroke={TONE_COLOR[band]}
+          strokeWidth={outlineWidth}
+        />
+      )}
+      {strainHeight > 0 && (
+        <rect
+          x={innerX}
+          y={baseline - strainHeight}
+          width={innerWidth}
+          height={strainHeight}
+          fill={STRAIN_FILL}
+          fillOpacity={partial ? STRAIN_FILL_OPACITY : STRAIN_FILL_OPACITY + 0.35}
+        />
+      )}
+    </g>
   )
 }
 

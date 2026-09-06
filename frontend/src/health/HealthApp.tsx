@@ -207,12 +207,20 @@ function swatchFor(series: ChartPayload['series'][number]): React.CSSProperties 
   if (series.render === 'line') {
     return { ...s.legendLine, background: ACCENT[series.accent ?? 'good'].base }
   }
-  const banded = Boolean(series.bands)
+  if (series.bands) {
+    return {
+      ...s.legendSwatch,
+      background: RECOVERY_FILL,
+      opacity: RECOVERY_FILL_OPACITY + 0.25,
+      border: '1.5px solid #9ca3af',
+    }
+  }
+  // Strain nests inside the recovery bar, so its chip shows a centred column
+  // rather than a solid block.
   return {
     ...s.legendSwatch,
-    background: banded ? RECOVERY_FILL : STRAIN_FILL,
-    opacity: (banded ? RECOVERY_FILL_OPACITY : STRAIN_FILL_OPACITY) + 0.25,
-    border: banded ? '1.5px solid #9ca3af' : '1px solid #d1d5db',
+    background: `linear-gradient(90deg, transparent 27%, ${STRAIN_FILL} 27% 73%, transparent 73%)`,
+    opacity: STRAIN_FILL_OPACITY + 0.35,
   }
 }
 

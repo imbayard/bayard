@@ -128,8 +128,12 @@ def build(
 
     points = []
     for bucket_day, members in buckets.items():
-        strains = [m["strain"] for m in members if m.get("strain") is not None
-                   and not m.get("partial")]
+        # An open cycle's strain is included here even though it is still
+        # climbing: the bar is how you see what you have spent against today's
+        # recovery, and hiding it leaves today looking like a rest day. It is
+        # flagged partial so the chart can render it as provisional, and the
+        # summary averages still skip it.
+        strains = [m["strain"] for m in members if m.get("strain") is not None]
         recoveries = [m["recovery"] for m in members if m.get("recovery") is not None]
         strain, recovery = _mean(strains), _mean(recoveries)
         points.append(
