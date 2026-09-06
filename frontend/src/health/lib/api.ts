@@ -8,6 +8,9 @@ import { API_BASE } from '../../lib/config'
 
 export type Tone = 'good' | 'warn' | 'bad' | 'neutral'
 
+/** Semantic slot a series paints with; the frontend owns the actual colour. */
+export type Accent = 'good' | 'info'
+
 export interface Band {
   label: string
   min: number
@@ -26,6 +29,7 @@ export interface Series {
   scale_to_value?: number
   bands?: Band[]
   derived_from?: string
+  accent?: Accent
 }
 
 /** Series values are indexed by `Series.key`, alongside the fixed fields. */

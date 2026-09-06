@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type ReactNode } from 'react'
 import { labelStyle, ghostBtnStyle } from '../lib/styles'
-import StrainRecoveryChart, { TONE_COLOR } from './StrainRecoveryChart'
+import StrainRecoveryChart, { TONE_COLOR, ACCENT } from './StrainRecoveryChart'
 import {
   fetchGraph,
   TIMEFRAMES,
@@ -101,7 +101,11 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
                 <span
                   style={{
                     ...(series.render === 'line' ? s.legendLine : s.legendSwatch),
-                    background: series.bands ? undefined : series.render === 'line' ? '#111827' : '#6b7280',
+                    background: series.bands
+                      ? undefined
+                      : series.render === 'line'
+                        ? ACCENT[series.accent ?? 'good'].base
+                        : '#6b7280',
                     ...(series.bands ? s.legendBanded : null),
                   }}
                 />

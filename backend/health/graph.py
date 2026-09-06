@@ -146,9 +146,20 @@ def build(
             }
         )
 
-    trend = _trend([p["recovery"] for p in points], _TREND_WINDOW[bucket])
-    for point, value in zip(points, trend):
-        point["recovery_trend"] = value
+    # One trendline per bar series. Strain's is smoothed on the already-scaled
+    # value so it plots against the same 0-100 axis as everything else.
+    window = _TREND_WINDOW[bucket]
+    for source in ("recovery", "strain"):
+        for point, value in zip(points, _trend([p[source] for p in points], window)):
+            point[f"{source}_trend"] = value
+            # Label in the series' own units, so a strain trend reads "8.4"
+            # rather than the 40.0 it plots at on the shared axis.
+            if value is None:
+                point[f"{source}_trend_label"] = None
+            elif source == "strain":
+                point[f"{source}_trend_label"] = f"{value / STRAIN_SCALE:.1f}"
+            else:
+                point[f"{source}_trend_label"] = f"{round(value)}%"
 
     # Summary reads the raw days, never the buckets. On a year view a bucket is
     # a weekly mean, so "Recovery" would report the average of the last week
@@ -195,6 +206,15 @@ def build(
                 "label": "Recovery trend",
                 "render": "line",
                 "derived_from": "recovery",
+                # Semantic, not a literal colour: the frontend owns the palette.
+                "accent": "good",
+            },
+            {
+                "key": "strain_trend",
+                "label": "Strain trend",
+                "render": "line",
+                "derived_from": "strain",
+                "accent": "info",
             },
         ],
         "points": points,

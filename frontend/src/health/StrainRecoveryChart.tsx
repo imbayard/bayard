@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { ChartPayload, Tone } from './lib/api'
+import type { Accent, ChartPayload, Tone } from './lib/api'
 
 /**
  * Renders any payload of the backend's chart shape: `series` names the point
@@ -25,6 +25,14 @@ const TONE_COLOR: Record<Tone, string> = {
   warn: '#f59e0b',
   good: '#10b981',
   neutral: '#9ca3af',
+}
+
+// Trendline accents. `base` is the validated pair (ΔE 26.5 normal, 25.2
+// deutan); `light` is only the highlight end of the stroke gradient, which is
+// what gives the line its sheen.
+const ACCENT: Record<Accent, { base: string; light: string }> = {
+  good: { base: '#10b981', light: '#6ee7b7' },
+  info: { base: '#3b82f6', light: '#93c5fd' },
 }
 
 const INK = '#111827'
@@ -55,6 +63,29 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
       >
         {/* Vertical rules read as one per bucket; past ~40 buckets they
             become a wall, so dense views keep horizontals only. */}
+        <defs>
+          {lines.map((line) => {
+            const accent = ACCENT[line.accent ?? 'good']
+            return (
+              <linearGradient key={line.key} id={`sheen-${line.key}`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={accent.base} />
+                <stop offset="45%" stopColor={accent.light} />
+                <stop offset="100%" stopColor={accent.base} />
+              </linearGradient>
+            )
+          })}
+          {lines.map((line) => (
+            <filter key={line.key} id={`glow-${line.key}`} x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow
+                dx="0"
+                dy="0"
+                stdDeviation="3"
+                floodColor={ACCENT[line.accent ?? 'good'].base}
+                floodOpacity="0.9"
+              />
+            </filter>
+          ))}
+        </defs>
         <CartesianGrid stroke="#e5e7eb" vertical={!dense} />
         <XAxis
           dataKey="x_label"
@@ -114,25 +145,9 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
           </Bar>
         ))}
 
-        {/* Trendline last so it paints above the bars, and heavier than them —
-            it is the thing the chart is about. Drawn twice: a white casing
-            underneath so the ink line stays legible crossing a dark bar and a
-            white gap alike. */}
-        {lines.map((s) => (
-          <Line
-            key={`${s.key}-casing`}
-            yAxisId="value"
-            type="monotone"
-            dataKey={s.key}
-            stroke="#fff"
-            strokeWidth={5}
-            dot={false}
-            activeDot={false}
-            connectNulls
-            isAnimationActive={false}
-            legendType="none"
-          />
-        ))}
+        {/* Trendlines last so they paint above the bars. Each wears a gradient
+            stroke plus a coloured outer glow, which is what makes them read as
+            the subject of the chart rather than an overlay on it. */}
         {lines.map((s) => (
           <Line
             key={s.key}
@@ -140,10 +155,17 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
             type="monotone"
             dataKey={s.key}
             name={s.label}
-            stroke={INK}
-            strokeWidth={2.25}
+            stroke={`url(#sheen-${s.key})`}
+            strokeWidth={2.75}
+            strokeLinecap="round"
+            filter={`url(#glow-${s.key})`}
             dot={false}
-            activeDot={{ r: 4, fill: INK, stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{
+              r: 4,
+              fill: ACCENT[s.accent ?? 'good'].base,
+              stroke: '#fff',
+              strokeWidth: 2,
+            }}
             connectNulls
             isAnimationActive={false}
           />
@@ -216,4 +238,4 @@ const t: Record<string, React.CSSProperties> = {
   value: { color: INK, fontWeight: 700 },
 }
 
-export { TONE_COLOR }
+export { TONE_COLOR, ACCENT }
