@@ -33,6 +33,7 @@ env/
 .env.*
 backend/credentials.json
 backend/token.json
+backend/whoop_token.json
 
 # OS
 .DS_Store
