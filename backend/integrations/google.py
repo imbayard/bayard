@@ -4,8 +4,12 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
+from backend.config import DATA_DIR
+
 INTEGRATIONS_DIR = Path(__file__).parent.parent
-TOKEN_FILE = INTEGRATIONS_DIR / "token.json"
+# Token is written at runtime, so it lives in DATA_DIR (a volume on Railway).
+# credentials.json is supplied, not generated, so it stays beside the code.
+TOKEN_FILE = DATA_DIR / "token.json"
 CREDENTIALS_FILE = INTEGRATIONS_DIR / "credentials.json"
 SCOPES = [
     "https://www.googleapis.com/auth/calendar",

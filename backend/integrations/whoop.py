@@ -1,12 +1,12 @@
 import json
 import os
 import time
-from pathlib import Path
 
 import httpx
 
-INTEGRATIONS_DIR = Path(__file__).parent.parent
-TOKEN_FILE = INTEGRATIONS_DIR / "whoop_token.json"
+from backend.config import DATA_DIR
+
+TOKEN_FILE = DATA_DIR / "whoop_token.json"
 
 AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth"
 TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token"

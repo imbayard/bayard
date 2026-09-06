@@ -72,8 +72,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 import os as _os
+# Mirrors backend.config.DATA_DIR — duplicated rather than imported because this
+# runs as a standalone subprocess script, without the repo root on sys.path.
 _default_dir = pathlib.Path(__file__).parent.parent / "data"
-DB_PATH = pathlib.Path(_os.environ.get("DB_DIR", str(_default_dir))) / "context.db"
+DB_PATH = pathlib.Path(
+    _os.environ.get("DATA_DIR") or _os.environ.get("DB_DIR") or str(_default_dir)
+) / "context.db"
 
 
 async def create_table():
