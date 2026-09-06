@@ -101,7 +101,7 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
                 <span
                   style={{
                     ...(series.render === 'line' ? s.legendLine : s.legendSwatch),
-                    background: series.bands ? undefined : series.render === 'line' ? '#111827' : '#e5e7eb',
+                    background: series.bands ? undefined : series.render === 'line' ? '#111827' : '#6b7280',
                     ...(series.bands ? s.legendBanded : null),
                   }}
                 />

@@ -30,7 +30,7 @@ const TONE_COLOR: Record<Tone, string> = {
 const INK = '#111827'
 const MUTED = '#9ca3af'
 const RECOVERY_FILL = '#1f2937'
-const STRAIN_FILL = '#e5e7eb'
+const STRAIN_FILL = '#6b7280'
 
 export default function StrainRecoveryChart({ payload }: { payload: ChartPayload }) {
   const { chart, series, points } = payload
@@ -103,10 +103,12 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
               <Cell
                 key={i}
                 fill={s.bands ? RECOVERY_FILL : STRAIN_FILL}
-                fillOpacity={p.partial ? 0.45 : 1}
+                // Only strain fades while a cycle is open: it is still
+                // accumulating. Recovery is scored once at wake, so today's is
+                // as final as any other day's and renders at full strength.
+                fillOpacity={!s.bands && p.partial ? 0.45 : 1}
                 stroke={s.bands ? TONE_COLOR[(p.band as Tone) ?? 'neutral'] : '#fff'}
                 strokeWidth={s.bands ? outlineWidth : 1}
-                strokeOpacity={p.partial ? 0.5 : 1}
               />
             ))}
           </Bar>
