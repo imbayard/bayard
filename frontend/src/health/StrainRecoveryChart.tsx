@@ -81,7 +81,7 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
             width={24}
           />
         )}
-        <Tooltip content={<ChartTooltip payload={payload} />} cursor={{ fill: '#f3f4f6' }} />
+        <Tooltip content={<ChartTooltip source={payload} />} cursor={{ fill: '#f3f4f6' }} />
 
         {/* Bars sit flush — no gap within a group or between days. The 1px
             surface stroke keeps touching fills legible without adding space. */}
@@ -135,14 +135,14 @@ export default function StrainRecoveryChart({ payload }: { payload: ChartPayload
 interface TooltipProps {
   active?: boolean
   label?: string
-  payload?: ChartPayload
-  // Recharts injects its own hovered-slice array under this name too; we read
-  // the point straight off the payload by label instead.
+  /** Named `source`, not `payload`: Recharts overwrites a prop called `payload`
+   *  on the content element with its own array of hovered slices. */
+  source?: ChartPayload
 }
 
-function ChartTooltip({ active, label, payload }: TooltipProps) {
-  if (!active || !payload) return null
-  const point = payload.points.find((p) => p.x_label === label)
+function ChartTooltip({ active, label, source }: TooltipProps) {
+  if (!active || !source) return null
+  const point = source.points.find((p) => p.x_label === label)
   if (!point) return null
 
   return (
@@ -151,7 +151,7 @@ function ChartTooltip({ active, label, payload }: TooltipProps) {
         {point.x_label as string}
         {point.partial ? ' · in progress' : ''}
       </span>
-      {payload.series.map((s) => {
+      {source.series.map((s) => {
         const shown = (point[`${s.key}_label`] ?? point[s.key]) as string | number | null
         if (shown === null || shown === undefined) return null
         return (

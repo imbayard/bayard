@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Component, useEffect, useState, type ReactNode } from 'react'
 import { labelStyle, ghostBtnStyle } from '../lib/styles'
 import StrainRecoveryChart, { TONE_COLOR } from './StrainRecoveryChart'
 import {
@@ -81,7 +81,9 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
             {loading && <span style={s.note}>Loading…</span>}
             {error && <span style={{ ...s.note, color: '#9f1239' }}>{error}</span>}
             {!loading && !error && payload && view === 'chart' && (
-              <StrainRecoveryChart payload={payload} />
+              <ChartBoundary>
+                <StrainRecoveryChart payload={payload} />
+              </ChartBoundary>
             )}
             {!loading && !error && payload && view === 'table' && (
               <DataTable payload={payload} />
@@ -130,6 +132,23 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
       </div>
     </div>
   )
+}
+
+/** A throw inside the chart would otherwise unmount the whole app and leave a
+ *  blank page, which is a miserable way to find out something broke. */
+class ChartBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
+  state = { message: null as string | null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { message: error.message }
+  }
+
+  render() {
+    if (this.state.message) {
+      return <span style={{ ...s.note, color: '#9f1239' }}>Chart error: {this.state.message}</span>
+    }
+    return this.props.children
+  }
 }
 
 function DataTable({ payload }: { payload: ChartPayload }) {
