@@ -195,24 +195,55 @@ def _whoop_get(path: str, **params):
         raise HTTPException(502, f"WHOOP API error: {e.response.text}")
 
 
+# WHOOP caps limit at 25 and pages with an opaque cursor: pass the response's
+# `next_token` back as `next_token` to continue. Full history is ~50 sequential
+# requests per resource, so callers wanting a long range should cache locally.
 @router.get("/whoop/recovery")
-async def whoop_recovery(start: str | None = None, end: str | None = None, limit: int = 25):
-    return _whoop_get("/v2/recovery", start=start, end=end, limit=limit)
+async def whoop_recovery(
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 25,
+    next_token: str | None = None,
+):
+    return _whoop_get(
+        "/v2/recovery", start=start, end=end, limit=limit, nextToken=next_token
+    )
 
 
 @router.get("/whoop/cycles")
-async def whoop_cycles(start: str | None = None, end: str | None = None, limit: int = 25):
-    return _whoop_get("/v2/cycle", start=start, end=end, limit=limit)
+async def whoop_cycles(
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 25,
+    next_token: str | None = None,
+):
+    return _whoop_get(
+        "/v2/cycle", start=start, end=end, limit=limit, nextToken=next_token
+    )
 
 
 @router.get("/whoop/sleep")
-async def whoop_sleep(start: str | None = None, end: str | None = None, limit: int = 25):
-    return _whoop_get("/v2/activity/sleep", start=start, end=end, limit=limit)
+async def whoop_sleep(
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 25,
+    next_token: str | None = None,
+):
+    return _whoop_get(
+        "/v2/activity/sleep", start=start, end=end, limit=limit, nextToken=next_token
+    )
 
 
 @router.get("/whoop/workouts")
-async def whoop_workouts(start: str | None = None, end: str | None = None, limit: int = 25):
-    return _whoop_get("/v2/activity/workout", start=start, end=end, limit=limit)
+async def whoop_workouts(
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 25,
+    next_token: str | None = None,
+):
+    return _whoop_get(
+        "/v2/activity/workout", start=start, end=end, limit=limit, nextToken=next_token
+    )
 
 
 @router.get("/whoop/profile")
