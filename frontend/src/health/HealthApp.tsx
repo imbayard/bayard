@@ -1,11 +1,16 @@
-import { Component, useEffect, useState, type ReactNode } from 'react'
+import { Component, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { labelStyle, ghostBtnStyle } from '../lib/styles'
 import StrainRecoveryChart, { TONE_COLOR, ACCENT } from './StrainRecoveryChart'
 import {
+  fetchCoverage,
   fetchGraph,
+  isStale,
+  sinceLabel,
+  syncWhoop,
   TIMEFRAMES,
   TIMEFRAME_LABELS,
   type ChartPayload,
+  type Coverage,
   type Timeframe,
 } from './lib/api'
 
@@ -17,6 +22,40 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
   // The amber band sits below 3:1 against white, so a table view is required
   // relief rather than a nicety — it is also the fastest way to read exact days.
   const [view, setView] = useState<'chart' | 'table'>('chart')
+  const [coverage, setCoverage] = useState<Coverage | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  // Bumped after a sync to re-run the graph fetch against the fresh mirror.
+  const [synced, setSynced] = useState(0)
+
+  const runSync = useCallback(async (full = false) => {
+    setSyncing(true)
+    try {
+      await syncWhoop(full)
+      setCoverage(await fetchCoverage())
+      setSynced((n) => n + 1)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSyncing(false)
+    }
+  }, [])
+
+  // Connecting WHOOP stores a token but pulls nothing, and a deploy resets the
+  // mirror, so the page tops itself up rather than depending on someone
+  // remembering to POST /health/sync. Incremental is ~2 requests.
+  useEffect(() => {
+    let cancelled = false
+    fetchCoverage()
+      .then((current) => {
+        if (cancelled) return
+        setCoverage(current)
+        if (isStale(current)) void runSync(current.days === 0)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [runSync])
 
   useEffect(() => {
     // Ignore a superseded response rather than aborting the request. Under
@@ -39,7 +78,7 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
     return () => {
       stale = true
     }
-  }, [timeframe])
+  }, [timeframe, synced])
 
   return (
     <div style={s.container}>
@@ -77,6 +116,14 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
               )}
               <button style={s.viewToggle} onClick={() => setView(view === 'chart' ? 'table' : 'chart')}>
                 {view === 'chart' ? 'Table' : 'Chart'}
+              </button>
+              <button
+                style={{ ...s.viewToggle, opacity: syncing ? 0.5 : 1 }}
+                onClick={() => void runSync()}
+                disabled={syncing}
+                title={coverage ? sinceLabel(coverage.synced_at) : undefined}
+              >
+                {syncing ? 'Syncing…' : 'Sync'}
               </button>
             </div>
           </div>
@@ -123,6 +170,13 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
                 ))}
             </span>
           </div>
+        )}
+
+        {coverage && (
+          <span style={s.syncNote}>
+            {syncing ? 'Syncing with WHOOP…' : sinceLabel(coverage.synced_at)}
+            {coverage.days > 0 && ` · ${coverage.days} days mirrored`}
+          </span>
         )}
 
         <div style={s.timeframeRow}>
@@ -364,6 +418,10 @@ const s: Record<string, React.CSSProperties> = {
     width: 14,
     height: 3,
     display: 'inline-block',
+  },
+  syncNote: {
+    ...labelStyle,
+    color: '#9ca3af',
   },
   legendBands: {
     display: 'inline-flex',

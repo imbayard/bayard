@@ -162,7 +162,15 @@ async def get_days(start: dt.date, end: dt.date) -> dict[dt.date, dict]:
 async def coverage() -> dict:
     async with get_db() as db:
         cursor = await db.execute(
-            "SELECT COUNT(*) AS n, MIN(local_date) AS lo, MAX(local_date) AS hi FROM whoop_days"
+            "SELECT COUNT(*) AS n, MIN(local_date) AS lo, MAX(local_date) AS hi,"
+            " MAX(synced_at) AS synced FROM whoop_days"
         )
         row = await cursor.fetchone()
-        return {"days": row["n"], "first": row["lo"], "last": row["hi"]}
+        return {
+            "days": row["n"],
+            "first": row["lo"],
+            "last": row["hi"],
+            # Lets the client decide whether the mirror is stale enough to
+            # re-pull, instead of syncing on every page load.
+            "synced_at": row["synced"],
+        }
