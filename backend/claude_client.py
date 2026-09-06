@@ -111,17 +111,24 @@ async def init_mcp() -> None:
     )
     ready_task.cancel()
 
+    # MCP tools are additive, not load-bearing: if the servers don't come up,
+    # _sessions stays empty, Claude is offered only the built-in tools, and the
+    # rest of the API (mediator, plans, integrations) serves normally. Log and
+    # continue rather than taking the whole app down with a failed lifespan.
     if not done:
         _mcp_task.cancel()
-        raise RuntimeError("MCP server startup timed out after 30s")
+        log.error("MCP server startup timed out after 30s; continuing without MCP tools")
+        return
     if _mcp_task in done:
         exc = _mcp_task.exception() if not _mcp_task.cancelled() else None
         # Unwrap anyio ExceptionGroup to surface the real inner error
         while hasattr(exc, "exceptions") and exc.exceptions:
             exc = exc.exceptions[0]
-        raise RuntimeError(
-            f"MCP server failed to start: {type(exc).__name__}: {exc}"
-        ) from exc
+        log.error(
+            "MCP server failed to start (%s: %s); continuing without MCP tools",
+            type(exc).__name__,
+            exc,
+        )
 
 
 async def cleanup_mcp() -> None:
