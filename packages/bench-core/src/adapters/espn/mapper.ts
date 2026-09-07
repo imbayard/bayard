@@ -150,6 +150,9 @@ export function mapMatchups(raw: EspnLeagueResponse, week: number): Matchup[] {
       opponentExternalTeamId: String(matchup.home.teamId),
       points: matchup.away.points,
       projectedPoints: null,
+      anyStarterStarted: false,
+      firstStarterKickoff: null,
+      firstPlayerKickoff: null,
     });
 
     result.push({
@@ -158,6 +161,9 @@ export function mapMatchups(raw: EspnLeagueResponse, week: number): Matchup[] {
       opponentExternalTeamId: String(matchup.away.teamId),
       points: matchup.home.points,
       projectedPoints: null,
+      anyStarterStarted: false,
+      firstStarterKickoff: null,
+      firstPlayerKickoff: null,
     });
   }
 

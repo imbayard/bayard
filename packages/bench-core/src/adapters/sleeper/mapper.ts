@@ -116,7 +116,12 @@ export function mapMatchups(raw: SleeperMatchup[], week: number): Matchup[] {
       externalTeamId: String(m.roster_id),
       opponentExternalTeamId: opponent ? String(opponent.roster_id) : null,
       points: m.points ?? 0,
-      projectedPoints: null, // Sleeper's matchup endpoint carries no projections
+      // Sleeper's matchup endpoint carries no projections and no kickoff data; the API
+      // layer fills these in from rosters, projections and the NFL schedule.
+      projectedPoints: null,
+      anyStarterStarted: false,
+      firstStarterKickoff: null,
+      firstPlayerKickoff: null,
     };
   });
 }

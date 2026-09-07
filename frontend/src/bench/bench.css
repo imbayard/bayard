@@ -49,6 +49,7 @@
   --color-brand-foreground: var(--brand-foreground);
   --color-positive: var(--positive);
   --color-positive-foreground: var(--positive-foreground);
+  --color-info: var(--info);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -100,6 +101,9 @@
   --brand-foreground: oklch(0.2 0.03 47);
   --positive: oklch(0.75 0.16 152);
   --positive-foreground: oklch(0.2 0.03 152);
+  /* Calm light blue for neutral, non-urgent facts — deliberately lower chroma than
+     `brand`, so an informational chip never competes with a warning one. */
+  --info: oklch(0.78 0.095 232);
   --chart-1: oklch(0.72 0.185 47);
   --chart-2: oklch(0.75 0.16 152);
   --chart-3: oklch(0.68 0.14 240);

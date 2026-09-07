@@ -118,6 +118,9 @@ describe('mapMatchups', () => {
       opponentExternalTeamId: '2',
       points: 87.4,
       projectedPoints: null,
+      anyStarterStarted: false,
+      firstStarterKickoff: null,
+      firstPlayerKickoff: null,
     });
     expect(result[1]).toEqual({
       week: 3,
@@ -125,6 +128,9 @@ describe('mapMatchups', () => {
       opponentExternalTeamId: '1',
       points: 92.1,
       projectedPoints: null,
+      anyStarterStarted: false,
+      firstStarterKickoff: null,
+      firstPlayerKickoff: null,
     });
   });
 

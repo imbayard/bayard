@@ -49,17 +49,23 @@ export function useRosters(platform: Platform, leagueId: string, season: number,
   });
 }
 
-export function matchupsQuery(platform: Platform, leagueId: string, week: number, mock: boolean) {
+export function matchupsQuery(
+  platform: Platform,
+  leagueId: string,
+  season: number,
+  week: number,
+  mock: boolean,
+) {
   return {
-    queryKey: ['matchups', platform, leagueId, week, mock] as const,
-    queryFn: () => fetchMatchups(platform, leagueId, week, mock),
+    queryKey: ['matchups', platform, leagueId, season, week, mock] as const,
+    queryFn: () => fetchMatchups(platform, leagueId, season, week, mock),
     staleTime: 0.5 * MINUTE,
   };
 }
 
-export function useMatchups(platform: Platform, leagueId: string, week: number) {
+export function useMatchups(platform: Platform, leagueId: string, season: number, week: number) {
   const [mock] = useMockMode();
-  return useQuery(matchupsQuery(platform, leagueId, week, mock));
+  return useQuery(matchupsQuery(platform, leagueId, season, week, mock));
 }
 
 export function benchIqQuery(platform: Platform, leagueId: string, mock: boolean) {
@@ -153,7 +159,9 @@ export function useLeagueSummaries(leagues: League[]): LeagueSummary[] {
     queries: leagues.map((l) => teamsQuery(l.platform, l.externalLeagueId, mock)),
   });
   const matchupsResults = useQueries({
-    queries: leagues.map((l) => matchupsQuery(l.platform, l.externalLeagueId, l.currentWeek, mock)),
+    queries: leagues.map((l) =>
+      matchupsQuery(l.platform, l.externalLeagueId, l.season, l.currentWeek, mock),
+    ),
   });
   const benchIqResults = useQueries({
     queries: leagues.map((l) => benchIqQuery(l.platform, l.externalLeagueId, mock)),

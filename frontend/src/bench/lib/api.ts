@@ -87,10 +87,11 @@ export function fetchRosters(
 export function fetchMatchups(
   platform: Platform,
   leagueId: string,
+  season: number,
   week: number,
   mock: boolean,
 ): Promise<Matchup[]> {
-  return get(`/leagues/${platform}/${leagueId}/matchups/${week}`, mock);
+  return get(`/leagues/${platform}/${leagueId}/matchups/${week}?season=${season}`, mock);
 }
 
 export function fetchBenchIq(

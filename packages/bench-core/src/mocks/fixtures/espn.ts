@@ -3,7 +3,11 @@
  * real `fetch()`, before any mapping. `MockEspnClient` (../espn-client.ts) serves these in place
  * of the real HTTP calls; everything downstream (the real `EspnAdapter` + mapper) runs unchanged.
  */
-import type { EspnLeagueResponse, EspnPlayerPool } from '../../adapters/espn/types.js';
+import type {
+  EspnLeagueResponse,
+  EspnPlayerInfoResponse,
+  EspnPlayerPool,
+} from '../../adapters/espn/types.js';
 
 export const MOCK_ESPN_OWNER_ID = 'mock-espn-owner';
 export const MOCK_ESPN_LEAGUE_ID = '100000001';
@@ -84,3 +88,34 @@ export const espnPlayerPool: EspnPlayerPool = [
   { id: 90006, fullName: 'Rory Sallis', proTeamId: 7, defaultPositionId: 2 },
   { id: 90007, fullName: 'Nate Bellamy', proTeamId: 10, defaultPositionId: 1 },
 ];
+
+/**
+ * kona_player_info projections. statSourceId 1 = projected; the season-total entry sits
+ * alongside the weekly one, so the mapper has something to pick the wrong row from.
+ */
+export const espnPlayerProjections: EspnPlayerInfoResponse = {
+  players: espnPlayerPool.map((player, i) => ({
+    id: player.id,
+    player: {
+      ...player,
+      stats: [
+        {
+          id: `10${MOCK_ESPN_SEASON}`,
+          seasonId: MOCK_ESPN_SEASON,
+          scoringPeriodId: 0,
+          statSourceId: 1,
+          statSplitTypeId: 0,
+          appliedTotal: 180 + i * 10,
+        },
+        {
+          id: `10${MOCK_ESPN_SEASON}${MOCK_CURRENT_WEEK}`,
+          seasonId: MOCK_ESPN_SEASON,
+          scoringPeriodId: MOCK_CURRENT_WEEK,
+          statSourceId: 1,
+          statSplitTypeId: 1,
+          appliedTotal: 8.4 + i * 2.3,
+        },
+      ],
+    },
+  })),
+};

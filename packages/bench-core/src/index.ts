@@ -6,6 +6,7 @@ export type {
   DraftType,
   League,
   Matchup,
+  NflGameState,
   Platform,
   Player,
   Roster,
@@ -22,6 +23,8 @@ export type * from './adapters/sleeper/types.js';
 export { EspnClient, EspnApiError } from './adapters/espn/client.js';
 export { EspnAdapter } from './adapters/espn/adapter.js';
 export type * from './adapters/espn/types.js';
+export * from './adapters/nfl-schedule/index.js';
+export { normalizeTeamCode } from './adapters/nflverse/team-codes.js';
 export type { BenchIqFlag } from './compute/types.js';
 export { computeRosterNeeds } from './compute/roster-needs.js';
 export type { PositionNeed, RosterNeeds } from './compute/roster-needs.js';

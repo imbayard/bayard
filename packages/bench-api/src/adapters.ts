@@ -2,7 +2,9 @@ import {
   EspnAdapter,
   LruCache,
   mockEspnAdapter,
+  mockNflScheduleClient,
   mockSleeperAdapter,
+  NflScheduleClient,
   SleeperAdapter,
   type PlatformAdapter,
 } from '@benchpoints/core';
@@ -11,6 +13,9 @@ import { env } from './env.js';
 const cache = new LruCache();
 
 export const sleeperAdapter = new SleeperAdapter(cache);
+
+/** Not league-scoped and unauthenticated — one instance serves every league. */
+export const nflScheduleClient = new NflScheduleClient(cache);
 
 export const espnAdapter: EspnAdapter | undefined =
   env.espnLeagueId && env.espnSwid && env.espnS2
@@ -36,4 +41,8 @@ export function adapterFor(platform: 'sleeper' | 'espn', useMock: boolean): Plat
     throw new AdapterNotConfiguredError('espn');
   }
   return espnAdapter;
+}
+
+export function nflScheduleFor(useMock: boolean): NflScheduleClient {
+  return useMock ? mockNflScheduleClient : nflScheduleClient;
 }

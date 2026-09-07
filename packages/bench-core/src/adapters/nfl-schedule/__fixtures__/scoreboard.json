@@ -1,0 +1,76 @@
+{
+  "events": [
+    {
+      "date": "2025-09-05T00:20Z",
+      "status": {
+        "type": {
+          "state": "post"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "team": {
+                "abbreviation": "PHI"
+              }
+            },
+            {
+              "team": {
+                "abbreviation": "DAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2025-09-07T17:00Z",
+      "status": {
+        "type": {
+          "state": "in"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "team": {
+                "abbreviation": "CLE"
+              }
+            },
+            {
+              "team": {
+                "abbreviation": "CIN"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2025-09-07T17:00Z",
+      "status": {
+        "type": {
+          "state": "pre"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "team": {
+                "abbreviation": "WSH"
+              }
+            },
+            {
+              "team": {
+                "abbreviation": "NYG"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

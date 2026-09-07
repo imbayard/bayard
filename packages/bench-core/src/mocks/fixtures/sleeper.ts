@@ -302,10 +302,20 @@ export const sleeperPlayers: SleeperPlayersResponse = {
  * unknown" path in the bench/waiver flags. Set up so:
  *  - mock-sleeper-1: bench RB (p-rr-bn1) outprojects starting RB (p-rr-rb1) -> BENCH_PLAYER_HIGHER_PROJECTION
  *  - mock-sleeper-1: unrostered WR (p-rr-waiver-wr) outprojects starting WR (p-rr-wr1) -> WAIVER_PLAYER_HIGHER_PROJECTION
+ *
+ * The two opponent starters are the exception to the sparseness: a team with no projected
+ * starter at all reads as "no data" (`null`), which would leave every mock matchup's opponent
+ * column blank and make the card look broken rather than sparse.
+ *
+ * Resist projecting mock-sleeper-2's lineup to fill in its own side: the mock player map is
+ * shared across both mock leagues, so those players read as free agents in mock-sleeper-1 and
+ * trip a spurious WAIVER_PLAYER_HIGHER_PROJECTION there.
  */
 export const sleeperProjections: SleeperProjectionsResponse = [
   { player_id: 'p-rr-rb1', stats: { pts_ppr: 9.5 } },
   { player_id: 'p-rr-bn1', stats: { pts_ppr: 14.2 } },
   { player_id: 'p-rr-wr1', stats: { pts_ppr: 8.0 } },
   { player_id: 'p-rr-waiver-wr', stats: { pts_ppr: 16.8 } },
+  { player_id: 'p-rr-opp-qb', stats: { pts_ppr: 21.4 } },
+  { player_id: 'p-ddf-opp-qb', stats: { pts_ppr: 18.9 } },
 ];

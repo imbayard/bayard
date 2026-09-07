@@ -47,7 +47,17 @@ export interface Matchup {
   /** null on bye */
   opponentExternalTeamId: string | null;
   points: number;
+  /**
+   * This team's starters' projections, summed. Platform matchup endpoints don't carry
+   * projections, so adapters leave this null and the API layer fills it in.
+   */
   projectedPoints: number | null;
+  /** True once at least one of this team's starters' NFL games has kicked off. */
+  anyStarterStarted: boolean;
+  /** ISO 8601 kickoff of this team's earliest-starting starter; null when unknown. */
+  firstStarterKickoff: string | null;
+  /** ISO 8601 kickoff of this team's earliest-starting player, starters and bench alike. */
+  firstPlayerKickoff: string | null;
 }
 
 export interface Player {
@@ -61,6 +71,15 @@ export interface Player {
   byeWeek: number | null;
   /** Projected fantasy points for the current week; null when no projection is available. */
   projectedPoints: number | null;
+}
+
+/** One NFL team's game for a given week. */
+export interface NflGameState {
+  /** Normalized NFL team code (matches `Player.nflTeam`). */
+  team: string;
+  /** ISO 8601 kickoff. */
+  kickoff: string;
+  state: 'pre' | 'in' | 'post';
 }
 
 export type DraftStatus = 'pre_draft' | 'drafting' | 'paused' | 'complete';
