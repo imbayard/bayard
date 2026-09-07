@@ -38,11 +38,19 @@ async def create_table() -> None:
                 cycle_id   INTEGER NOT NULL,
                 strain     REAL,
                 recovery   REAL,
+                kilojoule  REAL,
                 partial    INTEGER NOT NULL DEFAULT 0,
                 synced_at  TEXT NOT NULL
             )
             """
         )
+        # Existing mirrors predate the kilojoule column. Adding it leaves every
+        # stored row NULL — an incremental sync only re-pulls RESYNC_DAYS, so
+        # backfilling the rest needs one full sync (POST /health/sync?full=true).
+        try:
+            await db.execute("ALTER TABLE whoop_days ADD COLUMN kilojoule REAL")
+        except aiosqlite.OperationalError:
+            pass  # column already exists
         await db.commit()
 
 
@@ -117,6 +125,7 @@ async def sync(since: dt.datetime | None = None) -> dict:
                     if recovery.get("score_state") == "SCORED"
                     else None
                 ),
+                score.get("kilojoule") if cycle["score_state"] == "SCORED" else None,
                 # A cycle with no end is still accumulating — today's strain is
                 # not a finished number.
                 1 if cycle.get("end") is None else 0,
@@ -127,13 +136,18 @@ async def sync(since: dt.datetime | None = None) -> dict:
     async with get_db() as db:
         await db.executemany(
             """
-            INSERT INTO whoop_days (local_date, cycle_id, strain, recovery, partial, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO whoop_days
+                (local_date, cycle_id, strain, recovery, kilojoule, partial, synced_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(local_date) DO UPDATE SET
                 cycle_id=excluded.cycle_id, strain=excluded.strain,
                 -- Never let an absent recovery erase one already known: a
                 -- partial sync can legitimately fetch a cycle without it.
                 recovery=COALESCE(excluded.recovery, whoop_days.recovery),
+                -- Kilojoules ride the same cycle score as strain, so they
+                -- arrive together — but keep a known value if a re-pull
+                -- returns the cycle unscored.
+                kilojoule=COALESCE(excluded.kilojoule, whoop_days.kilojoule),
                 partial=excluded.partial,
                 synced_at=excluded.synced_at
             """,
@@ -153,6 +167,7 @@ async def get_days(start: dt.date, end: dt.date) -> dict[dt.date, dict]:
             dt.date.fromisoformat(row["local_date"]): {
                 "strain": row["strain"],
                 "recovery": row["recovery"],
+                "kilojoule": row["kilojoule"],
                 "partial": bool(row["partial"]),
             }
             for row in await cursor.fetchall()

@@ -13,6 +13,8 @@ import datetime as dt
 
 STRAIN_MAX = 21.0
 RECOVERY_MAX = 100.0
+# WHOOP reports day energy in kilojoules; the app (and everyone else) reads calories.
+KJ_PER_CALORIE = 4.184
 # Strain and recovery share one 0-100 axis: 7 strain reads as 33%, 14 as 66%,
 # 21 as 100%. The frontend multiplies back by this to label a second axis.
 STRAIN_SCALE = RECOVERY_MAX / STRAIN_MAX
@@ -171,11 +173,18 @@ def build(
     # averages weights a 2-day week the same as a 7-day one.
     daily = [rows[d] for d in days if d in rows]
     previous_rows = list((previous or {}).values())
-    latest_recovery, avg_recovery = _stats(daily, "recovery", skip_partial=False)
+    _, avg_recovery = _stats(daily, "recovery", skip_partial=False)
     _, prev_avg_recovery = _stats(previous_rows, "recovery", skip_partial=False)
     _, avg_strain = _stats(daily, "strain", skip_partial=True)
     _, prev_avg_strain = _stats(previous_rows, "strain", skip_partial=True)
-    tracked = sum(1 for r in daily if r.get("recovery") is not None)
+    # Calories ride the cycle score alongside strain, so an open cycle is still
+    # counting them up — skip today for the same reason strain does.
+    _, avg_kj = _stats(daily, "kilojoule", skip_partial=True)
+    _, prev_avg_kj = _stats(previous_rows, "kilojoule", skip_partial=True)
+    avg_calories = avg_kj / KJ_PER_CALORIE if avg_kj is not None else None
+    prev_avg_calories = (
+        prev_avg_kj / KJ_PER_CALORIE if prev_avg_kj is not None else None
+    )
 
     return {
         "chart": {
@@ -222,22 +231,26 @@ def build(
             },
         ],
         "points": points,
+        # Every tile is a mean over the range in view, so each label says so —
+        # a bare "Recovery" reads as today's number, which it is not.
         "summary": [
             {
-                "label": "Recovery",
-                "value": f"{round(latest_recovery)}%" if latest_recovery else "--",
+                "label": "Avg recovery",
+                "value": f"{round(avg_recovery)}%" if avg_recovery is not None else "--",
                 "delta": _delta(avg_recovery, prev_avg_recovery),
-                "tone": _band(latest_recovery) or "neutral",
+                "tone": _band(avg_recovery) or "neutral",
             },
             {
                 "label": "Avg strain",
-                "value": f"{avg_strain:.1f}" if avg_strain else "--",
+                "value": f"{avg_strain:.1f}" if avg_strain is not None else "--",
                 "delta": _delta(avg_strain, prev_avg_strain, 1),
                 "tone": "neutral",
             },
             {
-                "label": "Days tracked",
-                "value": f"{tracked} / {len(days)}",
+                "label": "Avg calories",
+                "value": f"{round(avg_calories):,}" if avg_calories is not None else "--",
+                "delta": _delta(avg_calories, prev_avg_calories),
+                "tone": "neutral",
             },
         ],
     }

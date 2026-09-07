@@ -181,7 +181,6 @@ export default function HealthApp({ onExitToHome }: { onExitToHome: () => void }
         {coverage && (
           <span style={s.syncNote}>
             {syncing ? 'Syncing with WHOOP…' : sinceLabel(coverage.synced_at)}
-            {coverage.days > 0 && ` · ${coverage.days} days mirrored`}
           </span>
         )}
 
