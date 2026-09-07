@@ -21,7 +21,12 @@ import type {
   SleeperRoster,
 } from './types.js';
 
-export function mapLeague(raw: SleeperLeague, currentWeek: number, draftDate: string | null): League {
+export function mapLeague(
+  raw: SleeperLeague,
+  currentWeek: number,
+  draftDate: string | null,
+  draftStatus: DraftStatus | null,
+): League {
   return {
     platform: 'sleeper',
     externalLeagueId: raw.league_id,
@@ -33,6 +38,7 @@ export function mapLeague(raw: SleeperLeague, currentWeek: number, draftDate: st
     teamCount: raw.total_rosters,
     currentWeek,
     draftDate,
+    draftStatus,
   };
 }
 
@@ -154,6 +160,11 @@ export function normalizeInjuryStatus(raw: string | null | undefined): string | 
 }
 
 const DRAFT_STATUSES = new Set<string>(['pre_draft', 'drafting', 'paused', 'complete']);
+
+/** Sleeper's status strings match `DraftStatus` 1:1; anything unrecognized is treated as unknown. */
+export function parseDraftStatus(raw: string | null | undefined): DraftStatus | null {
+  return raw != null && DRAFT_STATUSES.has(raw) ? (raw as DraftStatus) : null;
+}
 const DRAFT_TYPES = new Set<string>(['snake', 'linear', 'auction']);
 
 /**
@@ -163,7 +174,7 @@ const DRAFT_TYPES = new Set<string>(['snake', 'linear', 'auction']);
 export function mapDraft(raw: SleeperDraft, madePicks: number): Draft {
   const teamCount = raw.settings?.teams ?? Object.keys(raw.slot_to_roster_id ?? {}).length;
   const rounds = raw.settings?.rounds ?? 0;
-  const status: DraftStatus = DRAFT_STATUSES.has(raw.status) ? (raw.status as DraftStatus) : 'pre_draft';
+  const status: DraftStatus = parseDraftStatus(raw.status) ?? 'pre_draft';
   const type: DraftType = raw.type && DRAFT_TYPES.has(raw.type) ? (raw.type as DraftType) : 'snake';
   const totalPicks = rounds * teamCount;
 

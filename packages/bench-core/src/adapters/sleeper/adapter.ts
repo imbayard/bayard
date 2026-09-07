@@ -12,6 +12,7 @@ import {
   mapProjections,
   mapRoster,
   mapTeams,
+  parseDraftStatus,
 } from './mapper.js';
 import type { SleeperNflState } from './types.js';
 
@@ -41,9 +42,10 @@ export class SleeperAdapter implements PlatformAdapter {
     const currentWeek = Math.max(1, state.week);
     const drafts = await Promise.all(leagues.map((l) => this.client.getDraftsForLeague(l.league_id)));
     return leagues.map((l, i) => {
-      const startTime = drafts[i]?.[0]?.start_time ?? null;
+      const draft = drafts[i]?.[0];
+      const startTime = draft?.start_time ?? null;
       const draftDate = startTime != null ? new Date(startTime).toISOString() : null;
-      return mapLeague(l, currentWeek, draftDate);
+      return mapLeague(l, currentWeek, draftDate, parseDraftStatus(draft?.status));
     });
   }
 

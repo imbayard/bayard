@@ -8,7 +8,7 @@ import { PlatformBadge } from '@bench/components/system/platform-badge';
 import { scheduleDraft } from '@bench/lib/api';
 import { useMockMode } from '@bench/lib/mock-mode';
 import type { LeagueSummary } from '@bench/lib/queries';
-import { formatDraftDate, formatRecord } from '@bench/lib/utils';
+import { draftSlot, formatRecord } from '@bench/lib/utils';
 
 type ScheduleStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -19,6 +19,14 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
   const warningCount = benchIq?.flags.filter((f) => f.level === 'warning').length ?? 0;
   const [mock] = useMockMode();
   const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatus>('idle');
+  const slot = draftSlot(
+    league.draftDate,
+    league.draftStatus,
+    benchIq?.rosterCount ?? 0,
+    benchIq?.projectedPoints ?? null,
+  );
+  // Only an upcoming draft is worth putting on a calendar.
+  const canSchedule = slot.kind === 'date' && league.draftDate !== null;
 
   function handleScheduleDraft(e: React.MouseEvent) {
     e.preventDefault();
@@ -47,16 +55,18 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
             <span className="truncate">{league.name}</span>
             <PlatformBadge platform={league.platform} />
             <Badge
-              variant={scheduleStatus === 'error' ? 'destructive' : 'default'}
+              variant={
+                scheduleStatus === 'error' || slot.kind === 'live' ? 'destructive' : 'default'
+              }
               className={
-                scheduleStatus === 'error'
+                scheduleStatus === 'error' || slot.kind === 'live'
                   ? 'ml-auto'
                   : `ml-auto border-brand bg-transparent text-brand${
-                      league.draftDate ? ' cursor-pointer hover:bg-brand/10' : ''
+                      canSchedule ? ' cursor-pointer hover:bg-brand/10' : ''
                     }`
               }
-              onClick={league.draftDate ? handleScheduleDraft : undefined}
-              title={league.draftDate ? 'Schedule draft to calendar' : undefined}
+              onClick={canSchedule ? handleScheduleDraft : undefined}
+              title={canSchedule ? 'Schedule draft to calendar' : undefined}
             >
               {scheduleStatus === 'saving'
                 ? 'Scheduling…'
@@ -64,7 +74,7 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
                   ? 'Added'
                   : scheduleStatus === 'error'
                     ? 'Failed'
-                    : formatDraftDate(league.draftDate)}
+                    : slot.label}
             </Badge>
           </CardTitle>
         </CardHeader>

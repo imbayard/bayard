@@ -36,6 +36,7 @@ describe('mapLeague', () => {
       teamCount: 2,
       currentWeek: 3,
       draftDate: '2025-08-13T00:00:00.000Z',
+      draftStatus: null,
     });
   });
 
@@ -48,6 +49,13 @@ describe('mapLeague', () => {
       },
     } as EspnLeagueResponse;
     expect(mapLeague(keeper).leagueType).toBe('keeper');
+  });
+
+  it('reads draft status off draftDetail', () => {
+    const drafting = { ...leagueData, draftDetail: { drafted: true, inProgress: true } };
+    expect(mapLeague(drafting).draftStatus).toBe('drafting');
+    const done = { ...leagueData, draftDetail: { drafted: true, inProgress: false } };
+    expect(mapLeague(done).draftStatus).toBe('complete');
   });
 
   it('nulls draftDate when draftSettings is absent', () => {

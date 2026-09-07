@@ -14,6 +14,8 @@ export interface League {
   currentWeek: number;
   /** ISO 8601 timestamp of the league's draft, or null if unscheduled/unknown. */
   draftDate: string | null;
+  /** Where the league's draft stands, or null when the platform doesn't report one. */
+  draftStatus: DraftStatus | null;
 }
 
 export interface Team {

@@ -31,7 +31,7 @@ const players = fixture.players as SleeperPlayersResponse;
 
 describe('mapLeague', () => {
   it('normalizes league metadata', () => {
-    const result = mapLeague(league, 3, '2025-08-21T00:00:00.000Z');
+    const result = mapLeague(league, 3, '2025-08-21T00:00:00.000Z', 'pre_draft');
     expect(result).toEqual({
       platform: 'sleeper',
       externalLeagueId: '9999999999',
@@ -43,16 +43,17 @@ describe('mapLeague', () => {
       teamCount: 2,
       currentWeek: 3,
       draftDate: '2025-08-21T00:00:00.000Z',
+      draftStatus: 'pre_draft',
     });
   });
 
   it('sets draftDate to null when the draft is unscheduled', () => {
-    expect(mapLeague(league, 3, null).draftDate).toBeNull();
+    expect(mapLeague(league, 3, null, null).draftDate).toBeNull();
   });
 
   it('detects bestball over dynasty', () => {
     const bestball = { ...league, settings: { ...league.settings, best_ball: 1 } };
-    expect(mapLeague(bestball, 3, null).leagueType).toBe('bestball');
+    expect(mapLeague(bestball, 3, null, null).leagueType).toBe('bestball');
   });
 });
 

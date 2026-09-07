@@ -1,4 +1,5 @@
 import type {
+  DraftStatus,
   League,
   Matchup,
   Player,
@@ -7,6 +8,7 @@ import type {
   Team,
 } from '../../types/league.js';
 import type {
+  EspnDraftDetail,
   EspnLeagueResponse,
   EspnPlayerInfoResponse,
   EspnProPlayer,
@@ -47,7 +49,19 @@ export function mapLeague(raw: EspnLeagueResponse): League {
     teamCount: raw.teams?.length ?? 0,
     currentWeek,
     draftDate,
+    draftStatus: mapDraftStatus(raw.draftDetail),
   };
+}
+
+/**
+ * ESPN exposes no pick-by-pick draft board, but the league payload does say whether the draft
+ * has run. `paused` has no ESPN equivalent, and an absent `draftDetail` means "unknown".
+ */
+function mapDraftStatus(detail: EspnDraftDetail | undefined): DraftStatus | null {
+  if (!detail) return null;
+  if (detail.inProgress) return 'drafting';
+  if (detail.drafted) return 'complete';
+  return 'pre_draft';
 }
 
 function detectLeagueType(raw: EspnLeagueResponse): League['leagueType'] {

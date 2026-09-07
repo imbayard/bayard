@@ -112,6 +112,12 @@ export interface EspnLeagueSettings {
   };
 }
 
+/** ESPN reports draft progress as two booleans rather than a status string. */
+export interface EspnDraftDetail {
+  drafted?: boolean;
+  inProgress?: boolean;
+}
+
 export interface EspnLeagueResponse {
   id: number;
   name: string;
@@ -123,4 +129,5 @@ export interface EspnLeagueResponse {
   teams?: EspnTeamDetail[];
   schedule?: EspnMatchup[];
   settings?: EspnLeagueSettings;
+  draftDetail?: EspnDraftDetail;
 }

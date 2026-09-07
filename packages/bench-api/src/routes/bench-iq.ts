@@ -79,5 +79,21 @@ benchIq.get('/leagues/:platform/:leagueId/bench-iq', async (c) => {
 
   const rosteredPlayerIds = new Set(rosters.flatMap((r) => r.entries.map((e) => e.externalPlayerId)));
   const flags = computeBenchIqFlags(roster, players, league.currentWeek, league.rosterSlots, rosteredPlayerIds);
-  return c.json({ flags, week: league.currentWeek, teamId: roster.externalTeamId });
+
+  // Starters only — what the team is actually projected to score this week. Null when no
+  // starter has a projection, so the client can tell "0 points" from "no data".
+  const starterProjections = roster.entries
+    .filter((e) => e.slot === 'starter')
+    .map((e) => players.get(e.externalPlayerId)?.projectedPoints)
+    .filter((p): p is number => p != null);
+  const projectedPoints =
+    starterProjections.length > 0 ? starterProjections.reduce((a, b) => a + b, 0) : null;
+
+  return c.json({
+    flags,
+    week: league.currentWeek,
+    teamId: roster.externalTeamId,
+    rosterCount: roster.entries.length,
+    projectedPoints,
+  });
 });

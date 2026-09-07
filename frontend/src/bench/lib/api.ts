@@ -28,6 +28,10 @@ export interface BenchIqResponse {
   week: number;
   /** The caller's own team in this league — canonical "my team" id. */
   teamId: string;
+  /** Players on that team's roster, starters and bench alike. 0 before the draft. */
+  rosterCount: number;
+  /** This week's starters' projections, summed; null when no starter has a projection. */
+  projectedPoints: number | null;
 }
 
 export type EnrichedRosterEntry = RosterEntry & { player: Player | null };
