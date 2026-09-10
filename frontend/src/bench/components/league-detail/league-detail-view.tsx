@@ -1,9 +1,10 @@
 
-import type { Platform } from '@benchpoints/core';
+import type { League, Platform } from '@benchpoints/core';
 import { Link } from '@bench/lib/nav';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { PlatformBadge } from '@bench/components/system/platform-badge';
 import { useLeagues, useLeagueSummaries } from '@bench/lib/queries';
+import { cn } from '@bench/lib/utils';
 import { DraftBoard } from './draft-board';
 import { FlagList } from './flag-list';
 import { MatchupHeader } from './matchup-header';
@@ -52,6 +53,42 @@ function WaiversPreview({ summary }: { summary: ReturnType<typeof useLeagueSumma
   );
 }
 
+/**
+ * A draft you can still act on leads: it sits open, above the fold of the page's tail. Once it's
+ * complete the board is history — the roster is what you can be wrong about now — so it drops
+ * below the roster and collapses, one click from view instead of a wall of columns.
+ */
+function DraftSection({ league }: { league: League }) {
+  const heading = 'text-sm font-medium text-muted-foreground';
+
+  if (league.draftStatus !== 'complete') {
+    return (
+      <section aria-label="Draft">
+        <h2 className={cn(heading, 'mb-2')}>Draft</h2>
+        <DraftBoard league={league} />
+      </section>
+    );
+  }
+
+  return (
+    <details className="group">
+      <summary
+        className={cn(
+          heading,
+          'flex cursor-pointer list-none items-center gap-1.5 marker:content-none hover:text-foreground',
+        )}
+      >
+        <span className="text-[10px] transition-transform group-open:rotate-90">&#9654;</span>
+        Draft
+        <span className="text-xs">&middot; complete</span>
+      </summary>
+      <div className="mt-2">
+        <DraftBoard league={league} />
+      </div>
+    </details>
+  );
+}
+
 export function LeagueDetailView({ platform, leagueId }: { platform: Platform; leagueId: string }) {
   const { data, isPending, isError } = useLeagues();
   const league = data?.leagues.find(
@@ -95,14 +132,11 @@ export function LeagueDetailView({ platform, leagueId }: { platform: Platform; l
       </div>
       {summary && <MatchupHeader summary={summary} />}
       <FlagList league={league} />
-      <section aria-label="Draft">
-        <h2 className="mb-2 text-sm font-medium text-muted-foreground">Draft</h2>
-        <DraftBoard league={league} />
-      </section>
       <section aria-label="Roster">
         <h2 className="mb-2 text-sm font-medium text-muted-foreground">Roster</h2>
         <RosterView league={league} />
       </section>
+      <DraftSection league={league} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ComingSoon title="Standings" />
         <WaiversPreview summary={summary} />
