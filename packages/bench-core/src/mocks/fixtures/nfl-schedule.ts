@@ -40,7 +40,12 @@ export function nflScoreboard(): EspnScoreboardResponse {
       date: new Date(now + hours * HOUR).toISOString(),
       status: { type: { state } },
       competitions: [
-        { competitors: [{ team: { abbreviation: home } }, { team: { abbreviation: away } }] },
+        {
+          competitors: [
+            { team: { abbreviation: home }, homeAway: 'home' },
+            { team: { abbreviation: away }, homeAway: 'away' },
+          ],
+        },
       ],
     })),
   };

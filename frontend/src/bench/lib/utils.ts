@@ -1,4 +1,4 @@
-import type { DraftStatus } from '@benchpoints/core';
+import type { BenchIqFlag, DraftStatus } from '@benchpoints/core';
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -54,4 +54,9 @@ export function draftSlot(
     };
   }
   return { kind: 'date', label: formatDraftDate(draftDate), tone: 'info' };
+}
+
+/** Warnings all look alike, so the rail is the only severity signal a flag row needs. */
+export function railTone(level: BenchIqFlag['level']): string {
+  return level === 'critical' ? 'border-l-destructive' : 'border-l-amber-500/60';
 }

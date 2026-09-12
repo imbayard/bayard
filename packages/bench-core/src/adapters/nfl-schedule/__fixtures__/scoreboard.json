@@ -13,12 +13,14 @@
             {
               "team": {
                 "abbreviation": "PHI"
-              }
+              },
+              "homeAway": "home"
             },
             {
               "team": {
                 "abbreviation": "DAL"
-              }
+              },
+              "homeAway": "away"
             }
           ]
         }
@@ -37,12 +39,14 @@
             {
               "team": {
                 "abbreviation": "CLE"
-              }
+              },
+              "homeAway": "home"
             },
             {
               "team": {
                 "abbreviation": "CIN"
-              }
+              },
+              "homeAway": "away"
             }
           ]
         }
@@ -61,12 +65,14 @@
             {
               "team": {
                 "abbreviation": "WSH"
-              }
+              },
+              "homeAway": "home"
             },
             {
               "team": {
                 "abbreviation": "NYG"
-              }
+              },
+              "homeAway": "away"
             }
           ]
         }

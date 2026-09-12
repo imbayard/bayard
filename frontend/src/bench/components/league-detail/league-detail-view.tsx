@@ -1,4 +1,3 @@
-
 import type { League, Platform } from '@benchpoints/core';
 import { Link } from '@bench/lib/nav';
 import { Skeleton } from '@bench/components/ui/skeleton';
@@ -9,6 +8,7 @@ import { DraftBoard } from './draft-board';
 import { FlagList } from './flag-list';
 import { MatchupHeader } from './matchup-header';
 import { RosterView } from './roster-view';
+import { ScoutBoard } from './scout-board';
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -135,6 +135,10 @@ export function LeagueDetailView({ platform, leagueId }: { platform: Platform; l
       <section aria-label="Roster">
         <h2 className="mb-2 text-sm font-medium text-muted-foreground">Roster</h2>
         <RosterView league={league} />
+      </section>
+      <section aria-label="Matchup scout">
+        <h2 className="mb-2 text-sm font-medium text-muted-foreground">Scout</h2>
+        <ScoutBoard league={league} />
       </section>
       <DraftSection league={league} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

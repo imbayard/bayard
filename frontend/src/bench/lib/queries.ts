@@ -7,8 +7,10 @@ import {
   fetchLeagues,
   fetchMatchups,
   fetchRosters,
+  fetchScout,
   fetchTeams,
   type BenchIqResponse,
+  type ScoutPool,
 } from './api';
 import { useMockMode } from './mock-mode';
 
@@ -102,6 +104,27 @@ function isDraftRunning(board: DraftBoard | undefined): boolean {
 export function useDraft(platform: Platform, leagueId: string) {
   const [mock] = useMockMode();
   return useQuery(draftQuery(platform, leagueId, mock));
+}
+
+/**
+ * Opponent strength only moves when a week's games finish, so this can sit stale for a
+ * good while — and the frame is part of the key, so changing it refetches rather than
+ * re-rendering the previous frame's board.
+ */
+export function useScout(
+  platform: Platform,
+  leagueId: string,
+  position: string,
+  from: number,
+  to: number,
+  pool: ScoutPool,
+) {
+  const [mock] = useMockMode();
+  return useQuery({
+    queryKey: ['scout', platform, leagueId, position, from, to, pool, mock],
+    queryFn: () => fetchScout(platform, leagueId, position, from, to, pool, mock),
+    staleTime: 30 * MINUTE,
+  });
 }
 
 /**

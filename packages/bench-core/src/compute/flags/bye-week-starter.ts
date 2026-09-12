@@ -18,6 +18,8 @@ export function byeWeekStarterFlags(
       playerName: player.fullName,
       slot: entry.slot,
       message: `${player.fullName} is on bye this week`,
+      delta: null,
+      starterName: null,
     });
   }
   return flags;

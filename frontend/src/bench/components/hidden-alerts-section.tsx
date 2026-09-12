@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import type { BenchIqFlag, League } from '@benchpoints/core';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@bench/components/ui/badge';
 import { useHiddenAlerts } from '@bench/lib/hidden-alerts';
+import { cn, railTone } from '@bench/lib/utils';
 
 export interface HiddenAlertEntry {
   key: string;
@@ -34,9 +34,12 @@ export function HiddenAlertsSection({ entries }: { entries: HiddenAlertEntry[] }
           {entries.map(({ key, league, flag }) => (
             <li
               key={key}
-              className="flex items-center gap-3 rounded-xl bg-card px-4 py-2 ring-1 ring-foreground/10"
+              title={flag.message}
+              className={cn(
+                'flex items-center gap-3 rounded-xl border-l-2 bg-card px-4 py-2 ring-1 ring-foreground/10',
+                railTone(flag.level),
+              )}
             >
-              <Badge variant="secondary">warning</Badge>
               <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
                 <span className="font-medium">{league.name}</span> · {flag.message}
               </span>

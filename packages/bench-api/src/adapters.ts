@@ -3,8 +3,10 @@ import {
   LruCache,
   mockEspnAdapter,
   mockNflScheduleClient,
+  mockNflverseClient,
   mockSleeperAdapter,
   NflScheduleClient,
+  NflverseClient,
   SleeperAdapter,
   type PlatformAdapter,
 } from '@benchpoints/core';
@@ -16,6 +18,9 @@ export const sleeperAdapter = new SleeperAdapter(cache);
 
 /** Not league-scoped and unauthenticated — one instance serves every league. */
 export const nflScheduleClient = new NflScheduleClient(cache);
+
+/** Same deal: public release files, shared across every league. */
+export const nflverseClient = new NflverseClient(cache);
 
 export const espnAdapter: EspnAdapter | undefined =
   env.espnLeagueId && env.espnSwid && env.espnS2
@@ -45,4 +50,8 @@ export function adapterFor(platform: 'sleeper' | 'espn', useMock: boolean): Plat
 
 export function nflScheduleFor(useMock: boolean): NflScheduleClient {
   return useMock ? mockNflScheduleClient : nflScheduleClient;
+}
+
+export function nflverseFor(useMock: boolean): NflverseClient {
+  return useMock ? mockNflverseClient : nflverseClient;
 }

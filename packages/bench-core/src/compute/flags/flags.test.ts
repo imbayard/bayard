@@ -5,7 +5,7 @@ import { byeWeekStarterFlags } from './bye-week-starter.js';
 import { incompleteLineupFlags } from './incomplete-lineup.js';
 import { startingInactiveFlags } from './starting-inactive.js';
 import { waiverHigherProjectionFlags } from './waiver-higher-projection.js';
-import { computeBenchIqFlags } from './index.js';
+import { computeBenchIqFlags, MIN_BENCH_UPGRADE_DELTA, MIN_WAIVER_UPGRADE_DELTA } from './index.js';
 
 const ROSTER_SLOTS = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'BN', 'BN'];
 
@@ -64,6 +64,8 @@ describe('byeWeekStarterFlags', () => {
         playerName: 'Josh Allen',
         slot: 'starter',
         message: 'Josh Allen is on bye this week',
+        delta: null,
+        starterName: null,
       },
     ]);
   });
@@ -99,6 +101,8 @@ describe('startingInactiveFlags', () => {
         playerName: 'Hurt Guy',
         slot: 'starter',
         message: `Hurt Guy is starting while marked ${status}`,
+        delta: null,
+        starterName: null,
       },
     ]);
   });
@@ -160,6 +164,8 @@ describe('incompleteLineupFlags', () => {
         playerName: null,
         slot: 'WR',
         message: 'WR slot is unfilled',
+        delta: null,
+        starterName: null,
       },
       {
         type: 'INCOMPLETE_LINEUP',
@@ -168,6 +174,8 @@ describe('incompleteLineupFlags', () => {
         playerName: null,
         slot: 'TE',
         message: 'TE slot is unfilled',
+        delta: null,
+        starterName: null,
       },
       {
         type: 'INCOMPLETE_LINEUP',
@@ -176,6 +184,8 @@ describe('incompleteLineupFlags', () => {
         playerName: null,
         slot: 'FLEX',
         message: 'FLEX slot is unfilled',
+        delta: null,
+        starterName: null,
       },
     ]);
   });
@@ -206,7 +216,9 @@ describe('benchHigherProjectionFlags', () => {
         playerId: 'bn1',
         playerName: 'Bench RB',
         slot: 'RB',
-        message: 'Bench RB projects higher than your RB starter, Starter RB',
+        message: 'Bench RB projects +4.7 over your RB starter, Starter RB',
+        delta: 4.7,
+        starterName: 'Starter RB',
       },
     ]);
   });
@@ -260,6 +272,45 @@ describe('benchHigherProjectionFlags', () => {
 
     expect(benchHigherProjectionFlags(roster, players)).toEqual([]);
   });
+
+  it('keeps only the biggest edge when one bench player tops several slots', () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'wr1', fullName: 'Starter WR', position: 'WR', projectedPoints: 8 }),
+      player({ externalPlayerId: 'flex1', fullName: 'Starter Flex', position: 'RB', projectedPoints: 5 }),
+      player({ externalPlayerId: 'bn1', fullName: 'Jayden Reed', position: 'WR', projectedPoints: 14 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'wr1', slot: 'starter', positionSlot: 'WR' },
+        { externalPlayerId: 'flex1', slot: 'starter', positionSlot: 'FLEX' },
+        { externalPlayerId: 'bn1', slot: 'bench' },
+      ],
+    };
+
+    const flags = benchHigherProjectionFlags(roster, players);
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]?.slot).toBe('FLEX');
+    expect(flags[0]?.delta).toBe(9);
+    expect(flags[0]?.starterName).toBe('Starter Flex');
+  });
+
+  it(`does not flag a bench player winning by less than ${MIN_BENCH_UPGRADE_DELTA}`, () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'k1', fullName: 'Starter K', position: 'K', projectedPoints: 8.2 }),
+      player({ externalPlayerId: 'bn1', fullName: 'Bench K', position: 'K', projectedPoints: 9.1 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'k1', slot: 'starter', positionSlot: 'K' },
+        { externalPlayerId: 'bn1', slot: 'bench' },
+      ],
+    };
+
+    expect(benchHigherProjectionFlags(roster, players)).toEqual([]);
+  });
 });
 
 describe('waiverHigherProjectionFlags', () => {
@@ -281,7 +332,9 @@ describe('waiverHigherProjectionFlags', () => {
         playerId: 'waiver1',
         playerName: 'Waiver WR',
         slot: 'WR',
-        message: 'Waiver WR is on waivers and projects higher than your WR starter, Starter WR',
+        message: 'Waiver WR is on waivers and projects +8.8 over your WR starter, Starter WR',
+        delta: 8.8,
+        starterName: 'Starter WR',
       },
     ]);
   });
@@ -299,6 +352,42 @@ describe('waiverHigherProjectionFlags', () => {
 
     expect(waiverHigherProjectionFlags(roster, players, rosteredPlayerIds)).toEqual([]);
   });
+
+  it('keeps only the biggest edge when one waiver player tops several slots', () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'qb1', fullName: 'Starter QB', position: 'QB', projectedPoints: 14 }),
+      player({ externalPlayerId: 'sf1', fullName: 'Starter SuperFlex', position: 'QB', projectedPoints: 11 }),
+      player({ externalPlayerId: 'waiver1', fullName: 'Kirk Cousins', position: 'QB', projectedPoints: 19 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'qb1', slot: 'starter', positionSlot: 'QB' },
+        { externalPlayerId: 'sf1', slot: 'starter', positionSlot: 'SUPER_FLEX' },
+      ],
+    };
+    const rosteredPlayerIds = new Set(['qb1', 'sf1']);
+
+    const flags = waiverHigherProjectionFlags(roster, players, rosteredPlayerIds);
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]?.slot).toBe('SUPER_FLEX');
+    expect(flags[0]?.delta).toBe(8);
+  });
+
+  it(`does not flag a waiver player winning by less than ${MIN_WAIVER_UPGRADE_DELTA}`, () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'def1', fullName: 'Chicago Bears', position: 'DEF', projectedPoints: 6.4 }),
+      player({ externalPlayerId: 'waiver1', fullName: 'Las Vegas Raiders', position: 'DEF', projectedPoints: 8.9 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [{ externalPlayerId: 'def1', slot: 'starter', positionSlot: 'DEF' }],
+    };
+    const rosteredPlayerIds = new Set(['def1']);
+
+    expect(waiverHigherProjectionFlags(roster, players, rosteredPlayerIds)).toEqual([]);
+  });
 });
 
 describe('computeBenchIqFlags', () => {
@@ -309,5 +398,68 @@ describe('computeBenchIqFlags', () => {
   it('returns no flags for an empty (undrafted) roster', () => {
     const emptyRoster: Roster = { externalTeamId: '1', entries: [] };
     expect(computeBenchIqFlags(emptyRoster, cleanPlayers, 1, ROSTER_SLOTS)).toEqual([]);
+  });
+
+  it('collapses a bench and a waiver upgrade for the same slot, keeping the bigger edge', () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'def1', fullName: 'Chicago Bears', position: 'DEF', projectedPoints: 5 }),
+      player({ externalPlayerId: 'bn-def', fullName: 'Seattle Seahawks', position: 'DEF', projectedPoints: 9 }),
+      player({ externalPlayerId: 'waiver-def', fullName: 'Las Vegas Raiders', position: 'DEF', projectedPoints: 12 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'def1', slot: 'starter', positionSlot: 'DEF' },
+        { externalPlayerId: 'bn-def', slot: 'bench' },
+      ],
+    };
+    const rosteredPlayerIds = new Set(['def1', 'bn-def']);
+
+    const flags = computeBenchIqFlags(roster, players, 1, ['DEF', 'BN'], rosteredPlayerIds);
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]?.type).toBe('WAIVER_PLAYER_HIGHER_PROJECTION');
+    expect(flags[0]?.playerName).toBe('Las Vegas Raiders');
+    expect(flags[0]?.delta).toBe(7);
+  });
+
+  it('prefers the bench flag when the bench and waiver edges tie, since it costs no roster move', () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'def1', fullName: 'Chicago Bears', position: 'DEF', projectedPoints: 5 }),
+      player({ externalPlayerId: 'bn-def', fullName: 'Seattle Seahawks', position: 'DEF', projectedPoints: 12 }),
+      player({ externalPlayerId: 'waiver-def', fullName: 'Las Vegas Raiders', position: 'DEF', projectedPoints: 12 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'def1', slot: 'starter', positionSlot: 'DEF' },
+        { externalPlayerId: 'bn-def', slot: 'bench' },
+      ],
+    };
+    const rosteredPlayerIds = new Set(['def1', 'bn-def']);
+
+    const flags = computeBenchIqFlags(roster, players, 1, ['DEF', 'BN'], rosteredPlayerIds);
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]?.type).toBe('BENCH_PLAYER_HIGHER_PROJECTION');
+    expect(flags[0]?.playerName).toBe('Seattle Seahawks');
+  });
+
+  it('leaves critical flags untouched by the per-slot collapse', () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'rb1', fullName: 'Bye RB', position: 'RB', projectedPoints: 5, byeWeek: 3 }),
+      player({ externalPlayerId: 'bn1', fullName: 'Bench RB', position: 'RB', projectedPoints: 12 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'rb1', slot: 'starter', positionSlot: 'RB' },
+        { externalPlayerId: 'bn1', slot: 'bench' },
+      ],
+    };
+
+    const types = computeBenchIqFlags(roster, players, 3, ['RB', 'BN']).map((f) => f.type);
+
+    expect(types).toEqual(['BYE_WEEK_STARTER', 'BENCH_PLAYER_HIGHER_PROJECTION']);
   });
 });

@@ -270,6 +270,43 @@ export const sleeperPlayers: SleeperPlayersResponse = {
   // Unrostered in mock-sleeper-1 (waiver wire): higher-projected than the WR1 starter.
   'p-rr-waiver-wr': { player_id: 'p-rr-waiver-wr', full_name: 'Kellan Odom', position: 'WR', team: 'LAR', bye_week: 9 },
 
+  // -- Unrostered defenses (waiver wire) --
+  // Two rostered DEFs alone can't fill a scout board. MIN/CLE/WAS all appear on the mock
+  // NFL slate, so they draw real opponents; LAR is deliberately absent from it, which makes
+  // the Rams a standing bye and exercises the scout's bye path in mock mode.
+  'p-waiver-def-min': {
+    player_id: 'p-waiver-def-min',
+    first_name: 'Vikings',
+    last_name: 'D/ST',
+    position: 'DEF',
+    team: 'MIN',
+    bye_week: 6,
+  },
+  'p-waiver-def-cle': {
+    player_id: 'p-waiver-def-cle',
+    first_name: 'Browns',
+    last_name: 'D/ST',
+    position: 'DEF',
+    team: 'CLE',
+    bye_week: 9,
+  },
+  'p-waiver-def-was': {
+    player_id: 'p-waiver-def-was',
+    first_name: 'Commanders',
+    last_name: 'D/ST',
+    position: 'DEF',
+    team: 'WAS',
+    bye_week: 14,
+  },
+  'p-waiver-def-lar': {
+    player_id: 'p-waiver-def-lar',
+    first_name: 'Rams',
+    last_name: 'D/ST',
+    position: 'DEF',
+    team: 'LAR',
+    bye_week: 8,
+  },
+
   // -- Dynasty Dumpster Fire (mock-sleeper-2) --
   'p-ddf-qb': { player_id: 'p-ddf-qb', full_name: 'Wyatt Cobb', position: 'QB', team: 'LAC', bye_week: 12 },
   'p-ddf-rb1': {
@@ -318,4 +355,7 @@ export const sleeperProjections: SleeperProjectionsResponse = [
   { player_id: 'p-rr-waiver-wr', stats: { pts_ppr: 16.8 } },
   { player_id: 'p-rr-opp-qb', stats: { pts_ppr: 21.4 } },
   { player_id: 'p-ddf-opp-qb', stats: { pts_ppr: 18.9 } },
+  // One projected defense so the scout board has a populated projection column to render.
+  // Safe against the waiver flag: the DEF starter it would be compared to has no projection.
+  { player_id: 'p-waiver-def-min', stats: { pts_ppr: 7.6 } },
 ];

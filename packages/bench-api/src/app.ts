@@ -6,6 +6,7 @@ import { benchIq } from './routes/bench-iq.js';
 import { leagues } from './routes/leagues.js';
 import { matchups } from './routes/matchups.js';
 import { rosters } from './routes/rosters.js';
+import { scout } from './routes/scout.js';
 
 // Mounted under /api/bench so it can be served both by the Netlify Function
 // (config.path = '/api/bench/*') and the local-dev standalone server (index.ts).
@@ -18,6 +19,7 @@ app.route('/', leagues);
 app.route('/', rosters);
 app.route('/', matchups);
 app.route('/', benchIq);
+app.route('/', scout);
 
 app.onError((err, c) => {
   if (err instanceof InvalidPlatformError || err instanceof AdapterNotConfiguredError) {

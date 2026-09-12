@@ -7,6 +7,7 @@ import type {
   Player,
   Roster,
   RosterEntry,
+  ScoutCandidate,
   Team,
 } from '@benchpoints/core';
 
@@ -32,6 +33,25 @@ export interface BenchIqResponse {
   rosterCount: number;
   /** This week's starters' projections, summed; null when no starter has a projection. */
   projectedPoints: number | null;
+}
+
+/** Which players a scout report ranks: everyone unrostered, or just the ones you own. */
+export type ScoutPool = 'waivers' | 'roster';
+
+export interface ScoutResponse {
+  position: string;
+  weeks: number[];
+  pool: ScoutPool;
+  /** Sorted by frame score, best matchups first. */
+  candidates: ScoutCandidate[];
+  meta: {
+    season: number;
+    currentWeek: number;
+    /** Last week of results the opponent ratings are built from. */
+    statsThroughWeek: number;
+    /** How much of those ratings came from last season, 0-1. */
+    priorSeasonWeight: number;
+  };
 }
 
 export type EnrichedRosterEntry = RosterEntry & { player: Player | null };
@@ -116,4 +136,21 @@ export function scheduleDraft(
  */
 export function fetchDraft(platform: Platform, leagueId: string, mock: boolean): Promise<DraftBoard> {
   return get(`/leagues/${platform}/${leagueId}/draft`, mock);
+}
+
+/**
+ * Best matchups over a frame of weeks, for the given position and pool.
+ * The API caps a frame at six weeks and 400s anything wider.
+ */
+export function fetchScout(
+  platform: Platform,
+  leagueId: string,
+  position: string,
+  from: number,
+  to: number,
+  pool: ScoutPool,
+  mock: boolean,
+): Promise<ScoutResponse> {
+  const query = new URLSearchParams({ position, from: String(from), to: String(to), pool });
+  return get(`/leagues/${platform}/${leagueId}/scout?${query}`, mock);
 }

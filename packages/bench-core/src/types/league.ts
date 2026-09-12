@@ -82,6 +82,18 @@ export interface NflGameState {
   state: 'pre' | 'in' | 'post';
 }
 
+/** One NFL team's opponent for a given week. Teams on bye have no entry. */
+export interface NflWeekOpponent {
+  /** Normalized NFL team code (matches `Player.nflTeam`). */
+  team: string;
+  /** Normalized code of the team they play that week. */
+  opponent: string;
+  /** True when `team` is at home; null when the payload doesn't say. */
+  home: boolean | null;
+  /** ISO 8601 kickoff. */
+  kickoff: string;
+}
+
 export type DraftStatus = 'pre_draft' | 'drafting' | 'paused' | 'complete';
 
 export type DraftType = 'snake' | 'linear' | 'auction';

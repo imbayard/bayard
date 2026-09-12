@@ -1,0 +1,10 @@
+season,week,team,season_type,opponent_team,attempts,carries,sacks_suffered,passing_interceptions,fumbles_lost_total,passing_tds,rushing_tds,passing_2pt_conversions,rushing_2pt_conversions,fg_made,pat_made
+2025,1,ARI,REG,NO,29,27,5,0,0,2,0,0,0,2,2
+2025,2,ARI,REG,CAR,30,20,3,2,1,1,1,0,0,1,2
+2025,1,LA,REG,SF,35,18,1,1,0,3,0,1,0,0,2
+2025,2,LA,REG,SEA,40,22,2,0,1,2,1,0,0,3,3
+2025,1,SF,REG,LA,28,30,4,3,2,0,1,0,1,1,1
+2025,3,SF,POST,DAL,30,25,0,0,0,5,2,0,0,0,7
+2025,2,SF,REG,,31,24,2,1,0,1,0,0,0,2,1
+2025,1,NA,REG,ARI,20,20,1,1,1,1,1,0,0,1,2
+2025,,WSH,REG,DAL,25,25,2,1,0,1,1,0,0,1,2

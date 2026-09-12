@@ -12,6 +12,14 @@ export interface BenchIqFlag {
   playerName: string | null;
   slot: string | null;
   message: string;
+  /**
+   * Projection edge in fantasy points (candidate - starter) for the projection-based
+   * flags, so consumers can rank and threshold instead of treating every flag alike.
+   * Null on flags that aren't a comparison (bye week, inactive, unfilled slot).
+   */
+  delta: number | null;
+  /** The starter the candidate is measured against; null on non-comparison flags. */
+  starterName: string | null;
 }
 
 /**

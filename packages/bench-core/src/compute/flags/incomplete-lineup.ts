@@ -33,5 +33,7 @@ export function incompleteLineupFlags(roster: Roster, rosterSlots: string[]): Be
     playerName: null,
     slot: slotType,
     message: `${slotType} slot is unfilled`,
+    delta: null,
+    starterName: null,
   }));
 }

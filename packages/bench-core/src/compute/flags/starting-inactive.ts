@@ -16,6 +16,8 @@ export function startingInactiveFlags(roster: Roster, players: Map<string, Playe
       playerName: player.fullName,
       slot: entry.slot,
       message: `${player.fullName} is starting while marked ${player.injuryStatus}`,
+      delta: null,
+      starterName: null,
     });
   }
   return flags;

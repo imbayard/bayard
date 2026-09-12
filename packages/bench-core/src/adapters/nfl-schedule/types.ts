@@ -18,6 +18,12 @@ export interface EspnScoreboardEvent {
 }
 
 export interface EspnScoreboardCompetition {
-  /** Home and away, in no guaranteed order. */
-  competitors: { team: { abbreviation: string } }[];
+  /** Home and away, in no guaranteed order — read `homeAway`, not position. */
+  competitors: EspnScoreboardCompetitor[];
+}
+
+export interface EspnScoreboardCompetitor {
+  team: { abbreviation: string };
+  /** ESPN populates this on the scoreboard; absent on some older/partial payloads. */
+  homeAway?: 'home' | 'away';
 }

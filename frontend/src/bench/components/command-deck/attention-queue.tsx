@@ -2,10 +2,12 @@
 import type { BenchIqFlag, League } from '@benchpoints/core';
 import { Link } from '@bench/lib/nav';
 import { HiddenAlertsSection, type HiddenAlertEntry } from '@bench/components/hidden-alerts-section';
+import { DeltaCell, SwapLine } from '@bench/components/flag-row';
 import { Badge } from '@bench/components/ui/badge';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { alertKey, isHideableAlert, useHiddenAlerts } from '@bench/lib/hidden-alerts';
 import { useLeagueSummaries } from '@bench/lib/queries';
+import { cn, railTone } from '@bench/lib/utils';
 
 interface QueueGroup {
   league: League;
@@ -22,31 +24,46 @@ const TYPE_RANK: Record<BenchIqFlag['type'], number> = {
   WAIVER_PLAYER_HIGHER_PROJECTION: 4,
 };
 
-/** Collapses a group of same-type flags for one league into a single message. */
-function summarizeGroup(type: BenchIqFlag['type'], flags: BenchIqFlag[]): string {
-  if (flags.length === 1) {
-    return flags[0]!.message;
-  }
-  const names = flags.map((f) => f.playerName).filter((n): n is string => Boolean(n));
-  switch (type) {
-    case 'INCOMPLETE_LINEUP':
-      return `${flags.length} starter slots are unfilled`;
-    case 'BYE_WEEK_STARTER':
-      return `${flags.length} starters on bye this week: ${names.join(', ')}`;
-    case 'STARTING_INACTIVE':
-      return `${flags.length} starters are inactive: ${names.join(', ')}`;
-    case 'BENCH_PLAYER_HIGHER_PROJECTION':
-      return `${flags.length} bench players outproject their starter: ${names.join(', ')}`;
-    case 'WAIVER_PLAYER_HIGHER_PROJECTION':
-      return `${flags.length} waiver players outproject a starter: ${names.join(', ')}`;
-  }
-}
-
 const CRITICAL_TYPES = new Set<BenchIqFlag['type']>([
   'INCOMPLETE_LINEUP',
   'STARTING_INACTIVE',
   'BYE_WEEK_STARTER',
 ]);
+
+/** Order-preserving dedupe — core can surface the same player from two eligible slots. */
+function uniq(values: (string | null)[]): string[] {
+  return Array.from(new Set(values.filter((v): v is string => Boolean(v))));
+}
+
+/** Total projection edge on offer in a group; null for types that aren't a comparison. */
+function groupDelta(flags: BenchIqFlag[]): number | null {
+  const deltas = flags.map((f) => f.delta).filter((d): d is number => d !== null);
+  return deltas.length > 0 ? deltas.reduce((a, b) => a + b, 0) : null;
+}
+
+/** Collapses a group of same-type flags for one league into a single line. */
+function summarizeGroup(type: BenchIqFlag['type'], flags: BenchIqFlag[]): string {
+  const names = uniq(flags.map((f) => f.playerName));
+  const list = names.join(', ');
+  const verb = names.length === 1 ? 'outprojects' : 'outproject';
+  switch (type) {
+    case 'INCOMPLETE_LINEUP':
+      return `${flags.length} starter slots unfilled`;
+    case 'BYE_WEEK_STARTER':
+      return `On bye: ${list}`;
+    case 'STARTING_INACTIVE':
+      return `Inactive: ${list}`;
+    case 'BENCH_PLAYER_HIGHER_PROJECTION':
+      return `${list} ${verb} your starters`;
+    case 'WAIVER_PLAYER_HIGHER_PROJECTION':
+      return `${list} on waivers ${verb} your starters`;
+  }
+}
+
+/** A single flag shows the swap; a collapsed group needs the sentence. */
+function GroupLine({ type, flags }: { type: BenchIqFlag['type']; flags: BenchIqFlag[] }) {
+  return flags.length === 1 ? <SwapLine flag={flags[0]!} /> : <>{summarizeGroup(type, flags)}</>;
+}
 
 export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLoading: boolean }) {
   const summaries = useLeagueSummaries(leagues);
@@ -62,8 +79,13 @@ export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLo
       }
       return Array.from(byType.entries()).map(([type, flags]) => ({ league: s.league, type, flags }));
     })
+    // Severity still wins, but inside a tier the biggest swing goes to the top — that's the
+    // only reason to read the list in order.
     .sort(
-      (a, b) => TYPE_RANK[a.type] - TYPE_RANK[b.type] || a.league.name.localeCompare(b.league.name),
+      (a, b) =>
+        TYPE_RANK[a.type] - TYPE_RANK[b.type] ||
+        (groupDelta(b.flags) ?? 0) - (groupDelta(a.flags) ?? 0) ||
+        a.league.name.localeCompare(b.league.name),
     );
 
   const hiddenEntries: HiddenAlertEntry[] = summaries.flatMap((s) =>
@@ -89,24 +111,38 @@ export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLo
         </div>
       ) : (
         <ol className="flex flex-col gap-1.5">
-          {groups.map(({ league, type, flags }) => (
-            <li key={`${league.platform}:${league.externalLeagueId}:${type}`}>
-              <Link
-                href={`/leagues/${league.platform}/${league.externalLeagueId}`}
-                className="glass flex items-center gap-3 rounded-xl px-4 py-2.5 transition-all outline-none hover:ring-brand/40 hover:ring-2 focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Badge variant={CRITICAL_TYPES.has(type) ? 'destructive' : 'secondary'}>
-                  {CRITICAL_TYPES.has(type) ? 'critical' : 'warning'}
-                </Badge>
-                {flags.length > 1 && <Badge variant="secondary">×{flags.length}</Badge>}
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  <span className="font-medium">{league.name}</span>
-                  <span className="text-muted-foreground"> · {summarizeGroup(type, flags)}</span>
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">Review →</span>
-              </Link>
-            </li>
-          ))}
+          {groups.map(({ league, type, flags }) => {
+            const critical = CRITICAL_TYPES.has(type);
+            const delta = groupDelta(flags);
+            const slots = uniq(flags.map((f) => f.slot)).join(', ');
+            return (
+              <li key={`${league.platform}:${league.externalLeagueId}:${type}`}>
+                <Link
+                  href={`/leagues/${league.platform}/${league.externalLeagueId}`}
+                  title={uniq(flags.map((f) => f.message)).join('\n')}
+                  className={cn(
+                    'glass flex items-center gap-3 rounded-xl border-l-2 px-4 py-2.5 transition-all outline-none hover:ring-brand/40 hover:ring-2 focus-visible:ring-2 focus-visible:ring-ring',
+                    railTone(critical ? 'critical' : 'warning'),
+                  )}
+                >
+                  {critical && <Badge variant="destructive">critical</Badge>}
+                  {flags.length > 1 && <Badge variant="secondary">×{flags.length}</Badge>}
+                  <span className="max-w-40 shrink-0 truncate text-sm font-medium">
+                    {league.name}
+                  </span>
+                  {slots && (
+                    <span className="shrink-0 text-xs tracking-wider text-muted-foreground uppercase">
+                      {slots}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                    <GroupLine type={type} flags={flags} />
+                  </span>
+                  {delta !== null && <DeltaCell value={delta} />}
+                </Link>
+              </li>
+            );
+          })}
         </ol>
       )}
       {!pending && <HiddenAlertsSection entries={hiddenEntries} />}

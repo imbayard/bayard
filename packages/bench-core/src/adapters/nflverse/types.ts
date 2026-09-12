@@ -29,3 +29,35 @@ export interface RawPbpRow {
   week?: string;
   [column: string]: string | undefined;
 }
+
+/**
+ * A single parsed row of the nflverse team weekly stats asset — one row per team per
+ * game, holding that team's whole stat line. Only the columns the giveaway aggregate
+ * reads are typed; the index signature keeps the other ~130 accessible.
+ *
+ * Note the row carries the team's *own* offense and defense both. The giveaway
+ * aggregate only reads the offensive side: what this team hands to whoever it plays.
+ */
+export interface RawTeamWeekRow {
+  season?: string;
+  week?: string;
+  /** 'REG' | 'POST' | 'PRE' — the aggregate keeps regular season only. */
+  season_type?: string;
+  /** Team abbreviation, nflverse spelling — normalize before use. */
+  team?: string;
+  opponent_team?: string;
+  /** Pass attempts, sacks excluded. */
+  attempts?: string;
+  carries?: string;
+  sacks_suffered?: string;
+  passing_interceptions?: string;
+  /** Fumbles lost across every phase (sack, rush, reception). */
+  fumbles_lost_total?: string;
+  passing_tds?: string;
+  rushing_tds?: string;
+  passing_2pt_conversions?: string;
+  rushing_2pt_conversions?: string;
+  fg_made?: string;
+  pat_made?: string;
+  [column: string]: string | undefined;
+}

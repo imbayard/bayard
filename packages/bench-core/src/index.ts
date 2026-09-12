@@ -7,6 +7,7 @@ export type {
   League,
   Matchup,
   NflGameState,
+  NflWeekOpponent,
   Platform,
   Player,
   Roster,
@@ -25,6 +26,18 @@ export { EspnAdapter } from './adapters/espn/adapter.js';
 export type * from './adapters/espn/types.js';
 export * from './adapters/nfl-schedule/index.js';
 export { normalizeTeamCode } from './adapters/nflverse/team-codes.js';
+export { NflverseApiError, NflverseClient } from './adapters/nflverse/client.js';
+export { aggregateGiveaway, blendGiveaway, parseTeamWeekCsv } from './adapters/nflverse/team-stats.js';
+export type { GiveawayOptions } from './adapters/nflverse/team-stats.js';
+export type {
+  OffenseGiveawayRating,
+  OLineRating,
+  TeamGiveawayAggregate,
+  TeamOLineAggregate,
+} from './types/nflverse.js';
+export { offenseGiveawayRatings, priorSeasonWeight } from './compute/scout/offense-giveaway.js';
+export { scoutFrame } from './compute/scout/scout-frame.js';
+export type { ScoutCandidate, ScoutFrameInput, ScoutWeekCell } from './compute/scout/scout-frame.js';
 export type { BenchIqFlag } from './compute/types.js';
 export { computeRosterNeeds } from './compute/roster-needs.js';
 export type { PositionNeed, RosterNeeds } from './compute/roster-needs.js';

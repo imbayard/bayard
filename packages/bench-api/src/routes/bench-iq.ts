@@ -1,48 +1,12 @@
-import type { League } from '@benchpoints/core';
-import { computeBenchIqFlags, MOCK_ESPN_OWNER_ID, MOCK_SLEEPER_OWNER_ID } from '@benchpoints/core';
+import { computeBenchIqFlags } from '@benchpoints/core';
 import { Hono } from 'hono';
-import { AdapterNotConfiguredError, adapterFor, sleeperAdapter } from '../adapters.js';
-import { env } from '../env.js';
+import { adapterFor } from '../adapters.js';
+import { findLeague } from '../lib/league-lookup.js';
 import { isMockRequested } from '../lib/mock.js';
 import { parsePlatform } from '../lib/platform.js';
 import { sumStarterProjections } from '../lib/projections.js';
 
 export const benchIq = new Hono();
-
-interface LeagueLookup {
-  league: League;
-  ownerExternalUserId: string;
-}
-
-async function findSleeperLeague(leagueId: string, useMock: boolean): Promise<LeagueLookup | undefined> {
-  if (useMock) {
-    const leagues = await adapterFor('sleeper', true).getLeagues(MOCK_SLEEPER_OWNER_ID, env.espnSeason);
-    const league = leagues.find((l) => l.externalLeagueId === leagueId);
-    return league ? { league, ownerExternalUserId: MOCK_SLEEPER_OWNER_ID } : undefined;
-  }
-
-  if (!env.sleeperUsername) {
-    throw new AdapterNotConfiguredError('sleeper');
-  }
-  const userId = await sleeperAdapter.resolveUserId(env.sleeperUsername);
-  const state = await sleeperAdapter.getNflState();
-  const stateSeason = Number(state.league_season ?? state.season);
-
-  let leagues = await sleeperAdapter.getLeagues(userId, stateSeason);
-  let league = leagues.find((l) => l.externalLeagueId === leagueId);
-  if (!league) {
-    leagues = await sleeperAdapter.getLeagues(userId, stateSeason - 1);
-    league = leagues.find((l) => l.externalLeagueId === leagueId);
-  }
-  return league ? { league, ownerExternalUserId: userId } : undefined;
-}
-
-async function findEspnLeague(leagueId: string, useMock: boolean): Promise<LeagueLookup | undefined> {
-  const ownerExternalUserId = useMock ? MOCK_ESPN_OWNER_ID : (env.espnSwid ?? '');
-  const leagues = await adapterFor('espn', useMock).getLeagues(ownerExternalUserId, env.espnSeason);
-  const league = leagues.find((l) => l.externalLeagueId === leagueId);
-  return league ? { league, ownerExternalUserId } : undefined;
-}
 
 benchIq.get('/leagues/:platform/:leagueId/bench-iq', async (c) => {
   const platform = parsePlatform(c.req.param('platform'));
@@ -50,8 +14,7 @@ benchIq.get('/leagues/:platform/:leagueId/bench-iq', async (c) => {
   const useMock = isMockRequested(c);
   const adapter = adapterFor(platform, useMock);
 
-  const lookup =
-    platform === 'sleeper' ? await findSleeperLeague(leagueId, useMock) : await findEspnLeague(leagueId, useMock);
+  const lookup = await findLeague(platform, leagueId, useMock);
   if (!lookup) {
     return c.json({ error: `League "${leagueId}" not found` }, 404);
   }
