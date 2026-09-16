@@ -1,10 +1,13 @@
 
+import { useState } from 'react';
 import type { League } from '@benchpoints/core';
+import { ChevronDown } from 'lucide-react';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { useHiddenAlerts } from '@bench/lib/hidden-alerts';
 import { computePortfolioHealth, scoreToColor } from '@bench/lib/portfolio-health';
 import { useLeagueSummaries } from '@bench/lib/queries';
 import { cn } from '@bench/lib/utils';
+import { CumulativeWinRateDrawer } from './cumulative-win-rate-drawer';
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -15,29 +18,62 @@ function Stat({
   shortLabel,
   value,
   tone,
+  expanded,
+  onToggle,
 }: {
   label: string;
   /** Phone-width wording; the full label needs room this bar doesn't have under sm. */
   shortLabel?: string;
   value: React.ReactNode;
   tone?: 'good' | 'bad';
+  /** When set, the stat becomes a toggle button — a chevron rides the label. */
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const labelClass =
     'max-w-40 text-[11px] font-medium tracking-wider text-balance text-muted-foreground uppercase sm:max-w-64';
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span
-        className={cn(
-          'scoreboard text-xl leading-none font-bold sm:text-2xl',
-          tone === 'good' && 'text-positive',
-          tone === 'bad' && 'text-destructive',
-        )}
-      >
-        {value}
-      </span>
+  const valueEl = (
+    <span
+      className={cn(
+        'scoreboard text-xl leading-none font-bold sm:text-2xl',
+        tone === 'good' && 'text-positive',
+        tone === 'bad' && 'text-destructive',
+      )}
+    >
+      {value}
+    </span>
+  );
+  const labelEl = (
+    <span className="flex items-center gap-1">
       {/* Capped so a long label wraps to a second line instead of clipping or pushing the gauge. */}
       <span className={cn(labelClass, shortLabel && 'sm:hidden')}>{shortLabel ?? label}</span>
       {shortLabel && <span className={cn(labelClass, 'hidden sm:inline')}>{label}</span>}
+      {onToggle && (
+        <ChevronDown
+          className={cn('size-3 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')}
+        />
+      )}
+    </span>
+  );
+
+  if (onToggle) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex min-w-0 flex-col gap-1 text-left"
+      >
+        {valueEl}
+        {labelEl}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {valueEl}
+      {labelEl}
     </div>
   );
 }
@@ -81,6 +117,7 @@ function HealthGauge({ score, color }: { score: number; color: string }) {
 export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLoading: boolean }) {
   const summaries = useLeagueSummaries(leagues);
   const { hidden } = useHiddenAlerts();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const pending = isLoading || summaries.some((s) => s.isLoading);
 
   if (pending) {
@@ -129,7 +166,7 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
   return (
     <section
       aria-label="Portfolio pulse"
-      className="glass relative flex flex-wrap items-center gap-4 overflow-hidden rounded-2xl px-4 py-4 sm:flex-nowrap sm:gap-6 sm:px-6 sm:py-5"
+      className="glass relative overflow-hidden rounded-2xl px-4 py-4 sm:px-6 sm:py-5"
     >
       {/* Ambient glow tinted by portfolio health, bleeding in from the gauge side. */}
       <div
@@ -137,25 +174,30 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
         className="pointer-events-none absolute top-1/2 -right-10 size-52 -translate-y-1/2 rounded-full opacity-15 blur-3xl"
         style={{ background: scoreColor }}
       />
-      <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-8">
-        <Stat
-          label={
-            gamesPlayed > 0
-              ? `Cumulative Winning Percentage · ${gamesPlayed} wks`
-              : 'Cumulative Winning Percentage'
-          }
-          shortLabel={gamesPlayed > 0 ? `Win % · ${gamesPlayed} wks` : 'Win %'}
-          value={totalGames > 0 ? `${winPct}%` : '—'}
-        />
-        <div className="h-10 w-px bg-border" />
-        <Stat
-          label="Projected this week"
-          shortLabel="Projected"
-          value={projected.length > 0 ? `${projectedAhead}/${projected.length}` : '—'}
-          tone={projectedTone}
-        />
+      <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap sm:gap-6">
+        <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-8">
+          <Stat
+            label={
+              gamesPlayed > 0
+                ? `Cumulative Winning Percentage · ${gamesPlayed} wks`
+                : 'Cumulative Winning Percentage'
+            }
+            shortLabel={gamesPlayed > 0 ? `Win % · ${gamesPlayed} wks` : 'Win %'}
+            value={totalGames > 0 ? `${winPct}%` : '—'}
+            expanded={drawerOpen}
+            onToggle={totalGames > 0 ? () => setDrawerOpen((o) => !o) : undefined}
+          />
+          <div className="h-10 w-px bg-border" />
+          <Stat
+            label="Projected this week"
+            shortLabel="Projected"
+            value={projected.length > 0 ? `${projectedAhead}/${projected.length}` : '—'}
+            tone={projectedTone}
+          />
+        </div>
+        <HealthGauge score={score} color={scoreColor} />
       </div>
-      <HealthGauge score={score} color={scoreColor} />
+      <CumulativeWinRateDrawer leagues={leagues} summaries={summaries} open={drawerOpen} />
     </section>
   );
 }
