@@ -72,13 +72,31 @@
 }
 
 /*
- * Dark "deck" theme tokens, scoped to the widget root. Bench only ships the dark theme
- * (the Next app hard-coded <html class="dark">), so we apply those values directly.
+ * Font stacks MUST live at `:root`, not `.bench-scope`. `@theme inline` emits
+ * `--font-sans: var(--font-space-grotesk)` at `:root`, and that substitution resolves
+ * there — scoping these to `.bench-scope` makes `--font-sans` invalid and the whole
+ * widget falls back to Times New Roman. Leaking font *names* is harmless; the dark
+ * "deck" colors below are not, so they stay scoped.
  */
-.bench-scope {
+:root {
   --font-space-grotesk: 'Space Grotesk', system-ui, sans-serif;
   --font-geist-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
 
+/*
+ * Dark "deck" theme tokens. Bench only ships the dark theme (the Next app hard-coded
+ * <html class="dark">), so we apply those values directly.
+ *
+ * Two carriers, not one. `.bench-scope` is the widget root. `.bench-portal` is for content
+ * base-ui teleports to `document.body` — popovers, dialogs, tooltips — which lands OUTSIDE
+ * the widget root, where every token below would resolve to nothing: `bg-popover` becomes
+ * transparent and the panel paints straight onto the page. Same failure mode as the font
+ * vars above, so the fix is the same shape — the tokens have to travel with the content.
+ * Tokens and typography belong to both carriers; the full-page surface further down belongs
+ * only to the root (a portalled panel must not be 100vh tall with its own gradient).
+ */
+.bench-scope,
+.bench-portal {
   --background: oklch(0.17 0.007 250);
   --foreground: oklch(0.97 0.004 250);
   --card: oklch(0.215 0.009 250);
@@ -119,9 +137,15 @@
   --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.72 0.185 47);
 
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-variant-numeric: normal;
+}
+
+/* The widget surface itself — root only. */
+.bench-scope {
   min-height: 100vh;
   background-color: var(--background);
-  color: var(--foreground);
   /* Faint athletic-orange wash bleeding down from the top — the "deck" ambience. */
   background-image: radial-gradient(
     120% 60% at 50% -10%,
@@ -129,51 +153,50 @@
     transparent 60%
   );
   background-attachment: fixed;
-  font-family: var(--font-sans);
-  font-variant-numeric: normal;
 }
 
 /*
  * Scoped preflight-equivalent. Mirrors the parts of Tailwind's global preflight that
  * shadcn/base-ui components rely on (border defaults, box-sizing, unstyled headings/lists),
- * but only inside `.bench-scope`.
+ * but only inside bench. Portalled content needs the same reset it would have had in place,
+ * so every rule carries both scopes. `:is()` keeps specificity at a single class.
  */
-.bench-scope,
-.bench-scope *,
-.bench-scope *::before,
-.bench-scope *::after {
+:is(.bench-scope, .bench-portal),
+:is(.bench-scope, .bench-portal) *,
+:is(.bench-scope, .bench-portal) *::before,
+:is(.bench-scope, .bench-portal) *::after {
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
   border-color: var(--border);
 }
-.bench-scope :where(h1, h2, h3, h4, h5, h6) {
+:is(.bench-scope, .bench-portal) :where(h1, h2, h3, h4, h5, h6) {
   margin: 0;
   font-size: inherit;
   font-weight: inherit;
 }
-.bench-scope :where(p, figure, blockquote, dl, dd, pre) {
+:is(.bench-scope, .bench-portal) :where(p, figure, blockquote, dl, dd, pre) {
   margin: 0;
 }
-.bench-scope :where(ul, ol) {
+:is(.bench-scope, .bench-portal) :where(ul, ol) {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.bench-scope :where(a) {
+:is(.bench-scope, .bench-portal) :where(a) {
   color: inherit;
   text-decoration: inherit;
 }
-.bench-scope :where(button, input, textarea, select) {
+:is(.bench-scope, .bench-portal) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
   letter-spacing: inherit;
 }
-.bench-scope :where(button) {
+:is(.bench-scope, .bench-portal) :where(button) {
   background: none;
   cursor: pointer;
 }
-.bench-scope :where(svg) {
+:is(.bench-scope, .bench-portal) :where(svg) {
   display: block;
 }
 

@@ -10,17 +10,6 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** Renders a number with its decimal portion (if any) in a smaller, muted size. */
-function RecordNumber({ n }: { n: number }) {
-  const [whole, decimal] = String(round1(n)).split('.');
-  return (
-    <>
-      {whole}
-      {decimal && <span className="text-xs font-normal text-muted-foreground">.{decimal}</span>}
-    </>
-  );
-}
-
 function Stat({
   label,
   value,
@@ -41,7 +30,8 @@ function Stat({
       >
         {value}
       </span>
-      <span className="truncate text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+      {/* Capped so a long label wraps to a second line instead of clipping or pushing the gauge. */}
+      <span className="max-w-64 text-[11px] font-medium tracking-wider text-balance text-muted-foreground uppercase">
         {label}
       </span>
     </div>
@@ -108,16 +98,26 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
   const totalGames = wins + losses + ties;
   const winPct = totalGames > 0 ? round1((wins / totalGames) * 100) : 0;
 
-  const avgWins = teamsCounted > 0 ? wins / teamsCounted : 0;
-  const avgLosses = teamsCounted > 0 ? losses / teamsCounted : 0;
-  const avgTies = teamsCounted > 0 ? ties / teamsCounted : 0;
   // Games actually completed so far — not the same as the current (in-progress) week.
-  const gamesPlayed = teamsCounted > 0 ? round1(avgWins + avgLosses + avgTies) : 0;
+  const gamesPlayed = teamsCounted > 0 ? round1(totalGames / teamsCounted) : 0;
 
-  const withMatchup = summaries.filter((s) => s.myMatchup && s.opponentMatchup);
-  const winningNow = withMatchup.filter(
-    (s) => (s.myMatchup?.points ?? 0) > (s.opponentMatchup?.points ?? 0),
-  ).length;
+  // Projections, not live points: before kickoff every score is 0.0, so comparing points
+  // would flag a clean sweep of losses in a week nobody has played yet.
+  const projected = summaries
+    .map((s) => ({
+      // bench-iq sums my starters' projection too — lean on it while the matchup side is still null.
+      mine: s.myMatchup?.projectedPoints ?? s.benchIq?.projectedPoints ?? null,
+      opp: s.opponentMatchup?.projectedPoints ?? null,
+    }))
+    .filter((p): p is { mine: number; opp: number } => p.mine !== null && p.opp !== null);
+  const projectedAhead = projected.filter((p) => p.mine > p.opp).length;
+  // An even split (or no projections at all) is neither good nor bad — leave it untinted.
+  const projectedTone =
+    projected.length === 0 || projectedAhead * 2 === projected.length
+      ? undefined
+      : projectedAhead * 2 > projected.length
+        ? ('good' as const)
+        : ('bad' as const);
 
   const score = computePortfolioHealth(summaries, hidden);
   const scoreColor = scoreToColor(score);
@@ -135,30 +135,18 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
       />
       <div className="flex flex-1 items-center gap-8">
         <Stat
-          label={gamesPlayed > 0 ? `Avg record · ${gamesPlayed} wks` : 'Average record'}
-          value={
-            <>
-              <RecordNumber n={avgWins} />-<RecordNumber n={avgLosses} />
-              {avgTies > 0 && (
-                <>
-                  -<RecordNumber n={avgTies} />
-                </>
-              )}{' '}
-              <span className="text-sm font-normal text-muted-foreground">({winPct}%)</span>
-            </>
+          label={
+            gamesPlayed > 0
+              ? `Cumulative Winning Percentage · ${gamesPlayed} wks`
+              : 'Cumulative Winning Percentage'
           }
+          value={totalGames > 0 ? `${winPct}%` : '—'}
         />
         <div className="h-10 w-px bg-border" />
         <Stat
-          label="Winning this week"
-          value={withMatchup.length > 0 ? `${winningNow}/${withMatchup.length}` : '—'}
-          tone={
-            withMatchup.length > 0
-              ? winningNow >= withMatchup.length - winningNow
-                ? 'good'
-                : 'bad'
-              : undefined
-          }
+          label="Projected this week"
+          value={projected.length > 0 ? `${projectedAhead}/${projected.length}` : '—'}
+          tone={projectedTone}
         />
       </div>
       <HealthGauge score={score} color={scoreColor} />

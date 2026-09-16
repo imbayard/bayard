@@ -64,7 +64,7 @@ export function DataFreshness() {
                   <span className="text-muted-foreground">{down ? 'offline' : 'live'}</span>
                 </span>
                 {error && (
-                  <span className="pl-4 text-xs break-all text-muted-foreground">
+                  <span className="pl-4 text-xs break-words text-muted-foreground">
                     {error.error}
                   </span>
                 )}

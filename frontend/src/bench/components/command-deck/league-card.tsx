@@ -137,9 +137,10 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
         <div className="flex min-w-0 items-center gap-2 border-b border-border px-3">
           <span className="truncate font-heading text-sm font-medium">{league.name}</span>
           <PlatformBadge platform={league.platform} />
+          {/* A clean lineup's empty state is the absence of the chip, not a quiet "0 flags" pill. */}
           {isLoading ? (
             <Skeleton className="ml-auto h-5 w-16 rounded-4xl" />
-          ) : (
+          ) : slot.label === null ? null : (
             <Badge
               variant={
                 scheduleStatus === 'error' || slot.tone === 'alert' ? 'destructive' : 'outline'

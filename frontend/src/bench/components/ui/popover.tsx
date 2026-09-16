@@ -26,12 +26,18 @@ function PopoverContent({
   >) {
   return (
     <PopoverPrimitive.Portal>
+      {/*
+        `bench-portal` is load-bearing: Portal renders this subtree into document.body, outside
+        `.bench-scope`, where the deck's color tokens don't exist. Without it `bg-popover` has
+        nothing to resolve to and the panel is transparent. Fixed here rather than at the call
+        site so every popover in bench inherits it.
+      */}
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="isolate z-50"
+        className="bench-portal isolate z-50"
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"

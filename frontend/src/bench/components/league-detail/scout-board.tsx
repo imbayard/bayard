@@ -1,8 +1,14 @@
 import type { League } from '@benchpoints/core';
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@bench/components/ui/popover';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { useScout } from '@bench/lib/queries';
-import { cn } from '@bench/lib/utils';
 
 /** Matches the API's own cap — a wider frame is refused there, so don't offer it here. */
 const MAX_SPAN = 6;
@@ -25,8 +31,38 @@ function cellTint(score: number | null): string | undefined {
   return `hsl(${hue.toFixed(0)} 70% ${lightness.toFixed(0)}% / ${alpha.toFixed(2)})`;
 }
 
-/** The owner's own defenses sit in the waivers board for comparison; yellow says which are already theirs. */
-const OWNED_MARK = 'bg-[hsl(48_96%_50%/0.14)] shadow-[inset_3px_0_0_hsl(48_96%_50%)]';
+/**
+ * The owner's own defenses sit in the waivers board for comparison; yellow says which are already
+ * theirs. The color is declared once here and every consumer reads from it, so the rail and its
+ * legend chip can't drift apart.
+ */
+const OWNED_HSL = '48 96% 50%';
+
+/** The rail as it rides a table cell: a faint wash behind the name, a hard 3px edge at the left. */
+const ownedRail: CSSProperties = {
+  backgroundColor: `hsl(${OWNED_HSL} / 0.14)`,
+  boxShadow: `inset 3px 0 0 hsl(${OWNED_HSL})`,
+};
+
+/**
+ * The legend chip takes the color, not the geometry. A 3px inset edge is an edge on a full-width
+ * cell; on a 14px chip it eats one side and the chip reads as a crescent.
+ */
+const ownedChip: CSSProperties = { backgroundColor: `hsl(${OWNED_HSL})` };
+
+/** One chip of the visual key: the real color, with its label beside it — never color alone. */
+function Swatch({ style, children }: { style: CSSProperties; children: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span
+        aria-hidden
+        className="h-3.5 w-3.5 shrink-0 rounded-sm ring-1 ring-foreground/15"
+        style={style}
+      />
+      {children}
+    </span>
+  );
+}
 
 /** "week 6, 60% off last season" is the honest version of a rank nobody can audit. */
 function sourceNote(statsThroughWeek: number, priorSeasonWeight: number, season: number): string {
@@ -126,14 +162,12 @@ export function ScoutBoard({ league }: { league: League }) {
               <tbody>
                 {data.candidates.map((candidate) => (
                   <tr key={candidate.playerId} className="border-t border-border">
+                    {/* Yellow rides the name cell, not the row: a wash over the week cells
+                        would tint the red-green scale the comparison depends on. */}
                     <th
                       scope="row"
-                      className={cn(
-                        'px-3 py-2 text-left font-medium whitespace-nowrap',
-                        // Yellow rides the name cell, not the row: a wash over the week cells
-                        // would tint the red-green scale the comparison depends on.
-                        candidate.owned && OWNED_MARK,
-                      )}
+                      className="px-3 py-2 text-left font-medium whitespace-nowrap"
+                      style={candidate.owned ? ownedRail : undefined}
                     >
                       {candidate.name}
                       <span className="ml-1.5 text-xs text-muted-foreground">
@@ -187,13 +221,40 @@ export function ScoutBoard({ league }: { league: League }) {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {sourceNote(data.meta.statsThroughWeek, data.meta.priorSeasonWeight, data.meta.season)}{' '}
-            Rank is 1-32 across the league; frame score sums the weeks, counting a bye as zero.
-            Green is a softer matchup, red a harder one. Ppg is this season&apos;s average, for
-            form — it doesn&apos;t move the ranking.
-            Yellow marks a defense you already roster.
-          </p>
+          {/* The key decodes the table at a glance; the method sits one click away. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <Swatch style={{ backgroundColor: cellTint(100) }}>Softer matchup</Swatch>
+            <Swatch style={{ backgroundColor: cellTint(0) }}>Harder matchup</Swatch>
+            <Swatch style={ownedChip}>Already rostered</Swatch>
+
+            <Popover>
+              <PopoverTrigger className="ml-auto underline decoration-dotted underline-offset-2 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+                How this works
+              </PopoverTrigger>
+              <PopoverContent align="end" className="text-xs">
+                <PopoverTitle className="text-xs">How this works</PopoverTitle>
+                <PopoverDescription
+                  render={
+                    <ul className="flex list-none flex-col gap-1.5">
+                      <li>
+                        {sourceNote(
+                          data.meta.statsThroughWeek,
+                          data.meta.priorSeasonWeight,
+                          data.meta.season,
+                        )}
+                      </li>
+                      <li>Rank is 1-32 across the league.</li>
+                      <li>Frame score sums the weeks, counting a bye as zero.</li>
+                      <li>
+                        Ppg is this season&apos;s average, shown for form — it doesn&apos;t move the
+                        ranking.
+                      </li>
+                    </ul>
+                  }
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </>
       )}
     </div>

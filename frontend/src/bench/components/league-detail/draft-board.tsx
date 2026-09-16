@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DraftStatus, DraftPick, League } from '@benchpoints/core';
 // Deep import on purpose: `@benchpoints/core`'s barrel instantiates the mock adapters at module
 // scope, so importing a value through it drags the adapters and fixtures into the SPA bundle.
@@ -16,6 +16,12 @@ const STATUS_LABEL: Record<DraftStatus, string> = {
   paused: 'Paused',
   complete: 'Complete',
 };
+
+/**
+ * How far the board's content dissolves at a scrollable edge. Wide enough to read as
+ * "there's more this way", narrow enough not to swallow a 192px column's name.
+ */
+const EDGE_FADE = '2rem';
 
 /** Flex slots are too wide to spell out in a 3-per-row chip strip. */
 const SLOT_ABBREVIATIONS: Record<string, string> = {
@@ -201,6 +207,29 @@ export function DraftBoard({ league }: { league: League }) {
     [columns, picksByTeamId, league.rosterSlots],
   );
 
+  // Which edges of the board still have content past them. Must live above the early
+  // returns below to keep hook order stable across the pending/error/loaded renders.
+  const scroller = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  const syncEdges = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    // 1px slack: fractional scroll offsets never land exactly on the bounds.
+    const max = el.scrollWidth - el.clientWidth;
+    setEdges({ left: el.scrollLeft > 1, right: el.scrollLeft < max - 1 });
+  }, []);
+
+  useEffect(() => {
+    syncEdges();
+    const el = scroller.current;
+    if (!el) return;
+    // Catches viewport resizes; the deps cover the board appearing and columns changing.
+    const observer = new ResizeObserver(syncEdges);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [syncEdges, picks, columns]);
+
   if (draft.isPending) {
     return <Skeleton className="h-48 rounded-xl" />;
   }
@@ -211,6 +240,24 @@ export function DraftBoard({ league }: { league: League }) {
   }
 
   const myTeamId = benchIq.data?.teamId ?? null;
+
+  /*
+   * The fade is a mask on the scroller, not a gradient overlay. The board sits directly on the
+   * `.bench-scope` root, whose background is `--background` *plus* a fixed radial brand wash —
+   * so any overlay fading to a single flat color would band against that wash wherever the two
+   * disagree. Dissolving the columns themselves to transparent reveals the real backdrop,
+   * whatever it happens to be at that spot, and a mask can't intercept clicks or scroll
+   * gestures the way an overlay element would. `black` here is mask alpha, not a paint color.
+   */
+  const maskStyle: React.CSSProperties | undefined =
+    edges.left || edges.right
+      ? (() => {
+          const start = edges.left ? EDGE_FADE : '0px';
+          const end = `calc(100% - ${edges.right ? EDGE_FADE : '0px'})`;
+          const mask = `linear-gradient(to right, transparent, black ${start}, black ${end}, transparent)`;
+          return { maskImage: mask, WebkitMaskImage: mask };
+        })()
+      : undefined;
 
   const onTheClockName =
     state.onTheClockTeamId !== null
@@ -248,7 +295,12 @@ export function DraftBoard({ league }: { league: League }) {
             : 'No picks yet. The draft has not been scheduled.'}
         </Empty>
       ) : (
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div
+          ref={scroller}
+          onScroll={syncEdges}
+          className="flex gap-2 overflow-x-auto pb-2"
+          style={maskStyle}
+        >
           {columns.map(({ teamId, slot }) => (
             <TeamColumn
               key={teamId}

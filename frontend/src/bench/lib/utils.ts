@@ -18,7 +18,8 @@ export function formatDraftDate(iso: string | null): string {
 
 export type DraftSlot = {
   kind: 'live' | 'flags' | 'date';
-  label: string;
+  /** `null` means the state has nothing to say — render no chip at all. */
+  label: string | null;
   /** How loudly the chip should read: red, amber, blue, or quiet outline. */
   tone: 'alert' | 'notice' | 'info' | 'quiet';
 };
@@ -29,8 +30,9 @@ export type DraftSlot = {
  * fact worth the slot. Once the draft has run and there's a roster to be wrong about, the date
  * is stale trivia and the chip becomes the lineup's alarm count: the number that actually moves
  * week to week. Three or more open flags is a bad week (red), one or two is a nudge (amber),
- * and a clean lineup has earned the right not to shout. The draft date is blue throughout —
- * a date on a calendar is information, not a warning, and only the flag counts get to alarm.
+ * and a clean lineup has earned the right not to shout at all — zero flags returns a null label
+ * so the card drops the chip rather than spending the slot on a null result. The draft date is
+ * blue throughout — a date on a calendar is information, not a warning, and only flags alarm.
  */
 export function draftSlot(
   draftDate: string | null,
@@ -49,7 +51,10 @@ export function draftSlot(
   if (hasDrafted && rosterCount > 0) {
     return {
       kind: 'flags',
-      label: `${visibleFlagCount} ${visibleFlagCount === 1 ? 'flag' : 'flags'}`,
+      label:
+        visibleFlagCount === 0
+          ? null
+          : `${visibleFlagCount} ${visibleFlagCount === 1 ? 'flag' : 'flags'}`,
       tone: visibleFlagCount >= 3 ? 'alert' : visibleFlagCount > 0 ? 'notice' : 'quiet',
     };
   }
