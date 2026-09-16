@@ -24,8 +24,8 @@ export const nflScheduleClient = new NflScheduleClient(cache);
 export const nflverseClient = new NflverseClient(cache);
 
 export const espnAdapter: EspnAdapter | undefined =
-  env.espnLeagueId && env.espnSwid && env.espnS2
-    ? new EspnAdapter(cache, env.espnLeagueId, env.espnSeason, env.espnSwid, env.espnS2)
+  env.espnLeagueIds.length > 0 && env.espnSwid && env.espnS2
+    ? new EspnAdapter(cache, env.espnLeagueIds, env.espnSeason, env.espnSwid, env.espnS2)
     : undefined;
 
 export class AdapterNotConfiguredError extends Error {

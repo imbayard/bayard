@@ -148,7 +148,7 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
     currentWeekProjections(adapter, league, weeks),
     // A season column is a nice-to-have; losing it shouldn't take the whole board down with it.
     adapter
-      .getSeasonAverages(league.season, statsThroughWeek)
+      .getSeasonAverages(league.season, statsThroughWeek, leagueId)
       .catch(() => new Map<string, number>()),
   ]);
 
@@ -210,6 +210,10 @@ async function currentWeekProjections(
   weeks: number[],
 ): Promise<Map<number, Map<string, number>>> {
   if (!weeks.includes(league.currentWeek)) return new Map();
-  const projections = await adapter.getProjections(league.season, league.currentWeek);
+  const projections = await adapter.getProjections(
+    league.season,
+    league.currentWeek,
+    league.externalLeagueId,
+  );
   return new Map([[league.currentWeek, projections]]);
 }

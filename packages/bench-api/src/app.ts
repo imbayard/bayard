@@ -1,3 +1,4 @@
+import { EspnApiError } from '@benchpoints/core';
 import { Hono } from 'hono';
 import { AdapterNotConfiguredError } from './adapters.js';
 import { env } from './env.js';
@@ -26,6 +27,10 @@ app.route('/', refresh);
 app.onError((err, c) => {
   if (err instanceof InvalidPlatformError || err instanceof AdapterNotConfiguredError) {
     return c.json({ error: err.message }, 400);
+  }
+  // A 404 from ESPN (or from an id we were never configured with) is the caller's miss, not ours.
+  if (err instanceof EspnApiError && err.status === 404) {
+    return c.json({ error: err.message }, 404);
   }
   const message = err instanceof Error ? err.message : String(err);
   if (env.debug) {

@@ -23,7 +23,7 @@ matchups.get('/leagues/:platform/:leagueId/matchups/:week', async (c) => {
     adapter.getMatchups(leagueId, week),
     adapter.getRosters(leagueId),
     adapter.getPlayers(),
-    adapter.getProjections(season, week),
+    adapter.getProjections(season, week, leagueId),
     nflScheduleFor(useMock).getWeekGameStates(season, week),
   ]);
   for (const [playerId, projectedPoints] of projections) {

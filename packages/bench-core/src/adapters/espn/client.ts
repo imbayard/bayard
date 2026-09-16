@@ -101,15 +101,22 @@ export class EspnClient {
     season: number,
     week: number,
   ): Promise<EspnPlayerInfoResponse> {
-    const url = `${this.baseUrl}/games/ffl/seasons/${season}/segments/0/leagues/${leagueId}?view=kona_player_info`;
-    const wk = String(week).padStart(2, '0');
+    const url = `${this.baseUrl}/games/ffl/seasons/${season}/segments/0/leagues/${leagueId}?view=kona_player_info&scoringPeriodId=${week}`;
+    // ESPN names a stat split `{statSourceId}{statSplitTypeId}{season}{week}` — 0=actual/1=projected,
+    // split 0=season and 1=week, and the week is NOT zero-padded (`1120262`, not `11202602`).
+    // Ask for the season pair plus this week's pair; anything else comes back without the week line.
     const filter = JSON.stringify({
       players: {
         limit: 300,
         sortPercOwned: { sortAsc: false, sortPriority: 1 },
         filterStatsForTopScoringPeriodIds: {
           value: 2,
-          additionalValue: [`00${season}`, `10${season}`, `00${season}${wk}`, `10${season}${wk}`],
+          additionalValue: [
+            `00${season}`,
+            `10${season}`,
+            `01${season}${week}`,
+            `11${season}${week}`,
+          ],
         },
       },
     });

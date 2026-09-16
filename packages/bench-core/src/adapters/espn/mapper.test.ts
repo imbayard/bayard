@@ -32,7 +32,7 @@ describe('mapLeague', () => {
       season: 2025,
       scoringFormat: { '53': 1, '4': 4, '25': 6 },
       leagueType: 'redraft',
-      rosterSlots: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'DEF', 'BN', 'BN'],
+      rosterSlots: ['QB', 'RB', 'WR', 'TE', 'DEF', 'BN', 'BN', 'FLEX'],
       teamCount: 2,
       currentWeek: 3,
       draftDate: '2025-08-13T00:00:00.000Z',

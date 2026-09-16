@@ -1,40 +1,36 @@
 /** ESPN position and lineup slot ID mappings. */
 
-/** Lineup slot IDs to position abbreviations */
+/**
+ * ESPN lineup slot ids. These are ESPN's own numbering — not the player `defaultPositionId`
+ * table below, and not Sleeper's slot names. 20 is the bench and 21 is IR; `mapRoster` keys
+ * off the 'BN'/'IR' labels, so getting those two wrong turns a bench into a lineup.
+ * Composite slots keep ESPN's spelling and get their eligibility from `types/roster-slots.ts`.
+ */
 export const LINEUP_SLOT_MAP: Record<number, string> = {
   0: 'QB',
-  1: 'RB',
+  1: 'TQB',
   2: 'RB',
-  3: 'WR',
+  3: 'RB/WR',
   4: 'WR',
-  5: 'TE',
-  6: 'FLEX',
-  7: 'K',
-  8: 'DEF',
-  9: 'BN',
-  10: 'BN',
-  11: 'IR',
-  12: 'DL',
-  13: 'LB',
+  5: 'WR/TE',
+  6: 'TE',
+  7: 'OP',
+  8: 'DT',
+  9: 'DE',
+  10: 'LB',
+  11: 'DL',
+  12: 'CB',
+  13: 'S',
   14: 'DB',
   15: 'DP',
-  16: 'RB/WR',
-  17: 'QB/RB/WR/TE',
-  18: 'SUPER_FLEX',
-  19: 'C',
-  20: 'PF',
-  21: 'CB',
-  22: 'S',
-  23: 'OL',
-  24: 'ED',
-  25: 'DT',
-  26: 'LW',
-  27: 'C',
-  28: 'RW',
-  29: 'D',
-  30: 'G',
-  31: 'SP',
-  32: 'P',
+  16: 'DEF',
+  17: 'K',
+  18: 'P',
+  19: 'HC',
+  20: 'BN',
+  21: 'IR',
+  23: 'FLEX',
+  24: 'EDR',
 };
 
 /**

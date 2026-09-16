@@ -24,7 +24,7 @@ benchIq.get('/leagues/:platform/:leagueId/bench-iq', async (c) => {
     adapter.getTeams(leagueId),
     adapter.getRosters(leagueId),
     adapter.getPlayers(),
-    adapter.getProjections(league.season, league.currentWeek),
+    adapter.getProjections(league.season, league.currentWeek, leagueId),
   ]);
   for (const [playerId, projectedPoints] of projections) {
     const player = players.get(playerId);

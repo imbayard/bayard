@@ -17,11 +17,11 @@ const MOCK_CURRENT_WEEK = 7;
 
 export const espnLeague: EspnLeagueResponse = {
   id: Number(MOCK_ESPN_LEAGUE_ID),
-  name: 'The League of Extraordinary Grudges',
-  season: MOCK_ESPN_SEASON,
+  seasonId: MOCK_ESPN_SEASON,
   scoringPeriodId: MOCK_CURRENT_WEEK,
   status: { latestScoringPeriod: MOCK_CURRENT_WEEK },
   settings: {
+    name: 'The League of Extraordinary Grudges',
     scoringSettings: {
       // ESPN keys scoring by numeric statId under scoringItems (53=rec, 4=passTD, 25=rushTD, 43=recTD).
       scoringItems: [
@@ -32,7 +32,7 @@ export const espnLeague: EspnLeagueResponse = {
       ],
     },
     // QB, RB x2, WR x2, TE, FLEX, K, DEF, BN x3 — same shape as the Sleeper mock leagues' roster.
-    rosterSettings: { lineupSlotCounts: { 0: 1, 2: 2, 4: 2, 5: 1, 6: 1, 7: 1, 8: 1, 9: 3 } },
+    rosterSettings: { lineupSlotCounts: { 0: 1, 2: 2, 4: 2, 6: 1, 16: 1, 17: 1, 20: 3, 23: 1 } },
     keeperCount: 0,
     // Late-August draft ahead of the mock 2026 season.
     draftSettings: { date: Date.UTC(2026, 7, 28, 0, 0, 0) },
@@ -44,7 +44,7 @@ export const espnLeague: EspnLeagueResponse = {
       name: 'League of Extraordinary Grudges',
       points: 812.4,
       record: { overall: { wins: 3, losses: 3, ties: 0, pointsFor: 812.4, pointsAgainst: 790.2 } },
-      owners: [{ id: MOCK_ESPN_OWNER_ID }],
+      owners: [MOCK_ESPN_OWNER_ID],
       roster: {
         // Fills QB/RB/WR/WR/TE; leaves the 2nd RB, FLEX, K, DEF unfilled -> 4 INCOMPLETE_LINEUP flags.
         entries: [
@@ -52,8 +52,8 @@ export const espnLeague: EspnLeagueResponse = {
           { playerId: 90002, lineupSlotId: 2, status: 'ACTIVE' },
           { playerId: 90003, lineupSlotId: 4, status: 'ACTIVE' },
           { playerId: 90004, lineupSlotId: 4, status: 'ACTIVE' },
-          { playerId: 90005, lineupSlotId: 5, status: 'ACTIVE' },
-          { playerId: 90006, lineupSlotId: 9, status: 'BENCH' },
+          { playerId: 90005, lineupSlotId: 6, status: 'ACTIVE' },
+          { playerId: 90006, lineupSlotId: 20, status: 'BENCH' },
         ],
       },
     },
@@ -63,7 +63,7 @@ export const espnLeague: EspnLeagueResponse = {
       name: 'Turf Titans',
       points: 790.2,
       record: { overall: { wins: 4, losses: 2, ties: 0, pointsFor: 790.2, pointsAgainst: 812.4 } },
-      owners: [{ id: 'mock-espn-opp-owner' }],
+      owners: ['mock-espn-opp-owner'],
       roster: {
         entries: [{ playerId: 90007, lineupSlotId: 0, status: 'ACTIVE' }],
       },
@@ -73,8 +73,8 @@ export const espnLeague: EspnLeagueResponse = {
     {
       id: 1,
       matchupPeriodId: MOCK_CURRENT_WEEK,
-      away: { teamId: 1, points: 0 },
-      home: { teamId: 2, points: 91.8 },
+      away: { teamId: 1, totalPoints: 0 },
+      home: { teamId: 2, totalPoints: 91.8 },
     },
   ],
 };

@@ -10,6 +10,7 @@ import type {
 import type {
   EspnDraftDetail,
   EspnLeagueResponse,
+  EspnMatchupSide,
   EspnPlayerInfoResponse,
   EspnProPlayer,
   EspnTeamDetail,
@@ -41,8 +42,8 @@ export function mapLeague(raw: EspnLeagueResponse): League {
   return {
     platform: 'espn',
     externalLeagueId: String(raw.id),
-    name: raw.name,
-    season: raw.season,
+    name: raw.settings?.name ?? '',
+    season: raw.seasonId,
     scoringFormat,
     leagueType,
     rosterSlots: expandRosterSlots(raw.settings?.rosterSettings.lineupSlotCounts ?? {}),
@@ -90,7 +91,7 @@ function expandRosterSlots(lineupSlotCounts: Record<number, number>): string[] {
 export function mapTeams(teams: EspnTeamDetail[]): Team[] {
   return teams.map((t) => {
     const record = t.record?.overall;
-    const ownerSwid = t.owners?.[0]?.id ?? '';
+    const ownerSwid = t.primaryOwner ?? t.owners?.[0] ?? '';
 
     return {
       externalTeamId: String(t.id),
@@ -148,7 +149,7 @@ export function mapMatchups(raw: EspnLeagueResponse, week: number): Matchup[] {
       week,
       externalTeamId: String(matchup.away.teamId),
       opponentExternalTeamId: String(matchup.home.teamId),
-      points: matchup.away.points,
+      points: sidePoints(matchup.away),
       projectedPoints: null,
       anyStarterStarted: false,
       firstStarterKickoff: null,
@@ -159,7 +160,7 @@ export function mapMatchups(raw: EspnLeagueResponse, week: number): Matchup[] {
       week,
       externalTeamId: String(matchup.home.teamId),
       opponentExternalTeamId: String(matchup.away.teamId),
-      points: matchup.home.points,
+      points: sidePoints(matchup.home),
       projectedPoints: null,
       anyStarterStarted: false,
       firstStarterKickoff: null,
@@ -168,6 +169,14 @@ export function mapMatchups(raw: EspnLeagueResponse, week: number): Matchup[] {
   }
 
   return result;
+}
+
+/**
+ * `totalPoints` settles after the slate; `totalPointsLive` is what moves during it. Whichever
+ * is non-zero is the real score — before kickoff both are 0, which is also correct.
+ */
+function sidePoints(side: EspnMatchupSide): number {
+  return side.totalPoints || side.totalPointsLive || 0;
 }
 
 export function mapPlayer(espnId: number, raw: EspnProPlayer): Player {

@@ -18,6 +18,7 @@ const ELIGIBLE_POSITIONS: Record<string, string[]> = {
   OP: ['QB', 'RB', 'WR', 'TE'],
   // ESPN spells its composite slots out (see adapters/espn/constants.ts LINEUP_SLOT_MAP).
   'RB/WR': ['RB', 'WR'],
+  'WR/TE': ['WR', 'TE'],
   'QB/RB/WR/TE': ['QB', 'RB', 'WR', 'TE'],
 };
 

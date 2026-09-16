@@ -22,7 +22,11 @@ function summarize(entries: RosterEntry[], players: Map<string, Player>): Player
 }
 
 async function main(): Promise<void> {
-  const leagueId = process.env['ESPN_LEAGUE_ID'];
+  // Smoke test is single-league: take the first configured id.
+  const leagueId = (process.env['ESPN_LEAGUE_IDS'] ?? process.env['ESPN_LEAGUE_ID'] ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)[0];
   const swid = process.env['ESPN_SWID'];
   const espnS2 = process.env['ESPN_S2'];
   const seasonStr = process.env['ESPN_SEASON'];
@@ -30,7 +34,7 @@ async function main(): Promise<void> {
 
   if (!leagueId || !swid || !espnS2) {
     console.error(
-      'Missing ESPN credentials. Set ESPN_LEAGUE_ID, ESPN_SWID, and ESPN_S2 env vars.',
+      'Missing ESPN credentials. Set ESPN_LEAGUE_IDS, ESPN_SWID, and ESPN_S2 env vars.',
     );
     process.exit(1);
   }

@@ -9,7 +9,9 @@ export interface EspnTeam {
     losses: number;
     ties?: number;
   };
-  owners?: Array<{ id: string }>;
+  /** ESPN returns bare SWID strings here, not objects. `primaryOwner` is the same id. */
+  owners?: string[];
+  primaryOwner?: string;
 }
 
 export interface EspnRosterEntry {
@@ -41,7 +43,9 @@ export interface EspnTeamDetail {
   /** Season points-for total (the reliable source; the record splits report 0 in some leagues). */
   points?: number;
   roster?: EspnRoster;
-  owners?: Array<{ id: string }>;
+  /** ESPN returns bare SWID strings here, not objects. `primaryOwner` is the same id. */
+  owners?: string[];
+  primaryOwner?: string;
 }
 
 export interface EspnProPlayer {
@@ -77,17 +81,18 @@ export interface EspnPlayerInfoResponse {
   players: Array<{ id: number; player: EspnProPlayer }>;
 }
 
+/** ESPN scores a matchup side as `totalPoints` (settled) plus `totalPointsLive` (mid-slate). */
+export interface EspnMatchupSide {
+  teamId: number;
+  totalPoints?: number;
+  totalPointsLive?: number;
+}
+
 export interface EspnMatchup {
   id: number;
   matchupPeriodId: number;
-  away: {
-    teamId: number;
-    points: number;
-  };
-  home: {
-    teamId: number;
-    points: number;
-  };
+  away: EspnMatchupSide;
+  home: EspnMatchupSide;
 }
 
 export interface EspnScoringItem {
@@ -98,6 +103,8 @@ export interface EspnScoringItem {
 }
 
 export interface EspnLeagueSettings {
+  /** The league's display name — ESPN keeps it here, not at the top level of the response. */
+  name?: string;
   /** ESPN nests the scoring rules under `scoringItems` — `scoringSettings` itself is an object, not iterable. */
   scoringSettings: {
     scoringItems: EspnScoringItem[];
@@ -120,8 +127,8 @@ export interface EspnDraftDetail {
 
 export interface EspnLeagueResponse {
   id: number;
-  name: string;
-  season: number;
+  /** ESPN's spelling of the season year; there is no top-level `season`. */
+  seasonId: number;
   scoringPeriodId: number;
   status: {
     latestScoringPeriod: number;

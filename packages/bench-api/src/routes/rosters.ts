@@ -15,7 +15,9 @@ rosters.get('/leagues/:platform/:leagueId/rosters', async (c) => {
   const [leagueRosters, players, projections] = await Promise.all([
     adapter.getRosters(leagueId),
     adapter.getPlayers(),
-    season && week ? adapter.getProjections(Number(season), Number(week)) : Promise.resolve(new Map()),
+    season && week
+      ? adapter.getProjections(Number(season), Number(week), leagueId)
+      : Promise.resolve(new Map()),
   ]);
   for (const [playerId, projectedPoints] of projections) {
     const player = players.get(playerId);
