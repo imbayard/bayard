@@ -13,4 +13,6 @@ export interface PlatformAdapter {
   getDraft?(externalLeagueId: string): Promise<DraftBoard | null>;
   /** Projected fantasy points for the given week, keyed by externalPlayerId. Empty map if the platform has no projections source. */
   getProjections(season: number, week: number): Promise<Map<string, number>>;
+  /** Mean fantasy points per game played this season, keyed by externalPlayerId. Empty map if the platform has no source. */
+  getSeasonAverages(season: number, throughWeek: number): Promise<Map<string, number>>;
 }

@@ -2,7 +2,6 @@ import type { League } from '@benchpoints/core';
 import { useState } from 'react';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { useScout } from '@bench/lib/queries';
-import type { ScoutPool } from '@bench/lib/api';
 import { cn } from '@bench/lib/utils';
 
 /** Matches the API's own cap — a wider frame is refused there, so don't offer it here. */
@@ -10,23 +9,24 @@ const MAX_SPAN = 6;
 const LAST_REGULAR_WEEK = 18;
 const DEFAULT_SPAN = 4;
 
-const POOLS: { value: ScoutPool; label: string }[] = [
-  { value: 'waivers', label: 'Waivers' },
-  { value: 'roster', label: 'My roster' },
-];
-
 const selectClass =
   'h-7 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
 
 /**
- * A single-hue wash keyed to the 0-100 matchup score: the softer the matchup, the more
- * brand tint the cell carries. One hue rather than a red/green scale — nothing here is
- * good or bad in itself, it's all relative to the other 31 offenses.
+ * A diverging wash keyed to the 0-100 matchup score: red at the hard end, dark green at the
+ * soft end, near-neutral through the middle so the extremes are what the eye lands on.
+ * Alpha rather than an opaque fill, so one scale composites over the card in either theme.
  */
 function cellTint(score: number | null): string | undefined {
   if (score === null) return undefined;
-  return `color-mix(in oklab, var(--brand) ${Math.round(score * 0.22)}%, transparent)`;
+  const hue = score * 1.42; // 0 (red) -> 142 (green)
+  const lightness = 50 - score * 0.18; // the good end reads dark green, not pale mint
+  const alpha = 0.08 + 0.32 * (Math.abs(score - 50) / 50); // quiet mid-table, saturated ends
+  return `hsl(${hue.toFixed(0)} 70% ${lightness.toFixed(0)}% / ${alpha.toFixed(2)})`;
 }
+
+/** The owner's own defenses sit in the waivers board for comparison; yellow says which are already theirs. */
+const OWNED_MARK = 'bg-[hsl(48_96%_50%/0.14)] shadow-[inset_3px_0_0_hsl(48_96%_50%)]';
 
 /** "week 6, 60% off last season" is the honest version of a rank nobody can audit. */
 function sourceNote(statsThroughWeek: number, priorSeasonWeight: number, season: number): string {
@@ -39,7 +39,6 @@ function sourceNote(statsThroughWeek: number, priorSeasonWeight: number, season:
 }
 
 export function ScoutBoard({ league }: { league: League }) {
-  const [pool, setPool] = useState<ScoutPool>('waivers');
   const [from, setFrom] = useState(league.currentWeek);
   const [span, setSpan] = useState(DEFAULT_SPAN);
 
@@ -51,7 +50,7 @@ export function ScoutBoard({ league }: { league: League }) {
     'DEF',
     from,
     to,
-    pool,
+    'waivers',
   );
 
   const startWeeks = Array.from({ length: LAST_REGULAR_WEEK }, (_, i) => i + 1);
@@ -59,24 +58,7 @@ export function ScoutBoard({ league }: { league: League }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <div className="flex overflow-hidden rounded-lg border border-border">
-          {POOLS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setPool(option.value)}
-              aria-pressed={pool === option.value}
-              className={cn(
-                'h-7 px-2.5 font-medium transition-colors',
-                pool === option.value
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <span className="font-medium">Available Defenses</span>
 
         <label className="flex items-center gap-1.5 text-muted-foreground">
           From
@@ -108,10 +90,7 @@ export function ScoutBoard({ league }: { league: League }) {
           </select>
         </label>
 
-        <span className="ml-auto text-muted-foreground">
-          Defenses
-          <span className="ml-1.5 text-[10px]">more positions soon</span>
-        </span>
+        <span className="ml-auto text-[10px] text-muted-foreground">more positions soon</span>
       </div>
 
       {isPending ? (
@@ -122,9 +101,7 @@ export function ScoutBoard({ league }: { league: League }) {
         </p>
       ) : data.candidates.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-          {pool === 'waivers'
-            ? 'Every defense in this league is rostered.'
-            : 'You have no defenses on your roster.'}
+          Every defense in this league is on a rival roster.
         </p>
       ) : (
         <>
@@ -149,11 +126,25 @@ export function ScoutBoard({ league }: { league: League }) {
               <tbody>
                 {data.candidates.map((candidate) => (
                   <tr key={candidate.playerId} className="border-t border-border">
-                    <th scope="row" className="px-3 py-2 text-left font-medium whitespace-nowrap">
+                    <th
+                      scope="row"
+                      className={cn(
+                        'px-3 py-2 text-left font-medium whitespace-nowrap',
+                        // Yellow rides the name cell, not the row: a wash over the week cells
+                        // would tint the red-green scale the comparison depends on.
+                        candidate.owned && OWNED_MARK,
+                      )}
+                    >
                       {candidate.name}
                       <span className="ml-1.5 text-xs text-muted-foreground">
                         {candidate.nflTeam}
                       </span>
+                      {/* Season form, as context for a matchup-only ranking — not the headline. */}
+                      {candidate.avgPointsPerWeek != null && (
+                        <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums">
+                          {candidate.avgPointsPerWeek.toFixed(1)} ppg
+                        </span>
+                      )}
                     </th>
                     {candidate.weeks.map((cell) => (
                       <td
@@ -199,6 +190,9 @@ export function ScoutBoard({ league }: { league: League }) {
           <p className="text-xs text-muted-foreground">
             {sourceNote(data.meta.statsThroughWeek, data.meta.priorSeasonWeight, data.meta.season)}{' '}
             Rank is 1-32 across the league; frame score sums the weeks, counting a bye as zero.
+            Green is a softer matchup, red a harder one. Ppg is this season&apos;s average, for
+            form — it doesn&apos;t move the ranking.
+            Yellow marks a defense you already roster.
           </p>
         </>
       )}

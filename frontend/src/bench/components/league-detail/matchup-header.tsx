@@ -6,11 +6,13 @@ import { cn } from '@bench/lib/utils';
 function Side({
   name,
   points,
+  projection,
   winning,
   align,
 }: {
   name: string;
   points: number | null;
+  projection: number | null;
   winning: boolean;
   align: 'left' | 'right';
 }) {
@@ -25,12 +27,18 @@ function Side({
       >
         {points === null ? '—' : points.toFixed(1)}
       </span>
+      {/* Same `proj` sub-line the deck card uses, so the two scoreboards read alike. */}
+      {projection !== null && (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          proj {projection.toFixed(1)}
+        </span>
+      )}
     </div>
   );
 }
 
 export function MatchupHeader({ summary }: { summary: LeagueSummary }) {
-  const { league, isLoading, myTeam, opponent, myMatchup, opponentMatchup } = summary;
+  const { league, isLoading, myTeam, opponent, myMatchup, opponentMatchup, benchIq } = summary;
 
   if (isLoading) {
     return <Skeleton className="h-24 rounded-xl" />;
@@ -38,6 +46,9 @@ export function MatchupHeader({ summary }: { summary: LeagueSummary }) {
 
   const myPoints = myMatchup?.points ?? null;
   const oppPoints = opponentMatchup?.points ?? null;
+  // bench-iq sums my starters' projection too — lean on it while the matchup side is still null.
+  const myProjection = myMatchup?.projectedPoints ?? benchIq?.projectedPoints ?? null;
+  const oppProjection = opponentMatchup?.projectedPoints ?? null;
 
   return (
     <section
@@ -49,6 +60,7 @@ export function MatchupHeader({ summary }: { summary: LeagueSummary }) {
           <Side
             name={myTeam?.displayName ?? 'Your team'}
             points={myPoints}
+            projection={myProjection}
             winning={(myPoints ?? 0) >= (oppPoints ?? 0)}
             align="left"
           />
@@ -58,6 +70,7 @@ export function MatchupHeader({ summary }: { summary: LeagueSummary }) {
           <Side
             name={opponent.displayName}
             points={oppPoints}
+            projection={oppProjection}
             winning={(oppPoints ?? 0) >= (myPoints ?? 0)}
             align="right"
           />
@@ -67,6 +80,7 @@ export function MatchupHeader({ summary }: { summary: LeagueSummary }) {
           <Side
             name={myTeam?.displayName ?? 'Your team'}
             points={myPoints}
+            projection={myProjection}
             winning
             align="left"
           />

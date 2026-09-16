@@ -8,6 +8,7 @@ import {
   mapPlayer,
   mapProjections,
   mapRoster,
+  mapSeasonAverages,
   mapTeams,
 } from './mapper.js';
 
@@ -90,5 +91,11 @@ export class EspnAdapter implements PlatformAdapter {
   async getProjections(season: number, week: number): Promise<Map<string, number>> {
     const raw = await this.client.getPlayerProjections(this.leagueId, season, week);
     return mapProjections(raw, week);
+  }
+
+  /** Reuses the response the projections call already cached — the season line rides along in it. */
+  async getSeasonAverages(season: number, throughWeek: number): Promise<Map<string, number>> {
+    const raw = await this.client.getPlayerProjections(this.leagueId, season, throughWeek);
+    return mapSeasonAverages(raw);
   }
 }

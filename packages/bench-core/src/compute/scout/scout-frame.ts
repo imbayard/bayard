@@ -29,6 +29,10 @@ export interface ScoutCandidate {
   /** Mean opponent rank across the weeks actually played; null when every week is a bye. */
   avgOpponentRank: number | null;
   byeCount: number;
+  /** Mean fantasy points per game played this season; null when the platform reports none. */
+  avgPointsPerWeek: number | null;
+  /** True when this defense is on the requesting owner's roster. */
+  owned: boolean;
 }
 
 export interface ScoutFrameInput {
@@ -42,6 +46,10 @@ export interface ScoutFrameInput {
   ratings: OffenseGiveawayRating[];
   /** week -> playerId -> projected points. Sparse: platforms only project the current week. */
   projectionsByWeek?: Map<number, Map<string, number>>;
+  /** externalPlayerId -> season mean points per game played. */
+  seasonAverages?: Map<string, number>;
+  /** The requesting owner's own players, so their starter can be told apart from the wire. */
+  ownedPlayerIds?: Set<string>;
 }
 
 /**
@@ -56,7 +64,8 @@ export interface ScoutFrameInput {
  * alongside so a one-week pickup can be judged on its own terms.
  */
 export function scoutFrame(input: ScoutFrameInput): ScoutCandidate[] {
-  const { candidates, weeks, opponentsByWeek, ratings, projectionsByWeek } = input;
+  const { candidates, weeks, opponentsByWeek, ratings, projectionsByWeek, seasonAverages, ownedPlayerIds } =
+    input;
   const ratingByTeam = new Map(ratings.map((r) => [r.team, r]));
 
   const rows: ScoutCandidate[] = [];
@@ -103,6 +112,8 @@ export function scoutFrame(input: ScoutFrameInput): ScoutCandidate[] {
       frameScore: round1(frameScore),
       avgOpponentRank: played > 0 ? round1(rankSum / played) : null,
       byeCount,
+      avgPointsPerWeek: seasonAverages?.get(player.externalPlayerId) ?? null,
+      owned: ownedPlayerIds?.has(player.externalPlayerId) ?? false,
     });
   }
 

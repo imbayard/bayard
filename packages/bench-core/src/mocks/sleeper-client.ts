@@ -10,6 +10,7 @@ import type {
   SleeperPlayersResponse,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperSeasonStatsResponse,
   SleeperUser,
 } from '../adapters/sleeper/types.js';
 import {
@@ -23,6 +24,7 @@ import {
   sleeperPlayers,
   sleeperProjections,
   sleeperRostersById,
+  sleeperSeasonStats,
   sleeperState,
 } from './fixtures/sleeper.js';
 
@@ -87,5 +89,9 @@ export class MockSleeperClient extends SleeperClient {
 
   override async getProjections(): Promise<SleeperProjectionsResponse> {
     return sleeperProjections;
+  }
+
+  override async getSeasonStats(): Promise<SleeperSeasonStatsResponse> {
+    return sleeperSeasonStats;
   }
 }

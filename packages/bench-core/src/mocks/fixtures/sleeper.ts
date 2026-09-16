@@ -14,6 +14,7 @@ import type {
   SleeperPlayersResponse,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperSeasonStatsResponse,
 } from '../../adapters/sleeper/types.js';
 
 export const MOCK_SLEEPER_OWNER_ID = 'mock-sleeper-owner';
@@ -359,3 +360,16 @@ export const sleeperProjections: SleeperProjectionsResponse = [
   // Safe against the waiver flag: the DEF starter it would be compared to has no projection.
   { player_id: 'p-waiver-def-min', stats: { pts_ppr: 7.6 } },
 ];
+
+/**
+ * Season-to-date totals, keyed by player_id the way Sleeper keys them. Defenses only — the
+ * scout board is the only thing that reads these, and v1 scouts defenses. `p-waiver-def-lar`
+ * is left out on purpose so the board still has to render a candidate with no season sample.
+ */
+export const sleeperSeasonStats: SleeperSeasonStatsResponse = {
+  'p-rr-def': { gp: 6, pts_ppr: 51.6 },
+  'p-ddf-def': { gp: 6, pts_ppr: 44.4 },
+  'p-waiver-def-min': { gp: 6, pts_ppr: 62.4 },
+  'p-waiver-def-cle': { gp: 5, pts_ppr: 28.5 },
+  'p-waiver-def-was': { gp: 6, pts_ppr: 39.0 },
+};
