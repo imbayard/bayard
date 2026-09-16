@@ -121,7 +121,7 @@ export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLo
                   href={`/leagues/${league.platform}/${league.externalLeagueId}`}
                   title={uniq(flags.map((f) => f.message)).join('\n')}
                   className={cn(
-                    'glass flex items-center gap-3 rounded-xl border-l-2 px-4 py-2.5 transition-all outline-none hover:ring-brand/40 hover:ring-2 focus-visible:ring-2 focus-visible:ring-ring',
+                    'glass flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border-l-2 px-4 py-2.5 transition-all outline-none hover:ring-brand/40 hover:ring-2 focus-visible:ring-2 focus-visible:ring-ring sm:flex-nowrap sm:gap-3',
                     railTone(critical ? 'critical' : 'warning'),
                   )}
                 >
@@ -135,7 +135,9 @@ export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLo
                       {slots}
                     </span>
                   )}
-                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                  {/* Narrow screens have no room to truncate a swap into sense, so the line
+                      wraps to its own row there; from sm up it stays the single scannable row. */}
+                  <span className="order-last w-full text-sm text-muted-foreground sm:order-none sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate">
                     <GroupLine type={type} flags={flags} />
                   </span>
                   {delta !== null && <DeltaCell value={delta} />}

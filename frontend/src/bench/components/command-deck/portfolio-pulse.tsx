@@ -12,18 +12,23 @@ function round1(n: number): number {
 
 function Stat({
   label,
+  shortLabel,
   value,
   tone,
 }: {
   label: string;
+  /** Phone-width wording; the full label needs room this bar doesn't have under sm. */
+  shortLabel?: string;
   value: React.ReactNode;
   tone?: 'good' | 'bad';
 }) {
+  const labelClass =
+    'max-w-40 text-[11px] font-medium tracking-wider text-balance text-muted-foreground uppercase sm:max-w-64';
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span
         className={cn(
-          'scoreboard text-2xl leading-none font-bold',
+          'scoreboard text-xl leading-none font-bold sm:text-2xl',
           tone === 'good' && 'text-positive',
           tone === 'bad' && 'text-destructive',
         )}
@@ -31,9 +36,8 @@ function Stat({
         {value}
       </span>
       {/* Capped so a long label wraps to a second line instead of clipping or pushing the gauge. */}
-      <span className="max-w-64 text-[11px] font-medium tracking-wider text-balance text-muted-foreground uppercase">
-        {label}
-      </span>
+      <span className={cn(labelClass, shortLabel && 'sm:hidden')}>{shortLabel ?? label}</span>
+      {shortLabel && <span className={cn(labelClass, 'hidden sm:inline')}>{label}</span>}
     </div>
   );
 }
@@ -44,7 +48,7 @@ function HealthGauge({ score, color }: { score: number; color: string }) {
   const circumference = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, score)) / 100;
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex w-full items-center gap-3 sm:w-auto">
       <div className="relative flex items-center justify-center">
         <svg width="68" height="68" viewBox="0 0 68 68" className="-rotate-90">
           <circle cx="34" cy="34" r={r} fill="none" strokeWidth="5" className="stroke-muted" />
@@ -125,7 +129,7 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
   return (
     <section
       aria-label="Portfolio pulse"
-      className="glass relative flex items-center gap-6 overflow-hidden rounded-2xl px-6 py-5"
+      className="glass relative flex flex-wrap items-center gap-4 overflow-hidden rounded-2xl px-4 py-4 sm:flex-nowrap sm:gap-6 sm:px-6 sm:py-5"
     >
       {/* Ambient glow tinted by portfolio health, bleeding in from the gauge side. */}
       <div
@@ -133,18 +137,20 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
         className="pointer-events-none absolute top-1/2 -right-10 size-52 -translate-y-1/2 rounded-full opacity-15 blur-3xl"
         style={{ background: scoreColor }}
       />
-      <div className="flex flex-1 items-center gap-8">
+      <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-8">
         <Stat
           label={
             gamesPlayed > 0
               ? `Cumulative Winning Percentage · ${gamesPlayed} wks`
               : 'Cumulative Winning Percentage'
           }
+          shortLabel={gamesPlayed > 0 ? `Win % · ${gamesPlayed} wks` : 'Win %'}
           value={totalGames > 0 ? `${winPct}%` : '—'}
         />
         <div className="h-10 w-px bg-border" />
         <Stat
           label="Projected this week"
+          shortLabel="Projected"
           value={projected.length > 0 ? `${projectedAhead}/${projected.length}` : '—'}
           tone={projectedTone}
         />

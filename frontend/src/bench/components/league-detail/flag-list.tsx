@@ -47,12 +47,13 @@ export function FlagList({ league }: { league: League }) {
               key={`${alertKey(league, flag)}:${i}`}
               title={flag.message}
               className={cn(
-                'flex items-center gap-3 rounded-xl border-l-2 bg-card px-4 py-2.5 ring-1 ring-foreground/10',
+                'flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border-l-2 bg-card px-4 py-2.5 ring-1 ring-foreground/10 sm:flex-nowrap sm:gap-3',
                 railTone(flag.level),
               )}
             >
               {flag.level === 'critical' && <Badge variant="destructive">critical</Badge>}
-              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+              {/* Same deal as the attention queue: full sentence on phones, one row from sm up. */}
+              <span className="order-last w-full text-sm text-muted-foreground sm:order-none sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate">
                 <SwapLine flag={flag} />
               </span>
               {flag.slot && (

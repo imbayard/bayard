@@ -45,6 +45,7 @@ function Side({
   projection,
   live,
   leading,
+  tone,
   children,
 }: {
   name: string;
@@ -52,6 +53,8 @@ function Side({
   projection: number | null;
   live: boolean;
   leading: boolean;
+  /** Pre-game tint on this side's projection. Only my side gets one. */
+  tone?: 'ahead' | 'behind';
   children?: React.ReactNode;
 }) {
   const value = live ? points : projection;
@@ -64,6 +67,10 @@ function Side({
           value === null && 'text-muted-foreground',
           // Pre-game the number hasn't happened yet — the italic wash is the whole signal.
           value !== null && !live && 'italic opacity-60',
+          // ...with a tint under the wash when the projection says the week is going badly.
+          // 70% of the token, under the 60% wash, reads as a hint rather than a stoplight.
+          value !== null && !live && tone === 'ahead' && 'text-positive/70',
+          value !== null && !live && tone === 'behind' && 'text-destructive/70',
           value !== null && live && (leading ? 'text-foreground' : 'text-muted-foreground'),
         )}
       >
@@ -104,6 +111,14 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
   // bench-iq sums my starters' projection too — lean on it while the matchup side is still null.
   const myProjection = myMatchup?.projectedPoints ?? benchIq?.projectedPoints ?? null;
   const oppProjection = opponentMatchup?.projectedPoints ?? null;
+  // Before kickoff the only read available is projection vs projection. A faint tint on my
+  // number says which leagues are in trouble; an exact tie stays grey rather than guessing.
+  const projectedTone =
+    myProjection !== null && oppProjection !== null && myProjection !== oppProjection
+      ? myProjection > oppProjection
+        ? ('ahead' as const)
+        : ('behind' as const)
+      : undefined;
   const kickoff = myMatchup
     ? kickoffLine(myMatchup.firstStarterKickoff, myMatchup.firstPlayerKickoff)
     : null;
@@ -187,6 +202,7 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
               projection={myProjection}
               live={live}
               leading={(myPoints ?? 0) >= (oppPoints ?? 0)}
+              tone={projectedTone}
             >
               {/* My players only, so it sits on my side rather than spanning the split. */}
               {!live && kickoff && (

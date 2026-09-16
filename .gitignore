@@ -57,3 +57,5 @@ backend/data/
 # Claude
 .claude/settings.local.json
 .claude
+# Netlify CLI local link state
+.netlify/
