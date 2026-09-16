@@ -12,7 +12,8 @@ import {
 } from '@benchpoints/core';
 import { env } from './env.js';
 
-const cache = new LruCache();
+/** One shared cache behind every adapter and client. Exported so the refresh route can bust it. */
+export const cache = new LruCache();
 
 export const sleeperAdapter = new SleeperAdapter(cache);
 

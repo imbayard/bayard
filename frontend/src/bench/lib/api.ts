@@ -122,6 +122,15 @@ export function fetchBenchIq(
   return get(`/leagues/${platform}/${leagueId}/bench-iq`, mock);
 }
 
+/**
+ * Drop the API's server-side cache so the next read hits the platform. Callers are
+ * responsible for invalidating the React Query cache afterwards — this only clears
+ * the layer the browser can't reach.
+ */
+export function refreshCache(mock: boolean): Promise<{ cleared: number }> {
+  return post('/refresh', mock);
+}
+
 export function scheduleDraft(
   platform: Platform,
   leagueId: string,

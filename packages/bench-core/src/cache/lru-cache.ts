@@ -23,4 +23,11 @@ export class LruCache implements Cache {
   delete(key: string): void {
     this.store.delete(key);
   }
+
+  deleteWhere(predicate: (key: string) => boolean): number {
+    // Materialise the key list first — deleting while walking the live iterator is unsafe.
+    const doomed = [...this.store.keys()].filter(predicate);
+    for (const key of doomed) this.store.delete(key);
+    return doomed.length;
+  }
 }

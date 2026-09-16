@@ -7,6 +7,7 @@ import { BenchNavProvider, type BenchView } from '@bench/lib/nav';
 import { HealthAccent } from '@bench/components/system/health-accent';
 import { Wordmark } from '@bench/components/system/wordmark';
 import { DataFreshness } from '@bench/components/system/data-freshness';
+import { RefreshButton } from '@bench/components/system/refresh-button';
 import { CommandDeck } from '@bench/CommandDeck';
 import { LeagueDetailView } from '@bench/components/league-detail/league-detail-view';
 import { usePathname, navigate } from '../lib/router';
@@ -53,7 +54,10 @@ export default function BenchApp({ onExitToHome }: { onExitToHome: () => void })
                     </button>
                     <Wordmark />
                   </div>
-                  <DataFreshness />
+                  <div className="flex items-center gap-2">
+                    <DataFreshness />
+                    <RefreshButton />
+                  </div>
                 </header>
                 <main className="flex-1 pb-6">
                   {view.name === 'deck' ? (
