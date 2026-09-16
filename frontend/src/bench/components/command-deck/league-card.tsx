@@ -206,7 +206,7 @@ export function LeagueCard({ summary }: { summary: LeagueSummary }) {
             >
               {/* My players only, so it sits on my side rather than spanning the split. */}
               {!live && kickoff && (
-                <span className="mt-auto truncate text-[11px] text-muted-foreground">
+                <span className="mt-auto line-clamp-2 text-[11px] text-muted-foreground">
                   {kickoff}
                 </span>
               )}
