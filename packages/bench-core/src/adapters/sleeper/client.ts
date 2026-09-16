@@ -9,6 +9,7 @@ import type {
   SleeperPlayersResponse,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperSeasonStatsResponse,
   SleeperTradedPick,
   SleeperUser,
 } from './types.js';
@@ -28,6 +29,7 @@ const TTL = {
   players: 24 * 60 * 60 * 1000, // 24h
   state: 5 * 60 * 1000, // 5m
   projections: 15 * 60 * 1000, // 15m
+  seasonStats: 6 * 60 * 60 * 1000, // 6h — season totals only move once a week
 } as const;
 
 export class SleeperApiError extends Error {
@@ -123,5 +125,10 @@ export class SleeperClient {
   /** ~5MB response, undocumented endpoint (Backend/Data Sources.md: Sleeper NFL endpoints carry projections). */
   getProjections(season: number, week: number): Promise<SleeperProjectionsResponse> {
     return this.fetchJson(`/${season}/${week}?season_type=regular`, TTL.projections, PROJECTIONS_BASE_URL);
+  }
+
+  /** Season-to-date totals for every player, in one object. A documented /v1 endpoint, unlike projections. */
+  getSeasonStats(season: number): Promise<SleeperSeasonStatsResponse> {
+    return this.fetchJson(`/stats/nfl/regular/${season}`, TTL.seasonStats);
   }
 }

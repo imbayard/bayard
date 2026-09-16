@@ -11,6 +11,7 @@ import {
   mapPlayer,
   mapProjections,
   mapRoster,
+  mapSeasonAverages,
   mapTeams,
   parseDraftStatus,
 } from './mapper.js';
@@ -99,5 +100,11 @@ export class SleeperAdapter implements PlatformAdapter {
   async getProjections(season: number, week: number): Promise<Map<string, number>> {
     const raw = await this.client.getProjections(season, week);
     return mapProjections(raw);
+  }
+
+  /** Sleeper's season totals aren't week-scoped, so `throughWeek` has nothing here to narrow. */
+  async getSeasonAverages(season: number): Promise<Map<string, number>> {
+    const raw = await this.client.getSeasonStats(season);
+    return mapSeasonAverages(raw);
   }
 }

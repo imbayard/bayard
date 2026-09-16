@@ -194,3 +194,13 @@ export interface SleeperProjection {
 
 /** GET /projections/nfl/{season}/{week}?season_type=regular — flat array, one entry per projected player */
 export type SleeperProjectionsResponse = SleeperProjection[];
+
+export interface SleeperSeasonStat {
+  /** Games played — the divisor a per-game average needs. */
+  gp?: number;
+  pts_ppr?: number;
+  [key: string]: number | undefined;
+}
+
+/** GET /stats/nfl/regular/{season} — object keyed by player_id; a defense's player_id is its team code. */
+export type SleeperSeasonStatsResponse = Record<string, SleeperSeasonStat>;

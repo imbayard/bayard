@@ -80,7 +80,11 @@ async function ratingsAsOf(season: number, statsThroughWeek: number, useMock: bo
   return { ratings: offenseGiveawayRatings(blendGiveaway(current, prior, weight)), weight };
 }
 
-/** The pool of players this report ranks: unrostered league-wide, or the owner's own bench+starters. */
+/**
+ * The pool this report ranks. Waivers keeps the owner's own defenses in alongside the free
+ * agents so a starter can be judged against the wire in the same grid; roster is that owner's
+ * bench+starters alone. An owner whose team couldn't be found just sees the free agents.
+ */
 function candidatesFor(
   pool: 'waivers' | 'roster',
   position: string,
@@ -89,7 +93,9 @@ function candidatesFor(
   myPlayerIds: Set<string>,
 ): Player[] {
   const inPool = (p: Player): boolean =>
-    pool === 'waivers' ? !rosteredPlayerIds.has(p.externalPlayerId) : myPlayerIds.has(p.externalPlayerId);
+    pool === 'waivers'
+      ? !rosteredPlayerIds.has(p.externalPlayerId) || myPlayerIds.has(p.externalPlayerId)
+      : myPlayerIds.has(p.externalPlayerId);
   return [...players.values()].filter((p) => p.position === position && inPool(p));
 }
 
@@ -125,15 +131,26 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
   // Never grade a week using its own result: cut the sample off before the frame opens.
   const statsThroughWeek = Math.max(0, Math.min(league.currentWeek, (weeks[0] as number) - 1));
 
-  const [teams, rosters, players, { ratings, weight }, opponentsByWeek, projectionsByWeek] =
-    await Promise.all([
-      adapter.getTeams(leagueId),
-      adapter.getRosters(leagueId),
-      adapter.getPlayers(),
-      ratingsAsOf(league.season, statsThroughWeek, useMock),
-      weekOpponents(league, weeks, useMock),
-      currentWeekProjections(adapter, league, weeks),
-    ]);
+  const [
+    teams,
+    rosters,
+    players,
+    { ratings, weight },
+    opponentsByWeek,
+    projectionsByWeek,
+    seasonAverages,
+  ] = await Promise.all([
+    adapter.getTeams(leagueId),
+    adapter.getRosters(leagueId),
+    adapter.getPlayers(),
+    ratingsAsOf(league.season, statsThroughWeek, useMock),
+    weekOpponents(league, weeks, useMock),
+    currentWeekProjections(adapter, league, weeks),
+    // A season column is a nice-to-have; losing it shouldn't take the whole board down with it.
+    adapter
+      .getSeasonAverages(league.season, statsThroughWeek)
+      .catch(() => new Map<string, number>()),
+  ]);
 
   const myTeam = teams.find(
     (t) => t.ownerExternalUserId.toLowerCase() === ownerExternalUserId.toLowerCase(),
@@ -154,6 +171,8 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
     opponentsByWeek,
     ratings,
     projectionsByWeek,
+    seasonAverages,
+    ownedPlayerIds: myPlayerIds,
   });
 
   return c.json({

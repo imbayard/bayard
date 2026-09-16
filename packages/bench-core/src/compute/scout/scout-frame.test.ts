@@ -87,6 +87,25 @@ describe('scoutFrame', () => {
     expect(row?.weeks.map((w) => w.projectedPoints)).toEqual([8.4, null]);
   });
 
+  it('flags the owners own candidates and carries the season average', () => {
+    const board = scoutFrame({
+      candidates: [
+        player({ externalPlayerId: 'min', fullName: 'Vikings D/ST', nflTeam: 'MIN' }),
+        player({ externalPlayerId: 'nyj', fullName: 'Jets D/ST', nflTeam: 'NYJ' }),
+      ],
+      weeks: [3],
+      opponentsByWeek: new Map([[3, opponents([['MIN', 'CAR'], ['NYJ', 'LAR']])]]),
+      ratings,
+      seasonAverages: new Map([['min', 9.3]]),
+      ownedPlayerIds: new Set(['nyj']),
+    });
+
+    expect(board.map((c) => [c.playerId, c.owned, c.avgPointsPerWeek])).toEqual([
+      ['min', false, 9.3],
+      ['nyj', true, null],
+    ]);
+  });
+
   it('drops a candidate with no NFL team', () => {
     const board = scoutFrame({
       candidates: [player({ externalPlayerId: 'ghost', nflTeam: null })],

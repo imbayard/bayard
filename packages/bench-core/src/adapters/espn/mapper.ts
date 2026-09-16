@@ -216,6 +216,24 @@ export function mapProjections(raw: EspnPlayerInfoResponse, week: number): Map<s
   return projections;
 }
 
+/**
+ * Season points per game, keyed by ESPN player id. Costs no extra request: the projections call
+ * already asks for the `00{season}` stat period, so the season-actual entry (statSourceId 0,
+ * statSplitTypeId 0) is already in that response — and `appliedAverage` is already league-scored.
+ */
+export function mapSeasonAverages(raw: EspnPlayerInfoResponse): Map<string, number> {
+  const averages = new Map<string, number>();
+  for (const wrap of raw.players ?? []) {
+    const p = wrap.player;
+    if (!p) continue;
+    const entry = (p.stats ?? []).find((s) => s.statSourceId === 0 && s.statSplitTypeId === 0);
+    if (entry && typeof entry.appliedAverage === 'number') {
+      averages.set(String(p.id), entry.appliedAverage);
+    }
+  }
+  return averages;
+}
+
 export function normalizeInjuryStatus(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();

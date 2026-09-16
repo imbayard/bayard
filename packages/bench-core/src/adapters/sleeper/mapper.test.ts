@@ -8,6 +8,7 @@ import {
   mapPlayer,
   mapProjections,
   mapRoster,
+  mapSeasonAverages,
   mapTeams,
   normalizeInjuryStatus,
 } from './mapper.js';
@@ -20,6 +21,7 @@ import type {
   SleeperPlayersResponse,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperSeasonStatsResponse,
 } from './types.js';
 import fixture from './__fixtures__/league.json';
 
@@ -162,6 +164,22 @@ describe('mapProjections', () => {
 
     expect(result.get('6794')).toBe(14.2);
     expect(result.has('4046')).toBe(false);
+  });
+});
+
+describe('mapSeasonAverages', () => {
+  it('divides points by games played, skipping anyone who never played', () => {
+    const raw: SleeperSeasonStatsResponse = {
+      SF: { gp: 6, pts_ppr: 51.6 },
+      NYJ: { gp: 0, pts_ppr: 0 },
+      DAL: { gp: 4 },
+    };
+
+    const result = mapSeasonAverages(raw);
+
+    expect(result.get('SF')).toBe(8.6);
+    expect(result.has('NYJ')).toBe(false);
+    expect(result.has('DAL')).toBe(false);
   });
 });
 

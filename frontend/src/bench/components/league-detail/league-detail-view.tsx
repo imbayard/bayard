@@ -54,6 +54,32 @@ function WaiversPreview({ summary }: { summary: ReturnType<typeof useLeagueSumma
 }
 
 /**
+ * Scouting is defense-only for now, so a league without a D/ST slot has nothing to say here —
+ * no stub, no empty disclosure, just gone. FLEX can't hold a defense, so exact 'DEF' is the test.
+ * It also sits collapsed: it's a planning tool you open on purpose, not this week's news.
+ */
+function ScoutSection({ league }: { league: League }) {
+  if (!league.rosterSlots.includes('DEF')) return null;
+
+  return (
+    <details className="group">
+      <summary
+        className={cn(
+          'text-sm font-medium text-muted-foreground',
+          'flex cursor-pointer list-none items-center gap-1.5 marker:content-none hover:text-foreground',
+        )}
+      >
+        <span className="text-[10px] transition-transform group-open:rotate-90">&#9654;</span>
+        Scout
+      </summary>
+      <div className="mt-2">
+        <ScoutBoard league={league} />
+      </div>
+    </details>
+  );
+}
+
+/**
  * A draft you can still act on leads: it sits open, above the fold of the page's tail. Once it's
  * complete the board is history — the roster is what you can be wrong about now — so it drops
  * below the roster and collapses, one click from view instead of a wall of columns.
@@ -136,10 +162,7 @@ export function LeagueDetailView({ platform, leagueId }: { platform: Platform; l
         <h2 className="mb-2 text-sm font-medium text-muted-foreground">Roster</h2>
         <RosterView league={league} />
       </section>
-      <section aria-label="Matchup scout">
-        <h2 className="mb-2 text-sm font-medium text-muted-foreground">Scout</h2>
-        <ScoutBoard league={league} />
-      </section>
+      <ScoutSection league={league} />
       <DraftSection league={league} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ComingSoon title="Standings" />

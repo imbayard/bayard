@@ -19,7 +19,9 @@ import type {
   SleeperPlayer,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperSeasonStatsResponse,
 } from './types.js';
+import { round1 } from '../../compute/normalize.js';
 
 export function mapLeague(
   raw: SleeperLeague,
@@ -148,6 +150,21 @@ export function mapProjections(raw: SleeperProjectionsResponse): Map<string, num
     }
   }
   return projections;
+}
+
+/**
+ * Mean points per game, keyed by player_id. Dividing by games played rather than by weeks
+ * elapsed keeps a defense that sat out a week from reading as a worse unit than it is.
+ */
+export function mapSeasonAverages(raw: SleeperSeasonStatsResponse): Map<string, number> {
+  const averages = new Map<string, number>();
+  for (const [playerId, stat] of Object.entries(raw)) {
+    const games = stat?.gp;
+    const points = stat?.pts_ppr;
+    if (!games || typeof points !== 'number') continue;
+    averages.set(playerId, round1(points / games));
+  }
+  return averages;
 }
 
 const STATUS_ACRONYMS = new Set(['IR', 'PUP', 'NA', 'COV', 'DNR']);
