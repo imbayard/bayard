@@ -154,6 +154,24 @@ describe('mapPlayer', () => {
     });
   });
 
+  // Regression: the map stores null for 'active' to mean healthy, and a `??` lookup read
+  // that null as a miss and title-cased it back into the injury status "Active".
+  it.each(['ACTIVE', 'active'])('treats %s as no injury, not a status', (raw) => {
+    const healthy = { ...players['16745']!, injuryStatus: raw };
+    expect(mapPlayer(16745, healthy).injuryStatus).toBeNull();
+  });
+
+  // ESPN spells injured reserve INJURY_RESERVE; both platforms must land on one label.
+  it('maps ESPN injured reserve to the same "IR" Sleeper produces', () => {
+    const ir = { ...players['16745']!, injuryStatus: 'INJURY_RESERVE' };
+    expect(mapPlayer(16745, ir).injuryStatus).toBe('IR');
+  });
+
+  it('still title-cases a genuinely unmapped status rather than dropping it', () => {
+    const odd = { ...players['16745']!, injuryStatus: 'NON_FOOTBALL_INJURY' };
+    expect(mapPlayer(16745, odd).injuryStatus).toBe('Non Football Injury');
+  });
+
   it('normalizes team defense position', () => {
     const result = mapPlayer(99999, players['99999']!);
     expect(result.fullName).toBe('Buffalo Bills');

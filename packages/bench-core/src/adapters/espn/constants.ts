@@ -55,6 +55,8 @@ export const POSITION_BY_ID: Record<number, string> = {
 /** Injury status normalization from ESPN codes/strings */
 export const INJURY_STATUS_MAP: Record<string, string | null> = {
   active: null,
+  // ESPN's healthy marker on some payloads; null keeps it out of injury reports.
+  normal: null,
   out: 'Out',
   doubtful: 'Doubtful',
   questionable: 'Questionable',
@@ -63,6 +65,10 @@ export const INJURY_STATUS_MAP: Record<string, string | null> = {
   suspend: 'Suspended',
   suspension: 'Suspended',
   ir: 'IR',
+  // What ESPN actually sends for injured reserve. Without it the fallback title-caser
+  // produces "Injury Reserve", so one player reads as IR in a Sleeper league and
+  // Injury Reserve in an ESPN one.
+  injury_reserve: 'IR',
   pup: 'PUP',
 };
 

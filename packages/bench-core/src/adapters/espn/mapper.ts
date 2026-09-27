@@ -189,7 +189,10 @@ export function mapPlayer(espnId: number, raw: EspnProPlayer): Player {
   const injuryStatusRaw = raw.injuryStatus?.toLowerCase() ?? null;
   let injuryStatus: string | null = null;
   if (injuryStatusRaw) {
-    injuryStatus = INJURY_STATUS_MAP[injuryStatusRaw] ?? normalizeInjuryStatus(injuryStatusRaw);
+    // Undefined means "not in the map"; null means "mapped, and healthy". `??` collapses
+    // those two into one and title-cases 'active' back into the status "Active".
+    const mapped = INJURY_STATUS_MAP[injuryStatusRaw];
+    injuryStatus = mapped === undefined ? normalizeInjuryStatus(injuryStatusRaw) : mapped;
   }
 
   return {
