@@ -18,7 +18,7 @@ function toNaiveLocal(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-async function getSleeperLeagues(useMock: boolean): Promise<League[]> {
+export async function getSleeperLeagues(useMock: boolean): Promise<League[]> {
   if (useMock) {
     return adapterFor('sleeper', true).getLeagues(MOCK_SLEEPER_OWNER_ID, env.espnSeason);
   }
@@ -36,7 +36,7 @@ async function getSleeperLeagues(useMock: boolean): Promise<League[]> {
   return sleeperAdapter.getLeagues(userId, stateSeason - 1);
 }
 
-async function getEspnLeagues(useMock: boolean): Promise<League[]> {
+export async function getEspnLeagues(useMock: boolean): Promise<League[]> {
   const adapter = adapterFor('espn', useMock);
   if (useMock) {
     return adapter.getLeagues(MOCK_ESPN_OWNER_ID, env.espnSeason);

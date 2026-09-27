@@ -13,6 +13,14 @@
     "./compute/roster-needs": {
       "types": "./dist/compute/roster-needs.d.ts",
       "import": "./dist/compute/roster-needs.js"
+    },
+    "./compute/results": {
+      "types": "./dist/compute/results.d.ts",
+      "import": "./dist/compute/results.js"
+    },
+    "./compute/flags/severity": {
+      "types": "./dist/compute/flags/severity.d.ts",
+      "import": "./dist/compute/flags/severity.js"
     }
   },
   "scripts": {

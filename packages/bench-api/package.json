@@ -14,6 +14,10 @@
     "./app": {
       "types": "./dist/app.d.ts",
       "import": "./dist/app.js"
+    },
+    "./digest": {
+      "types": "./dist/lib/digest.d.ts",
+      "import": "./dist/lib/digest.js"
     }
   },
   "scripts": {

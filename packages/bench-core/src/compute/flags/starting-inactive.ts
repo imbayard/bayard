@@ -1,7 +1,6 @@
 import type { Player, Roster } from '../../types/league.js';
+import { INACTIVE_STATUSES } from '../injury.js';
 import type { BenchIqFlag } from '../types.js';
-
-const INACTIVE_STATUSES = new Set(['Out', 'IR', 'Suspended']);
 
 export function startingInactiveFlags(roster: Roster, players: Map<string, Player>): BenchIqFlag[] {
   const flags: BenchIqFlag[] = [];

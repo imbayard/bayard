@@ -8,6 +8,7 @@ import { HealthAccent } from '@bench/components/system/health-accent';
 import { Wordmark } from '@bench/components/system/wordmark';
 import { DataFreshness } from '@bench/components/system/data-freshness';
 import { RefreshButton } from '@bench/components/system/refresh-button';
+import { SendDigestButton } from '@bench/components/system/send-digest-button';
 import { CommandDeck } from '@bench/CommandDeck';
 import { LeagueDetailView } from '@bench/components/league-detail/league-detail-view';
 import { usePathname, navigate } from '../lib/router';
@@ -56,6 +57,7 @@ export default function BenchApp({ onExitToHome }: { onExitToHome: () => void })
                   </div>
                   <div className="flex items-center gap-2">
                     <DataFreshness />
+                    <SendDigestButton />
                     <RefreshButton />
                   </div>
                 </header>

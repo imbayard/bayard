@@ -12,6 +12,7 @@ export { incompleteLineupFlags } from './incomplete-lineup.js';
 export { startingInactiveFlags } from './starting-inactive.js';
 export { waiverHigherProjectionFlags } from './waiver-higher-projection.js';
 export { MIN_BENCH_UPGRADE_DELTA, MIN_WAIVER_UPGRADE_DELTA } from './upgrades.js';
+export { FLAG_TYPE_RANK, compareFlagTypes } from './severity.js';
 
 /**
  * A starter that both a bench player and a waiver player outproject is one problem — "this

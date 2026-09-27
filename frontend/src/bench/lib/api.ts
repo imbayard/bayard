@@ -1,5 +1,6 @@
 import type {
   BenchIqFlag,
+  DigestKind,
   DraftBoard,
   League,
   Matchup,
@@ -162,4 +163,16 @@ export function fetchScout(
 ): Promise<ScoutResponse> {
   const query = new URLSearchParams({ position, from: String(from), to: String(to), pool });
   return get(`/leagues/${platform}/${leagueId}/scout?${query}`, mock);
+}
+
+/**
+ * Emails a digest to the authenticated Google account. Pre-game carries projections, flags
+ * and the injury report; post-game carries last week's record and waiver targets. Sent on a
+ * schedule in production — this is the on-demand trigger.
+ */
+export function sendDigest(
+  kind: DigestKind,
+  mock: boolean,
+): Promise<{ sent: boolean; kind: DigestKind; messageId: string; leaguesChecked: number }> {
+  return post(`/digest/send?kind=${kind}`, mock);
 }

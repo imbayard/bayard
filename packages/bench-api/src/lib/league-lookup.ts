@@ -41,6 +41,19 @@ async function findEspnLeague(leagueId: string, useMock: boolean): Promise<Leagu
 }
 
 /**
+ * The owner id for a platform on its own, without a specific league to filter to — for
+ * callers (the digest) that already have every league and just need whose team to match.
+ */
+export function resolveOwnerId(platform: Platform, useMock: boolean): Promise<string> {
+  if (platform === 'sleeper') {
+    if (useMock) return Promise.resolve(MOCK_SLEEPER_OWNER_ID);
+    if (!env.sleeperUsername) throw new AdapterNotConfiguredError('sleeper');
+    return sleeperAdapter.resolveUserId(env.sleeperUsername);
+  }
+  return Promise.resolve(useMock ? MOCK_ESPN_OWNER_ID : (env.espnSwid ?? ''));
+}
+
+/**
  * Resolves one of the owner's leagues by id. Neither platform has a "get league by id"
  * call that also tells us which team is ours, so both paths list the owner's leagues and
  * pick from them — which is also what makes a league we don't own a 404 rather than a leak.

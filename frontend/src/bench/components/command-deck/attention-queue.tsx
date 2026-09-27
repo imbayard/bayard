@@ -1,5 +1,7 @@
 
 import type { BenchIqFlag, League } from '@benchpoints/core';
+// Subpath, not the package root — the root barrel isn't browser-safe (node:zlib).
+import { FLAG_TYPE_RANK } from '@benchpoints/core/compute/flags/severity';
 import { Link } from '@bench/lib/nav';
 import { HiddenAlertsSection, type HiddenAlertEntry } from '@bench/components/hidden-alerts-section';
 import { DeltaCell, SwapLine } from '@bench/components/flag-row';
@@ -14,21 +16,6 @@ interface QueueGroup {
   type: BenchIqFlag['type'];
   flags: BenchIqFlag[];
 }
-
-/** Severity rank, lowest = most urgent. Critical (lineup-breaking) flags rank above advisory warning flags. */
-const TYPE_RANK: Record<BenchIqFlag['type'], number> = {
-  INCOMPLETE_LINEUP: 0,
-  STARTING_INACTIVE: 1,
-  BYE_WEEK_STARTER: 2,
-  BENCH_PLAYER_HIGHER_PROJECTION: 3,
-  WAIVER_PLAYER_HIGHER_PROJECTION: 4,
-};
-
-const CRITICAL_TYPES = new Set<BenchIqFlag['type']>([
-  'INCOMPLETE_LINEUP',
-  'STARTING_INACTIVE',
-  'BYE_WEEK_STARTER',
-]);
 
 /** Order-preserving dedupe — core can surface the same player from two eligible slots. */
 function uniq(values: (string | null)[]): string[] {
@@ -83,7 +70,7 @@ export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLo
     // only reason to read the list in order.
     .sort(
       (a, b) =>
-        TYPE_RANK[a.type] - TYPE_RANK[b.type] ||
+        FLAG_TYPE_RANK[a.type] - FLAG_TYPE_RANK[b.type] ||
         (groupDelta(b.flags) ?? 0) - (groupDelta(a.flags) ?? 0) ||
         a.league.name.localeCompare(b.league.name),
     );
@@ -112,7 +99,7 @@ export function AttentionQueue({ leagues, isLoading }: { leagues: League[]; isLo
       ) : (
         <ol className="flex flex-col gap-1.5">
           {groups.map(({ league, type, flags }) => {
-            const critical = CRITICAL_TYPES.has(type);
+            const critical = flags[0]?.level === 'critical';
             const delta = groupDelta(flags);
             const slots = uniq(flags.map((f) => f.slot)).join(', ');
             return (

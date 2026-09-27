@@ -42,4 +42,18 @@ export type { BenchIqFlag } from './compute/types.js';
 export { computeRosterNeeds } from './compute/roster-needs.js';
 export type { PositionNeed, RosterNeeds } from './compute/roster-needs.js';
 export * from './compute/flags/index.js';
+export {
+  buildDigest,
+  buildFlagsDigestSection,
+  buildInjurySection,
+  buildProjectionsSection,
+  buildRecordSection,
+  buildWaiverSection,
+  renderDigestEmail,
+} from './compute/digest.js';
+export type { DigestKind, DigestSection, LeagueDigestEntry } from './compute/digest.js';
+export { INACTIVE_STATUSES, REPORTABLE_INJURY_STATUSES, injuryReport } from './compute/injury.js';
+export type { InjuryEntry } from './compute/injury.js';
+export { formatRecord, matchupResult, tallyResults } from './compute/results.js';
+export type { MatchupResult, WinLossRecord } from './compute/results.js';
 export * from './mocks/index.js';

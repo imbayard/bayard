@@ -4,6 +4,7 @@ import { AdapterNotConfiguredError } from './adapters.js';
 import { env } from './env.js';
 import { InvalidPlatformError } from './lib/platform.js';
 import { benchIq } from './routes/bench-iq.js';
+import { digest } from './routes/digest.js';
 import { leagues } from './routes/leagues.js';
 import { matchups } from './routes/matchups.js';
 import { refresh } from './routes/refresh.js';
@@ -23,6 +24,7 @@ app.route('/', matchups);
 app.route('/', benchIq);
 app.route('/', scout);
 app.route('/', refresh);
+app.route('/', digest);
 
 app.onError((err, c) => {
   if (err instanceof InvalidPlatformError || err instanceof AdapterNotConfiguredError) {

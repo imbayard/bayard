@@ -10,6 +10,7 @@ import { adapterFor, nflScheduleFor, nflverseFor } from '../adapters.js';
 import { findLeague } from '../lib/league-lookup.js';
 import { isMockRequested } from '../lib/mock.js';
 import { parsePlatform } from '../lib/platform.js';
+import { rosteredPlayerIds } from '../lib/rosters.js';
 
 export const scout = new Hono();
 
@@ -89,12 +90,12 @@ function candidatesFor(
   pool: 'waivers' | 'roster',
   position: string,
   players: Map<string, Player>,
-  rosteredPlayerIds: Set<string>,
+  rostered: Set<string>,
   myPlayerIds: Set<string>,
 ): Player[] {
   const inPool = (p: Player): boolean =>
     pool === 'waivers'
-      ? !rosteredPlayerIds.has(p.externalPlayerId) || myPlayerIds.has(p.externalPlayerId)
+      ? !rostered.has(p.externalPlayerId) || myPlayerIds.has(p.externalPlayerId)
       : myPlayerIds.has(p.externalPlayerId);
   return [...players.values()].filter((p) => p.position === position && inPool(p));
 }
@@ -162,11 +163,11 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
     return c.json({ error: `Could not find your team in league "${leagueId}"` }, 404);
   }
 
-  const rosteredPlayerIds = new Set(rosters.flatMap((r) => r.entries.map((e) => e.externalPlayerId)));
+  const rostered = rosteredPlayerIds(rosters);
   const myPlayerIds = new Set(myRoster?.entries.map((e) => e.externalPlayerId) ?? []);
 
   const candidates = scoutFrame({
-    candidates: candidatesFor(pool, position, players, rosteredPlayerIds, myPlayerIds),
+    candidates: candidatesFor(pool, position, players, rostered, myPlayerIds),
     weeks,
     opponentsByWeek,
     ratings,

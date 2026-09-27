@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import type { League, Matchup } from '@benchpoints/core';
+// Subpath, not the package root: the root barrel pulls in the nflverse client and its
+// node:zlib import, which Vite can't bundle for the browser.
+import { matchupResult } from '@benchpoints/core/compute/results';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { matchupsQuery, type LeagueSummary } from '@bench/lib/queries';
@@ -42,13 +45,10 @@ function buildCumulative(
       if (!myTeamId) return;
       const weekMatchups = matchupsByKey.get(`${i}:${week}`);
       if (!weekMatchups) return;
-      const mine = weekMatchups.find((m) => m.externalTeamId === myTeamId);
-      if (!mine || mine.opponentExternalTeamId == null) return;
-      const opp = weekMatchups.find((m) => m.externalTeamId === mine.opponentExternalTeamId);
-      if (!opp) return;
-      if (mine.points > opp.points) wins += 1;
-      else if (mine.points < opp.points) losses += 1;
-      else ties += 1;
+      const result = matchupResult(weekMatchups, myTeamId);
+      if (result === 'win') wins += 1;
+      else if (result === 'loss') losses += 1;
+      else if (result === 'tie') ties += 1;
     });
 
     const total = wins + losses + ties;
