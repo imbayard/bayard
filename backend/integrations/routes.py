@@ -57,10 +57,15 @@ async def oauth_status():
 @router.get("/oauth/start")
 async def oauth_start():
     global _oauth_flow
-    if not google.CREDENTIALS_FILE.exists():
-        raise HTTPException(400, "credentials.json not found in backend/. See setup instructions.")
-    _oauth_flow = Flow.from_client_secrets_file(
-        str(google.CREDENTIALS_FILE),
+    config = google.client_config()
+    if config is None:
+        raise HTTPException(
+            400,
+            "Google isn't configured: no backend/credentials.json and no "
+            "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars set.",
+        )
+    _oauth_flow = Flow.from_client_config(
+        config,
         scopes=google.SCOPES,
         redirect_uri=_OAUTH_REDIRECT,
     )

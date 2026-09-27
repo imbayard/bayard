@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -27,6 +28,31 @@ SCOPES = [
 
 # Module-level cache so we don't rebuild services on every request
 _services: dict[str, object] = {}
+
+
+def client_config() -> dict | None:
+    """
+    The OAuth *app* identity (client_id/client_secret Google issues to this project) —
+    not the per-user token in TOKEN_FILE. Two sources: credentials.json beside the code
+    (how local dev has always worked) or GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET env vars,
+    since shipping a secret as a file nothing writes isn't practical on Railway — same
+    reasoning as WHOOP_CLIENT_ID/WHOOP_CLIENT_SECRET in whoop.py. Returns None if neither
+    source is configured.
+    """
+    if CREDENTIALS_FILE.exists():
+        return json.loads(CREDENTIALS_FILE.read_text())
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    if client_id and client_secret:
+        return {
+            "web": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        }
+    return None
 
 
 def is_authenticated() -> bool:
