@@ -214,3 +214,19 @@ describe('normalizeInjuryStatus', () => {
     expect(normalizeInjuryStatus(undefined)).toBeNull();
   });
 });
+
+describe('mapPlayer team codes', () => {
+  // ESPN's pro team ids aren't alphabetical past KC; these are the ones that were once mis-mapped.
+  it.each([
+    [13, 'LV'],
+    [24, 'LAC'],
+    [25, 'SF'],
+    [26, 'SEA'],
+    [27, 'TB'],
+    [28, 'WSH'],
+    [29, 'CAR'],
+    [30, 'JAX'],
+  ])('proTeamId %i is %s', (proTeamId, team) => {
+    expect(mapPlayer(-16000 - proTeamId, { id: -16000 - proTeamId, fullName: 'X D/ST', proTeamId, defaultPositionId: 16 }).nflTeam).toBe(team);
+  });
+});

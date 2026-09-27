@@ -68,5 +68,7 @@ export type { DigestKind, DigestSection, LeagueDigestEntry } from './compute/dig
 export { INACTIVE_STATUSES, REPORTABLE_INJURY_STATUSES, injuryReport } from './compute/injury.js';
 export type { InjuryEntry } from './compute/injury.js';
 export { formatRecord, matchupResult, tallyResults } from './compute/results.js';
+export { buildRootingBoard, rootingKey } from './compute/rooting.js';
+export type { RootingRow, RootingSide, RootingStake, RootingStarter } from './compute/rooting.js';
 export type { MatchupResult, WinLossRecord } from './compute/results.js';
 export * from './mocks/index.js';

@@ -7,6 +7,7 @@ import {
   fetchLeagues,
   fetchMatchups,
   fetchRosters,
+  fetchRooting,
   fetchScout,
   fetchTeams,
   fetchWeather,
@@ -82,6 +83,17 @@ export function benchIqQuery(platform: Platform, leagueId: string, mock: boolean
 export function useBenchIq(platform: Platform, leagueId: string) {
   const [mock] = useMockMode();
   return useQuery(benchIqQuery(platform, leagueId, mock));
+}
+
+/** Live points move all game long; a minute of polling keeps the board honest while it's open. */
+export function useRooting() {
+  const [mock] = useMockMode();
+  return useQuery({
+    queryKey: ['rooting', mock],
+    queryFn: () => fetchRooting(mock),
+    staleTime: 0.5 * MINUTE,
+    refetchInterval: MINUTE,
+  });
 }
 
 /** Matches the client's draftPicks TTL — a live board is only ever ~10s stale. */

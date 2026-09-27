@@ -8,6 +8,7 @@ import { digest } from './routes/digest.js';
 import { leagues } from './routes/leagues.js';
 import { matchups } from './routes/matchups.js';
 import { refresh } from './routes/refresh.js';
+import { rooting } from './routes/rooting.js';
 import { rosters } from './routes/rosters.js';
 import { scout } from './routes/scout.js';
 import { weather } from './routes/weather.js';
@@ -27,6 +28,7 @@ app.route('/', scout);
 app.route('/', refresh);
 app.route('/', digest);
 app.route('/', weather);
+app.route('/', rooting);
 
 app.onError((err, c) => {
   if (err instanceof InvalidPlatformError || err instanceof AdapterNotConfiguredError) {

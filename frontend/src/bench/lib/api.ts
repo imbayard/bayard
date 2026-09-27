@@ -9,6 +9,7 @@ import type {
   Player,
   Roster,
   RosterEntry,
+  RootingRow,
   ScoutCandidate,
   Team,
 } from '@benchpoints/core';
@@ -35,6 +36,13 @@ export interface BenchIqResponse {
   rosterCount: number;
   /** This week's starters' projections, summed; null when no starter has a projection. */
   projectedPoints: number | null;
+}
+
+export interface RootingResponse {
+  week: number | null;
+  /** One net row per player across every league, mine and my opponents' starters. */
+  rows: RootingRow[];
+  errors: PlatformError[];
 }
 
 /** Which players a scout report ranks: everyone unrostered, or just the ones you own. */
@@ -114,6 +122,10 @@ export function fetchMatchups(
   mock: boolean,
 ): Promise<Matchup[]> {
   return get(`/leagues/${platform}/${leagueId}/matchups/${week}?season=${season}`, mock);
+}
+
+export function fetchRooting(mock: boolean): Promise<RootingResponse> {
+  return get('/rooting', mock);
 }
 
 export function fetchBenchIq(

@@ -73,6 +73,7 @@ export const INJURY_STATUS_MAP: Record<string, string | null> = {
 };
 
 /** NFL team abbreviations for player pool. ESPN uses team IDs; we convert to abbrevs. */
+// Verified against the live pool: each D/ST's id is -16000 - proTeamId, and its name gives the team.
 export const NFL_TEAM_BY_ID: Record<number, string> = {
   1: 'ATL',
   2: 'BUF',
@@ -86,7 +87,7 @@ export const NFL_TEAM_BY_ID: Record<number, string> = {
   10: 'TEN',
   11: 'IND',
   12: 'KC',
-  13: 'LAC',
+  13: 'LV',
   14: 'LAR',
   15: 'MIA',
   16: 'MIN',
@@ -97,13 +98,13 @@ export const NFL_TEAM_BY_ID: Record<number, string> = {
   21: 'PHI',
   22: 'ARI',
   23: 'PIT',
-  24: 'SF',
-  25: 'SEA',
-  26: 'TB',
-  27: 'WSH',
-  28: 'CAR',
-  29: 'JAX',
-  30: 'LV',
+  24: 'LAC',
+  25: 'SF',
+  26: 'SEA',
+  27: 'TB',
+  28: 'WSH',
+  29: 'CAR',
+  30: 'JAX',
   33: 'BAL',
   34: 'HOU',
 };

@@ -165,6 +165,8 @@ export interface SleeperMatchup {
   points: number | null;
   starters?: string[] | null;
   players?: string[] | null;
+  /** Live per-player points for this roster, league-scored; keyed by player_id. */
+  players_points?: Record<string, number> | null;
 }
 
 export interface SleeperPlayer {

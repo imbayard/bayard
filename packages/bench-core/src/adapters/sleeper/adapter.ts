@@ -13,6 +13,7 @@ import {
   mapRoster,
   mapSeasonAverages,
   mapTeams,
+  mapWeekPoints,
   parseDraftStatus,
 } from './mapper.js';
 import type { SleeperNflState } from './types.js';
@@ -100,6 +101,12 @@ export class SleeperAdapter implements PlatformAdapter {
   async getProjections(season: number, week: number): Promise<Map<string, number>> {
     const raw = await this.client.getProjections(season, week);
     return mapProjections(raw);
+  }
+
+  /** Rides the matchups response — the same one `getMatchups` already cached. */
+  async getWeekPoints(_season: number, week: number, externalLeagueId: string): Promise<Map<string, number>> {
+    const raw = await this.client.getMatchups(externalLeagueId, week);
+    return mapWeekPoints(raw);
   }
 
   /** Sleeper's season totals aren't week-scoped, so `throughWeek` has nothing here to narrow. */

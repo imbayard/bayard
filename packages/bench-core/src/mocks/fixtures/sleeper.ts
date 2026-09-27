@@ -246,12 +246,22 @@ function draftPick(
 
 export const sleeperMatchupsById: Record<string, SleeperMatchup[]> = {
   'mock-sleeper-1': [
-    { roster_id: 1, matchup_id: 1, points: 118.6 },
-    { roster_id: 2, matchup_id: 1, points: 96.2 },
+    {
+      roster_id: 1,
+      matchup_id: 1,
+      points: 118.6,
+      players_points: { 'p-rr-qb': 24.3, 'p-rr-rb1': 12.1, 'p-rr-wr1': 17.8, 'p-rr-te': 6.4, 'p-rr-k': 9.0 },
+    },
+    { roster_id: 2, matchup_id: 1, points: 96.2, players_points: { 'p-rr-opp-qb': 26.7 } },
   ],
   'mock-sleeper-2': [
-    { roster_id: 1, matchup_id: 1, points: 74.1 },
-    { roster_id: 2, matchup_id: 1, points: 103.4 },
+    {
+      roster_id: 1,
+      matchup_id: 1,
+      points: 74.1,
+      players_points: { 'p-ddf-qb': 14.2, 'p-ddf-rb1': 21.5, 'p-ddf-wr1': 8.3 },
+    },
+    { roster_id: 2, matchup_id: 1, points: 103.4, players_points: { 'p-ddf-opp-qb': 19.4 } },
   ],
 };
 

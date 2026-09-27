@@ -18,6 +18,11 @@ export interface PlatformAdapter {
    * (Sleeper) ignore it.
    */
   getProjections(season: number, week: number, externalLeagueId?: string): Promise<Map<string, number>>;
+  /**
+   * Fantasy points actually scored this week so far, keyed by externalPlayerId and scored with
+   * the league's rules. Moves during games; empty before kickoff.
+   */
+  getWeekPoints(season: number, week: number, externalLeagueId: string): Promise<Map<string, number>>;
   /** Mean fantasy points per game played this season, keyed by externalPlayerId. Empty map if the platform has no source. */
   getSeasonAverages(
     season: number,

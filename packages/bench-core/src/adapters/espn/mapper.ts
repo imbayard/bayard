@@ -229,6 +229,25 @@ export function mapProjections(raw: EspnPlayerInfoResponse, week: number): Map<s
 }
 
 /**
+ * This week's actual points so far. Same response as the projections: the client's filter asks
+ * for the `01{season}{week}` pair, so the actual-week entry (statSourceId 0) is already there.
+ */
+export function mapWeekPoints(raw: EspnPlayerInfoResponse, week: number): Map<string, number> {
+  const points = new Map<string, number>();
+  for (const wrap of raw.players ?? []) {
+    const p = wrap.player;
+    if (!p) continue;
+    const entry = (p.stats ?? []).find(
+      (s) => s.statSourceId === 0 && s.scoringPeriodId === week && typeof s.appliedTotal === 'number',
+    );
+    if (entry && typeof entry.appliedTotal === 'number') {
+      points.set(String(p.id), entry.appliedTotal);
+    }
+  }
+  return points;
+}
+
+/**
  * Season points per game, keyed by ESPN player id. Costs no extra request: the projections call
  * already asks for the `00{season}` stat period, so the season-actual entry (statSourceId 0,
  * statSplitTypeId 0) is already in that response — and `appliedAverage` is already league-scored.

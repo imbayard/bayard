@@ -142,6 +142,15 @@ export function mapPlayer(externalPlayerId: string, raw: SleeperPlayer): Player 
 }
 
 /** Uses PPR points as a fixed approximation — matching each league's exact scoring settings is future work. */
+/** Every roster's per-player live points in one map — a player sits on one roster per league. */
+export function mapWeekPoints(raw: SleeperMatchup[]): Map<string, number> {
+  const points = new Map<string, number>();
+  for (const m of raw) {
+    for (const [id, pts] of Object.entries(m.players_points ?? {})) points.set(id, pts);
+  }
+  return points;
+}
+
 export function mapProjections(raw: SleeperProjectionsResponse): Map<string, number> {
   const projections = new Map<string, number>();
   for (const entry of raw) {
