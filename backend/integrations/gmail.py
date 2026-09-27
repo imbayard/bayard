@@ -11,10 +11,16 @@ def _service():
 
 
 def _own_address() -> str:
+    """
+    The authenticated account's own address, for the send-to-self default.
+
+    Read from the OAuth userinfo endpoint rather than Gmail's getProfile: getProfile needs
+    a Gmail *read* scope, which this app deliberately doesn't hold — it only ever sends.
+    """
     global _self_address
     if _self_address is None:
-        profile = _service().users().getProfile(userId="me").execute()
-        _self_address = profile["emailAddress"]
+        info = google.get_service("oauth2", "v2").userinfo().get().execute()
+        _self_address = info["email"]
     return _self_address
 
 

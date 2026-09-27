@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -5,6 +6,11 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from backend.config import DATA_DIR
+
+# Google returns `openid` alongside userinfo.email whether or not it was asked for, and
+# oauthlib treats the grant coming back wider than the request as an error. Without this
+# the consent callback dies on "Scope has changed".
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 INTEGRATIONS_DIR = Path(__file__).parent.parent
 # Token is written at runtime, so it lives in DATA_DIR (a volume on Railway).
@@ -14,6 +20,9 @@ CREDENTIALS_FILE = INTEGRATIONS_DIR / "credentials.json"
 SCOPES = [
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/gmail.send",
+    # Who "send to self" means. gmail.send alone can't read it back — Gmail's getProfile
+    # needs a read scope — so the address comes from the OAuth userinfo endpoint instead.
+    "https://www.googleapis.com/auth/userinfo.email",
 ]
 
 # Module-level cache so we don't rebuild services on every request
