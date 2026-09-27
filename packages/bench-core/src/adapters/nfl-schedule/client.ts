@@ -1,6 +1,7 @@
 import type { Cache } from '../../cache/cache.js';
 import type { NflGameState, NflWeekOpponent } from '../../types/league.js';
-import { mapGameStates, mapWeekOpponents } from './mapper.js';
+import type { NflGameVenue } from '../../types/weather.js';
+import { mapGameStates, mapWeekOpponents, mapWeekVenues } from './mapper.js';
 import type { EspnScoreboardResponse } from './types.js';
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
@@ -10,6 +11,8 @@ const TTL = {
   states: 60 * 1000, // 60s
   /** Who plays whom doesn't change once a week's slate is published. */
   opponents: 6 * 60 * 60 * 1000, // 6h
+  /** Venues never move, but ESPN's posted conditions and game state do. */
+  venues: 30 * 60 * 1000, // 30m
 } as const;
 
 export class NflScheduleApiError extends Error {
@@ -57,6 +60,17 @@ export class NflScheduleClient {
     const opponents = mapWeekOpponents(await this.fetchScoreboard(season, week));
     this.cache.set(key, opponents, TTL.opponents);
     return opponents;
+  }
+
+  /** Every game that week with its venue and ESPN's posted conditions — the weather client's input. */
+  async getWeekVenues(season: number, week: number): Promise<NflGameVenue[]> {
+    const key = `nfl-schedule:venues:${season}:${week}`;
+    const cached = this.cache.get<NflGameVenue[]>(key);
+    if (cached !== undefined) return cached;
+
+    const venues = mapWeekVenues(await this.fetchScoreboard(season, week));
+    this.cache.set(key, venues, TTL.venues);
+    return venues;
   }
 
   /** Overridden by the mock client (../../mocks/nfl-schedule-client.ts). */

@@ -9,6 +9,7 @@ import {
   fetchRosters,
   fetchScout,
   fetchTeams,
+  fetchWeather,
   type BenchIqResponse,
   type ScoutPool,
 } from './api';
@@ -123,6 +124,19 @@ export function useScout(
   return useQuery({
     queryKey: ['scout', platform, leagueId, position, from, to, pool, mock],
     queryFn: () => fetchScout(platform, leagueId, position, from, to, pool, mock),
+    staleTime: 30 * MINUTE,
+  });
+}
+
+/**
+ * Matches the server's game-week cache tier: forecasts refresh roughly hourly, so a half hour
+ * of staleness costs nothing. Not league-scoped — every league's roster shares one fetch.
+ */
+export function useWeather(season: number, week: number) {
+  const [mock] = useMockMode();
+  return useQuery({
+    queryKey: ['weather', season, week, mock],
+    queryFn: () => fetchWeather(season, week, mock),
     staleTime: 30 * MINUTE,
   });
 }

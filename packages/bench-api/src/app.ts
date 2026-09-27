@@ -10,6 +10,7 @@ import { matchups } from './routes/matchups.js';
 import { refresh } from './routes/refresh.js';
 import { rosters } from './routes/rosters.js';
 import { scout } from './routes/scout.js';
+import { weather } from './routes/weather.js';
 
 // Mounted under /api/bench so it can be served both by the Netlify Function
 // (config.path = '/api/bench/*') and the local-dev standalone server (index.ts).
@@ -25,6 +26,7 @@ app.route('/', benchIq);
 app.route('/', scout);
 app.route('/', refresh);
 app.route('/', digest);
+app.route('/', weather);
 
 app.onError((err, c) => {
   if (err instanceof InvalidPlatformError || err instanceof AdapterNotConfiguredError) {

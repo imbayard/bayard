@@ -25,6 +25,18 @@ export { EspnClient, EspnApiError } from './adapters/espn/client.js';
 export { EspnAdapter } from './adapters/espn/adapter.js';
 export type * from './adapters/espn/types.js';
 export * from './adapters/nfl-schedule/index.js';
+export * from './adapters/weather/index.js';
+export type {
+  GameConditions,
+  GameWeather,
+  NflGameVenue,
+  RoofType,
+  WeatherKind,
+  WeatherNote,
+  WeatherSeverity,
+} from './types/weather.js';
+export { WEATHER_RULES, assessConditions, weatherExposure, weatherSummary } from './compute/weather.js';
+export type { WeatherExposure } from './compute/weather.js';
 export { normalizeTeamCode } from './adapters/nflverse/team-codes.js';
 export { NflverseApiError, NflverseClient } from './adapters/nflverse/client.js';
 export { aggregateGiveaway, blendGiveaway, parseTeamWeekCsv } from './adapters/nflverse/team-stats.js';
@@ -49,6 +61,7 @@ export {
   buildProjectionsSection,
   buildRecordSection,
   buildWaiverSection,
+  buildWeatherSection,
   renderDigestEmail,
 } from './compute/digest.js';
 export type { DigestKind, DigestSection, LeagueDigestEntry } from './compute/digest.js';

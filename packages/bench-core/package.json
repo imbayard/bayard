@@ -21,6 +21,10 @@
     "./compute/flags/severity": {
       "types": "./dist/compute/flags/severity.d.ts",
       "import": "./dist/compute/flags/severity.js"
+    },
+    "./team-codes": {
+      "types": "./dist/adapters/nflverse/team-codes.d.ts",
+      "import": "./dist/adapters/nflverse/team-codes.js"
     }
   },
   "scripts": {

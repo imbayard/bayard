@@ -1,6 +1,6 @@
-import type { BenchIqFlag, League, Platform, Player, Roster, Team } from '@benchpoints/core';
+import type { BenchIqFlag, GameWeather, League, Platform, Player, Roster, Team } from '@benchpoints/core';
 import { computeBenchIqFlags } from '@benchpoints/core';
-import { adapterFor } from '../adapters.js';
+import { adapterFor, weatherFor } from '../adapters.js';
 import { sumStarterProjections } from './projections.js';
 import { rosteredPlayerIds } from './rosters.js';
 
@@ -24,6 +24,7 @@ export interface LeagueBenchIq {
   rosters: Roster[];
   players: Map<string, Player>;
   teams: Team[];
+  weather: Map<string, GameWeather>;
 }
 
 /**
@@ -38,11 +39,15 @@ export async function computeLeagueBenchIq(
   useMock: boolean,
 ): Promise<LeagueBenchIq | null> {
   const adapter = adapterFor(platform, useMock);
-  const [teams, rosters, players, projections] = await Promise.all([
+  const [teams, rosters, players, projections, weather] = await Promise.all([
     adapter.getTeams(league.externalLeagueId),
     adapter.getRosters(league.externalLeagueId),
     adapter.getPlayers(),
     adapter.getProjections(league.season, league.currentWeek, league.externalLeagueId),
+    // Weather is context, never a dependency: no forecast means no weather flags, not a 502.
+    weatherFor(useMock)
+      .getWeekWeather(league.season, league.currentWeek)
+      .catch(() => new Map<string, GameWeather>()),
   ]);
   for (const [playerId, projectedPoints] of projections) {
     const player = players.get(playerId);
@@ -63,6 +68,7 @@ export async function computeLeagueBenchIq(
     league.currentWeek,
     league.rosterSlots,
     rosteredPlayerIds(rosters),
+    weather,
   );
 
   return {
@@ -77,5 +83,6 @@ export async function computeLeagueBenchIq(
     rosters,
     players,
     teams,
+    weather,
   };
 }

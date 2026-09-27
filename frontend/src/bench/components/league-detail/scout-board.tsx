@@ -188,7 +188,8 @@ export function ScoutBoard({ league }: { league: League }) {
                         title={
                           cell.bye
                             ? 'On bye'
-                            : `vs ${cell.opponent} — ${cell.rank ?? '?'} of 32 as a matchup`
+                            : `vs ${cell.opponent} — ${cell.rank ?? '?'} of 32 as a matchup` +
+                              (cell.weather ? `\n${cell.weather.summary}` : '')
                         }
                       >
                         {cell.bye ? (
@@ -202,6 +203,18 @@ export function ScoutBoard({ league }: { league: League }) {
                             {cell.rank !== null && (
                               <span className="ml-1 text-[10px] text-muted-foreground">
                                 #{cell.rank}
+                              </span>
+                            )}
+                            {/* Context under the matchup, not part of it — the tint stays about the opponent. */}
+                            {cell.weather && (
+                              <span
+                                className={`block text-[10px] leading-tight whitespace-nowrap ${
+                                  cell.weather.severity === 'harsh'
+                                    ? 'font-semibold text-destructive'
+                                    : 'text-amber-700 dark:text-amber-400'
+                                }`}
+                              >
+                                {cell.weather.summary}
                               </span>
                             )}
                           </>
@@ -244,6 +257,11 @@ export function ScoutBoard({ league }: { league: League }) {
                         )}
                       </li>
                       <li>Rank is 1-32 across the league.</li>
+                      <li>
+                        Weather shows under a matchup this week and next, when it&apos;s worth
+                        noting. It doesn&apos;t move the score — rough weather tends to help a
+                        defense, but the rank stays about the opponent.
+                      </li>
                       <li>Frame score sums the weeks, counting a bye as zero.</li>
                       <li>
                         Ppg is this season&apos;s average, shown for form — it doesn&apos;t move the

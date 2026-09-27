@@ -44,6 +44,8 @@ function summarizeGroup(type: BenchIqFlag['type'], flags: BenchIqFlag[]): string
       return `${list} ${verb} your starters`;
     case 'WAIVER_PLAYER_HIGHER_PROJECTION':
       return `${list} on waivers ${verb} your starters`;
+    case 'WEATHER_RISK':
+      return `Harsh weather: ${list}`;
   }
 }
 

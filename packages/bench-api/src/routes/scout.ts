@@ -1,4 +1,4 @@
-import type { League, NflWeekOpponent, Player } from '@benchpoints/core';
+import type { GameWeather, League, NflWeekOpponent, Player } from '@benchpoints/core';
 import {
   blendGiveaway,
   offenseGiveawayRatings,
@@ -6,7 +6,7 @@ import {
   scoutFrame,
 } from '@benchpoints/core';
 import { Hono } from 'hono';
-import { adapterFor, nflScheduleFor, nflverseFor } from '../adapters.js';
+import { adapterFor, nflScheduleFor, nflverseFor, weatherFor } from '../adapters.js';
 import { findLeague } from '../lib/league-lookup.js';
 import { isMockRequested } from '../lib/mock.js';
 import { parsePlatform } from '../lib/platform.js';
@@ -140,6 +140,7 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
     opponentsByWeek,
     projectionsByWeek,
     seasonAverages,
+    weatherByWeek,
   ] = await Promise.all([
     adapter.getTeams(leagueId),
     adapter.getRosters(leagueId),
@@ -151,6 +152,7 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
     adapter
       .getSeasonAverages(league.season, statsThroughWeek, leagueId)
       .catch(() => new Map<string, number>()),
+    frameWeather(league, weeks, useMock),
   ]);
 
   const myTeam = teams.find(
@@ -174,6 +176,7 @@ scout.get('/leagues/:platform/:leagueId/scout', async (c) => {
     projectionsByWeek,
     seasonAverages,
     ownedPlayerIds: myPlayerIds,
+    weatherByWeek,
   });
 
   return c.json({
@@ -217,4 +220,23 @@ async function currentWeekProjections(
     league.externalLeagueId,
   );
   return new Map([[league.currentWeek, projections]]);
+}
+
+/**
+ * Weather for the frame's forecastable weeks — this one and next; anything later is past
+ * the forecast horizon anyway. Best effort: a failed read just leaves the cells bare.
+ */
+async function frameWeather(
+  league: League,
+  weeks: number[],
+  useMock: boolean,
+): Promise<Map<number, Map<string, GameWeather>>> {
+  const client = weatherFor(useMock);
+  const near = weeks.filter((w) => w === league.currentWeek || w === league.currentWeek + 1);
+  const reads = await Promise.all(
+    near.map((week) =>
+      client.getWeekWeather(league.season, week).catch(() => new Map<string, GameWeather>()),
+    ),
+  );
+  return new Map(near.map((week, i) => [week, reads[i] as Map<string, GameWeather>]));
 }

@@ -2,6 +2,7 @@ import type {
   BenchIqFlag,
   DigestKind,
   DraftBoard,
+  GameWeather,
   League,
   Matchup,
   Platform,
@@ -121,6 +122,15 @@ export function fetchBenchIq(
   mock: boolean,
 ): Promise<BenchIqResponse> {
   return get(`/leagues/${platform}/${leagueId}/bench-iq`, mock);
+}
+
+/** The week's weather, keyed by NFL team code — join on `player.nflTeam`. */
+export function fetchWeather(
+  season: number,
+  week: number,
+  mock: boolean,
+): Promise<Record<string, GameWeather>> {
+  return get(`/weather/${season}/${week}`, mock);
 }
 
 /**

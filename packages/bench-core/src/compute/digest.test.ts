@@ -38,6 +38,7 @@ function entry(overrides: Partial<LeagueDigestEntry> = {}): LeagueDigestEntry {
     opponentProjectedPoints: null,
     opponentName: null,
     lastWeekResult: null,
+    weather: [],
     ...overrides,
   };
 }
@@ -154,7 +155,7 @@ describe('buildWaiverSection', () => {
 describe('buildDigest', () => {
   it('pre-game carries projections, flags and injuries', () => {
     const titles = buildDigest('pre-game', [entry()]).map((s) => s.title);
-    expect(titles).toEqual(['Projections', 'Flags', 'Injury report']);
+    expect(titles).toEqual(['Projections', 'Flags', 'Injury report', 'Weather']);
   });
 
   it('post-game carries the record and waivers', () => {

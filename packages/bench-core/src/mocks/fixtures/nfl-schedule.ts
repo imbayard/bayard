@@ -33,6 +33,25 @@ const SLATE: [string, string, number, 'pre' | 'in' | 'post'][] = [
   ['TEN', 'NYG', 75, 'pre'],
 ];
 
+/** Stadium names for the home sides above — only what the weather notes print. */
+const VENUES: Record<string, string> = {
+  PHI: 'Lincoln Financial Field',
+  MIA: 'Hard Rock Stadium',
+  CIN: 'Paycor Stadium',
+  KC: 'GEHA Field at Arrowhead Stadium',
+  NYJ: 'MetLife Stadium',
+  PIT: 'Acrisure Stadium',
+  CHI: 'Soldier Field',
+  LAC: 'SoFi Stadium',
+  SEA: 'Lumen Field',
+  GB: 'Lambeau Field',
+  TB: 'Raymond James Stadium',
+  BAL: 'M&T Bank Stadium',
+  WSH: 'Northwest Stadium',
+  DEN: 'Empower Field at Mile High',
+  NYG: 'MetLife Stadium',
+};
+
 export function nflScoreboard(): EspnScoreboardResponse {
   const now = Date.now();
   return {
@@ -45,6 +64,8 @@ export function nflScoreboard(): EspnScoreboardResponse {
             { team: { abbreviation: home }, homeAway: 'home' },
             { team: { abbreviation: away }, homeAway: 'away' },
           ],
+          venue: { fullName: VENUES[home], indoor: home === 'LAC' },
+          neutralSite: false,
         },
       ],
     })),

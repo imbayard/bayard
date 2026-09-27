@@ -3,6 +3,7 @@ import { compareFlagTypes } from './flags/severity.js';
 import type { InjuryEntry } from './injury.js';
 import { formatRecord, tallyResults, type MatchupResult } from './results.js';
 import type { BenchIqFlag } from './types.js';
+import type { WeatherExposure } from './weather.js';
 
 export type DigestKind = 'pre-game' | 'post-game';
 
@@ -16,6 +17,8 @@ export interface LeagueDigestEntry {
   opponentName: string | null;
   /** Result of the week just played; null when it can't be judged (bye, missing rows). */
   lastWeekResult: MatchupResult | null;
+  /** Starters whose game has notable-or-worse weather for their position. */
+  weather: WeatherExposure[];
 }
 
 export interface DigestSection {
@@ -96,6 +99,37 @@ export function buildInjurySection(entries: LeagueDigestEntry[]): DigestSection 
   return { title: 'Injury report', lines: lines.length > 0 ? lines : ['No injuries reported.'] };
 }
 
+/**
+ * Starters playing in weather that touches their position, one line per game per league —
+ * harsh and notable alike, since this is the read before lineups lock. Harsh games lead.
+ */
+export function buildWeatherSection(entries: LeagueDigestEntry[]): DigestSection {
+  const lines: string[] = [];
+  for (const { league, weather } of entries) {
+    if (weather.length === 0) continue;
+    const byGame = new Map<string, WeatherExposure[]>();
+    for (const exposure of weather) {
+      const key = `${exposure.weather.away}@${exposure.weather.home}`;
+      byGame.set(key, [...(byGame.get(key) ?? []), exposure]);
+    }
+    const games = [...byGame.values()].sort(
+      (a, b) => Number(b.some((e) => e.severity === 'harsh')) - Number(a.some((e) => e.severity === 'harsh')),
+    );
+    lines.push(`${league.name}`);
+    for (const exposures of games) {
+      const game = exposures[0]!.weather;
+      const conditions = game.notes.map((n) => n.label).join(', ');
+      const who = exposures.map((e) => `${e.playerName} (${e.position})`).join(', ');
+      lines.push(`    ${game.away} @ ${game.home} — ${conditions}: ${who}`);
+    }
+  }
+
+  return {
+    title: 'Weather',
+    lines: lines.length > 0 ? lines : ['No weather worth noting for your starters.'],
+  };
+}
+
 /** How the week just played went, across the whole portfolio. */
 export function buildRecordSection(entries: LeagueDigestEntry[]): DigestSection {
   const judged = entries.filter((e) => e.lastWeekResult !== null);
@@ -143,7 +177,12 @@ const SUBJECTS: Record<DigestKind, string> = {
 
 export function buildDigest(kind: DigestKind, entries: LeagueDigestEntry[]): DigestSection[] {
   return kind === 'pre-game'
-    ? [buildProjectionsSection(entries), buildFlagsDigestSection(entries), buildInjurySection(entries)]
+    ? [
+        buildProjectionsSection(entries),
+        buildFlagsDigestSection(entries),
+        buildInjurySection(entries),
+        buildWeatherSection(entries),
+      ]
     : [buildRecordSection(entries), buildWaiverSection(entries)];
 }
 

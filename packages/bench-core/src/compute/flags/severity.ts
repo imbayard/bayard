@@ -12,6 +12,8 @@ export const FLAG_TYPE_RANK: Record<BenchIqFlag['type'], number> = {
   BYE_WEEK_STARTER: 2,
   BENCH_PLAYER_HIGHER_PROJECTION: 3,
   WAIVER_PLAYER_HIGHER_PROJECTION: 4,
+  // Last: weather is context for a decision, not a better player sitting on your bench.
+  WEATHER_RISK: 5,
 };
 
 export function compareFlagTypes(a: BenchIqFlag['type'], b: BenchIqFlag['type']): number {

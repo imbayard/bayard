@@ -5,9 +5,11 @@ import {
   mockNflScheduleClient,
   mockNflverseClient,
   mockSleeperAdapter,
+  mockWeatherClient,
   NflScheduleClient,
   NflverseClient,
   SleeperAdapter,
+  WeatherClient,
   type PlatformAdapter,
 } from '@benchpoints/core';
 import { env } from './env.js';
@@ -22,6 +24,9 @@ export const nflScheduleClient = new NflScheduleClient(cache);
 
 /** Same deal: public release files, shared across every league. */
 export const nflverseClient = new NflverseClient(cache);
+
+/** Sits on the schedule client for venues; one read per week serves every league. */
+export const weatherClient = new WeatherClient(cache, nflScheduleClient);
 
 export const espnAdapter: EspnAdapter | undefined =
   env.espnLeagueIds.length > 0 && env.espnSwid && env.espnS2
@@ -55,4 +60,8 @@ export function nflScheduleFor(useMock: boolean): NflScheduleClient {
 
 export function nflverseFor(useMock: boolean): NflverseClient {
   return useMock ? mockNflverseClient : nflverseClient;
+}
+
+export function weatherFor(useMock: boolean): WeatherClient {
+  return useMock ? mockWeatherClient : weatherClient;
 }

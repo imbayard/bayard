@@ -56,6 +56,7 @@ describe('scoutFrame', () => {
       rank: 1,
       score: 90,
       projectedPoints: null,
+      weather: null,
     });
   });
 

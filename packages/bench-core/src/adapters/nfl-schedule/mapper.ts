@@ -1,6 +1,7 @@
 import type { NflGameState, NflWeekOpponent } from '../../types/league.js';
+import type { NflGameVenue } from '../../types/weather.js';
 import { normalizeTeamCode } from '../nflverse/team-codes.js';
-import type { EspnScoreboardResponse } from './types.js';
+import type { EspnScoreboardEvent, EspnScoreboardResponse } from './types.js';
 
 const STATES = new Set(['pre', 'in', 'post']);
 
@@ -70,4 +71,45 @@ export function mapWeekOpponents(raw: EspnScoreboardResponse): Map<string, NflWe
     }
   }
   return opponents;
+}
+
+/** Whichever of ESPN's two weather strings is the sentence rather than a condition code. */
+function conditionText(weather: NonNullable<EspnScoreboardEvent['weather']>): string | null {
+  for (const candidate of [weather.displayValue, weather.conditionId]) {
+    if (candidate && !/^\d+$/.test(candidate.trim())) return candidate.trim();
+  }
+  return null;
+}
+
+/**
+ * One entry per game, with where it's played and ESPN's brief conditions. Unlike the maps
+ * above this is per game, not per team — a stadium hosts a game, not a side. A game without
+ * a clear home team is skipped: without one there's no stadium to look up.
+ */
+export function mapWeekVenues(raw: EspnScoreboardResponse): NflGameVenue[] {
+  const games: NflGameVenue[] = [];
+  for (const event of raw.events ?? []) {
+    if (!STATES.has(event.status.type.state)) continue;
+    const parsed = new Date(event.date);
+    if (Number.isNaN(parsed.getTime())) continue;
+
+    for (const competition of event.competitions) {
+      const home = competition.competitors.find((c) => c.homeAway === 'home');
+      const away = competition.competitors.find((c) => c.homeAway === 'away');
+      if (!home || !away) continue;
+      games.push({
+        home: normalizeTeamCode(home.team.abbreviation),
+        away: normalizeTeamCode(away.team.abbreviation),
+        kickoff: parsed.toISOString(),
+        state: event.status.type.state as NflGameVenue['state'],
+        neutralSite: competition.neutralSite ?? false,
+        venueName: competition.venue?.fullName ?? null,
+        indoor: competition.venue?.indoor ?? null,
+        espnWeather: event.weather
+          ? { tempF: event.weather.temperature ?? null, condition: conditionText(event.weather) }
+          : null,
+      });
+    }
+  }
+  return games;
 }

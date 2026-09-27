@@ -1,5 +1,11 @@
 import type { DigestKind, League, LeagueDigestEntry, Platform } from '@benchpoints/core';
-import { buildDigest, injuryReport, matchupResult, renderDigestEmail } from '@benchpoints/core';
+import {
+  buildDigest,
+  injuryReport,
+  matchupResult,
+  renderDigestEmail,
+  weatherExposure,
+} from '@benchpoints/core';
 import { adapterFor } from '../adapters.js';
 import { getEspnLeagues, getSleeperLeagues } from '../routes/leagues.js';
 import { computeLeagueBenchIq } from './bench-iq.js';
@@ -64,7 +70,7 @@ async function buildEntry(
   const benchIq = await computeLeagueBenchIq(platform, league, ownerExternalUserId, useMock);
   if (!benchIq) return null;
 
-  const { summary, roster, rosters, players, teams } = benchIq;
+  const { summary, roster, rosters, players, teams, weather } = benchIq;
   const adapter = adapterFor(platform, useMock);
 
   const entry: LeagueDigestEntry = {
@@ -75,6 +81,7 @@ async function buildEntry(
     opponentProjectedPoints: null,
     opponentName: null,
     lastWeekResult: null,
+    weather: kind === 'pre-game' ? weatherExposure(roster, players, weather) : [],
   };
 
   if (kind === 'pre-game') {

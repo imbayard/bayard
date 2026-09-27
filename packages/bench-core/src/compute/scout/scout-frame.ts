@@ -1,7 +1,9 @@
 import type { NflWeekOpponent, Player } from '../../types/league.js';
 import type { OffenseGiveawayRating } from '../../types/nflverse.js';
+import type { GameWeather, WeatherSeverity } from '../../types/weather.js';
 import { normalizeTeamCode } from '../../adapters/nflverse/team-codes.js';
 import { round1 } from '../normalize.js';
+import { weatherSummary } from '../weather.js';
 
 /** One week of a candidate's frame. A bye carries no opponent and scores nothing. */
 export interface ScoutWeekCell {
@@ -17,6 +19,11 @@ export interface ScoutWeekCell {
   score: number | null;
   /** Platform projection, where one exists for that week. Never derived. */
   projectedPoints: number | null;
+  /**
+   * That game's weather, where it's close enough to forecast and worth saying. Context only —
+   * it never moves `score`, since the rank is about the opponent, not the sky.
+   */
+  weather: { severity: Exclude<WeatherSeverity, 'none'>; summary: string } | null;
 }
 
 export interface ScoutCandidate {
@@ -50,6 +57,13 @@ export interface ScoutFrameInput {
   seasonAverages?: Map<string, number>;
   /** The requesting owner's own players, so their starter can be told apart from the wire. */
   ownedPlayerIds?: Set<string>;
+  /** week -> team -> that game's weather. Sparse: only weeks near enough to forecast. */
+  weatherByWeek?: Map<number, Map<string, GameWeather>>;
+}
+
+function weatherCell(game: GameWeather | undefined): ScoutWeekCell['weather'] {
+  const summary = weatherSummary(game);
+  return game && summary && game.severity !== 'none' ? { severity: game.severity, summary } : null;
 }
 
 /**
@@ -64,8 +78,16 @@ export interface ScoutFrameInput {
  * alongside so a one-week pickup can be judged on its own terms.
  */
 export function scoutFrame(input: ScoutFrameInput): ScoutCandidate[] {
-  const { candidates, weeks, opponentsByWeek, ratings, projectionsByWeek, seasonAverages, ownedPlayerIds } =
-    input;
+  const {
+    candidates,
+    weeks,
+    opponentsByWeek,
+    ratings,
+    projectionsByWeek,
+    seasonAverages,
+    ownedPlayerIds,
+    weatherByWeek,
+  } = input;
   const ratingByTeam = new Map(ratings.map((r) => [r.team, r]));
 
   const rows: ScoutCandidate[] = [];
@@ -83,7 +105,16 @@ export function scoutFrame(input: ScoutFrameInput): ScoutCandidate[] {
       const matchup = opponentsByWeek.get(week)?.get(team);
       if (!matchup) {
         byeCount++;
-        return { week, opponent: null, home: null, bye: true, rank: null, score: null, projectedPoints };
+        return {
+          week,
+          opponent: null,
+          home: null,
+          bye: true,
+          rank: null,
+          score: null,
+          projectedPoints,
+          weather: null,
+        };
       }
 
       // An opponent with no rating (an unrecognized code) is scoreless but still a game played.
@@ -101,6 +132,7 @@ export function scoutFrame(input: ScoutFrameInput): ScoutCandidate[] {
         rank: rating?.rank ?? null,
         score: rating?.score ?? null,
         projectedPoints,
+        weather: weatherCell(weatherByWeek?.get(week)?.get(team)),
       };
     });
 

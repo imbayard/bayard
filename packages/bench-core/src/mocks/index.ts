@@ -5,6 +5,7 @@ import { MockSleeperClient } from './sleeper-client.js';
 import { MockEspnClient } from './espn-client.js';
 import { MockNflScheduleClient } from './nfl-schedule-client.js';
 import { MockNflverseClient } from './nflverse-client.js';
+import { MockWeatherClient } from './weather-client.js';
 import { MOCK_ESPN_LEAGUE_ID, MOCK_ESPN_SEASON } from './fixtures/espn.js';
 
 export { MOCK_SLEEPER_OWNER_ID } from './fixtures/sleeper.js';
@@ -13,6 +14,7 @@ export { MockSleeperClient } from './sleeper-client.js';
 export { MockEspnClient } from './espn-client.js';
 export { MockNflScheduleClient } from './nfl-schedule-client.js';
 export { MockNflverseClient } from './nflverse-client.js';
+export { MockWeatherClient } from './weather-client.js';
 
 /**
  * Mock adapters are the *real* `SleeperAdapter`/`EspnAdapter` wired up with a mock HTTP client
@@ -36,3 +38,6 @@ export const mockNflScheduleClient = new MockNflScheduleClient();
 
 /** Mock counterpart to the real `NflverseClient` — a graded 32-team, 4-week slate. */
 export const mockNflverseClient = new MockNflverseClient();
+
+/** Mock counterpart to the real `WeatherClient` — the mock slate, with a fixture forecast over it. */
+export const mockWeatherClient = new MockWeatherClient(mockNflScheduleClient);

@@ -1,10 +1,15 @@
 
-import type { League } from '@benchpoints/core';
+import type { GameWeather, League } from '@benchpoints/core';
+import { normalizeTeamCode } from '@benchpoints/core/team-codes';
 import { Badge } from '@bench/components/ui/badge';
 import { PositionTag } from '@bench/components/system/position-tag';
+import { WeatherNote } from '@bench/components/system/weather-note';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import type { EnrichedRosterEntry } from '@bench/lib/api';
-import { useBenchIq, useRosters } from '@bench/lib/queries';
+import { useBenchIq, useRosters, useWeather } from '@bench/lib/queries';
+
+/** Team code -> that week's game weather. Empty while loading or if it failed — rows just go without. */
+type WeatherByTeam = Record<string, GameWeather>;
 
 const INJURY_TONE: Record<string, string> = {
   Questionable: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
@@ -13,7 +18,15 @@ const INJURY_TONE: Record<string, string> = {
   IR: 'bg-destructive/10 text-destructive',
 };
 
-function PlayerRow({ entry, currentWeek }: { entry: EnrichedRosterEntry; currentWeek: number }) {
+function PlayerRow({
+  entry,
+  currentWeek,
+  weather,
+}: {
+  entry: EnrichedRosterEntry;
+  currentWeek: number;
+  weather: WeatherByTeam;
+}) {
   const { player } = entry;
   if (!player) {
     return (
@@ -38,6 +51,7 @@ function PlayerRow({ entry, currentWeek }: { entry: EnrichedRosterEntry; current
           {player.injuryStatus}
         </Badge>
       )}
+      {player.nflTeam && <WeatherNote weather={weather[normalizeTeamCode(player.nflTeam)]} />}
       <span
         className={
           player.nflTeam
@@ -61,10 +75,12 @@ function Group({
   title,
   entries,
   currentWeek,
+  weather,
 }: {
   title: string;
   entries: EnrichedRosterEntry[];
   currentWeek: number;
+  weather: WeatherByTeam;
 }) {
   if (entries.length === 0) return null;
   return (
@@ -74,7 +90,12 @@ function Group({
       </h3>
       <ul className="divide-y divide-foreground/5">
         {entries.map((entry, i) => (
-          <PlayerRow key={`${entry.externalPlayerId}:${i}`} entry={entry} currentWeek={currentWeek} />
+          <PlayerRow
+            key={`${entry.externalPlayerId}:${i}`}
+            entry={entry}
+            currentWeek={currentWeek}
+            weather={weather}
+          />
         ))}
       </ul>
     </div>
@@ -84,6 +105,8 @@ function Group({
 export function RosterView({ league }: { league: League }) {
   const benchIq = useBenchIq(league.platform, league.externalLeagueId);
   const rosters = useRosters(league.platform, league.externalLeagueId, league.season, league.currentWeek);
+  // Deliberately not in the loading gate below: the roster shouldn't wait on the sky.
+  const weather = useWeather(league.season, league.currentWeek).data ?? {};
 
   if (benchIq.isPending || rosters.isPending) {
     return <Skeleton className="h-64 rounded-xl" />;
@@ -111,9 +134,9 @@ export function RosterView({ league }: { league: League }) {
 
   return (
     <section aria-label="Roster" className="rounded-xl bg-card pb-2 ring-1 ring-foreground/10">
-      <Group title="Starters" entries={starters} currentWeek={league.currentWeek} />
-      <Group title="Bench" entries={bench} currentWeek={league.currentWeek} />
-      <Group title="IR / Taxi" entries={reserve} currentWeek={league.currentWeek} />
+      <Group title="Starters" weather={weather} entries={starters} currentWeek={league.currentWeek} />
+      <Group title="Bench" weather={weather} entries={bench} currentWeek={league.currentWeek} />
+      <Group title="IR / Taxi" weather={weather} entries={reserve} currentWeek={league.currentWeek} />
     </section>
   );
 }
