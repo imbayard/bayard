@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Player, Roster } from '../../types/league.js';
+import type { NflGameState, Player, Roster } from '../../types/league.js';
 import { benchHigherProjectionFlags } from './bench-higher-projection.js';
 import { byeWeekStarterFlags } from './bye-week-starter.js';
 import { incompleteLineupFlags } from './incomplete-lineup.js';
@@ -461,5 +461,34 @@ describe('computeBenchIqFlags', () => {
     const types = computeBenchIqFlags(roster, players, 3, ['RB', 'BN']).map((f) => f.type);
 
     expect(types).toEqual(['BYE_WEEK_STARTER', 'BENCH_PLAYER_HIGHER_PROJECTION']);
+  });
+
+  it('drops flags about players whose game has kicked off', () => {
+    const players = playersMap([
+      player({ externalPlayerId: 'rb1', fullName: 'Out RB', nflTeam: 'MIA', injuryStatus: 'Out', projectedPoints: 0 }),
+      player({ externalPlayerId: 'wr1', fullName: 'Weak WR', position: 'WR', nflTeam: 'BUF', projectedPoints: 5 }),
+      player({ externalPlayerId: 'bn-wr', fullName: 'Locked WR', position: 'WR', nflTeam: 'MIA', projectedPoints: 15 }),
+    ]);
+    const roster: Roster = {
+      externalTeamId: '1',
+      entries: [
+        { externalPlayerId: 'rb1', slot: 'starter', positionSlot: 'RB' },
+        { externalPlayerId: 'wr1', slot: 'starter', positionSlot: 'WR' },
+        { externalPlayerId: 'bn-wr', slot: 'bench' },
+      ],
+    };
+    const game = (team: string, state: NflGameState['state']): [string, NflGameState] => [
+      team,
+      { team, kickoff: '2025-09-07T17:00:00.000Z', state },
+    ];
+    const rostered = new Set(['rb1', 'wr1', 'bn-wr']);
+
+    const flagsWhen = (miami: NflGameState['state']) =>
+      computeBenchIqFlags(roster, players, 1, ['RB', 'WR', 'BN'], rostered, new Map(), new Map([game('MIA', miami), game('BUF', 'pre')]));
+    const before = flagsWhen('pre');
+    const after = flagsWhen('in');
+
+    expect(before.map((f) => f.type)).toEqual(['STARTING_INACTIVE', 'BENCH_PLAYER_HIGHER_PROJECTION']);
+    expect(after).toEqual([]);
   });
 });

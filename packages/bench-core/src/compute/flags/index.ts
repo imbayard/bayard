@@ -1,4 +1,5 @@
-import type { Player, Roster } from '../../types/league.js';
+import { normalizeTeamCode } from '../../adapters/nflverse/team-codes.js';
+import type { NflGameState, Player, Roster } from '../../types/league.js';
 import type { GameWeather } from '../../types/weather.js';
 import type { BenchIqFlag } from '../types.js';
 import { benchHigherProjectionFlags } from './bench-higher-projection.js';
@@ -40,22 +41,34 @@ export function computeBenchIqFlags(
   rosteredPlayerIds: Set<string> = new Set(),
   /** This week's weather keyed by team; empty when it couldn't be fetched — no flag, no failure. */
   weather: Map<string, GameWeather> = new Map(),
+  /** This week's NFL game states keyed by team; empty when unknown — every player treated as unlocked. */
+  gameStates: Map<string, NflGameState> = new Map(),
 ): BenchIqFlag[] {
   // An empty roster means the team hasn't drafted yet (or the league hasn't started) —
   // nothing to flag until there are actually players on it.
   if (roster.entries.length === 0) return [];
 
+  // Once a player's game kicks off they're locked — can't be benched, started, or claimed — so
+  // any flag about them is noise. Drop locked players up front: every flag skips a player it
+  // can't find, which covers a locked starter and a locked replacement alike.
+  const open = new Map(
+    Array.from(players).filter(([, p]) => {
+      const game = p.nflTeam ? gameStates.get(normalizeTeamCode(p.nflTeam)) : undefined;
+      return !game || game.state === 'pre';
+    }),
+  );
+
   // Bench flags first so they win the per-slot tiebreak in collapseUpgradesPerSlot.
   const upgrades = [
-    ...benchHigherProjectionFlags(roster, players),
-    ...waiverHigherProjectionFlags(roster, players, rosteredPlayerIds),
+    ...benchHigherProjectionFlags(roster, open),
+    ...waiverHigherProjectionFlags(roster, open, rosteredPlayerIds),
   ];
 
   return [
-    ...byeWeekStarterFlags(roster, players, currentWeek),
-    ...startingInactiveFlags(roster, players),
+    ...byeWeekStarterFlags(roster, open, currentWeek),
+    ...startingInactiveFlags(roster, open),
     ...incompleteLineupFlags(roster, rosterSlots),
     ...collapseUpgradesPerSlot(upgrades),
-    ...weatherRiskFlags(roster, players, weather),
+    ...weatherRiskFlags(roster, open, weather),
   ];
 }

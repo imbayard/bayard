@@ -1,6 +1,6 @@
-import type { BenchIqFlag, GameWeather, League, Platform, Player, Roster, Team } from '@benchpoints/core';
+import type { BenchIqFlag, GameWeather, League, NflGameState, Platform, Player, Roster, Team } from '@benchpoints/core';
 import { computeBenchIqFlags } from '@benchpoints/core';
-import { adapterFor, weatherFor } from '../adapters.js';
+import { adapterFor, nflScheduleFor, weatherFor } from '../adapters.js';
 import { sumStarterProjections } from './projections.js';
 import { rosteredPlayerIds } from './rosters.js';
 
@@ -39,7 +39,7 @@ export async function computeLeagueBenchIq(
   useMock: boolean,
 ): Promise<LeagueBenchIq | null> {
   const adapter = adapterFor(platform, useMock);
-  const [teams, rosters, players, projections, weather] = await Promise.all([
+  const [teams, rosters, players, projections, weather, gameStates] = await Promise.all([
     adapter.getTeams(league.externalLeagueId),
     adapter.getRosters(league.externalLeagueId),
     adapter.getPlayers(),
@@ -48,6 +48,10 @@ export async function computeLeagueBenchIq(
     weatherFor(useMock)
       .getWeekWeather(league.season, league.currentWeek)
       .catch(() => new Map<string, GameWeather>()),
+    // Same for kickoff state: without it no player counts as locked, so flags just stay on.
+    nflScheduleFor(useMock)
+      .getWeekGameStates(league.season, league.currentWeek)
+      .catch(() => new Map<string, NflGameState>()),
   ]);
   for (const [playerId, projectedPoints] of projections) {
     const player = players.get(playerId);
@@ -69,6 +73,7 @@ export async function computeLeagueBenchIq(
     league.rosterSlots,
     rosteredPlayerIds(rosters),
     weather,
+    gameStates,
   );
 
   return {
