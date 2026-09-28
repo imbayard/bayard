@@ -7,3 +7,4 @@ httpx
 aiosqlite
 google-api-python-client
 google-auth-oauthlib
+polars

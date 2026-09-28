@@ -1,6 +1,8 @@
 import {
+  AnalyticsClient,
   EspnAdapter,
   LruCache,
+  mockAnalyticsClient,
   mockEspnAdapter,
   mockNflScheduleClient,
   mockNflverseClient,
@@ -27,6 +29,9 @@ export const nflverseClient = new NflverseClient(cache);
 
 /** Sits on the schedule client for venues; one read per week serves every league. */
 export const weatherClient = new WeatherClient(cache, nflScheduleClient);
+
+/** The analytics pipeline lives in the Coach backend, beside the integrations. */
+export const analyticsClient = new AnalyticsClient(cache, env.integrationsBaseUrl, env.analyticsToken);
 
 export const espnAdapter: EspnAdapter | undefined =
   env.espnLeagueIds.length > 0 && env.espnSwid && env.espnS2
@@ -64,4 +69,8 @@ export function nflverseFor(useMock: boolean): NflverseClient {
 
 export function weatherFor(useMock: boolean): WeatherClient {
   return useMock ? mockWeatherClient : weatherClient;
+}
+
+export function analyticsFor(useMock: boolean): AnalyticsClient {
+  return useMock ? mockAnalyticsClient : analyticsClient;
 }

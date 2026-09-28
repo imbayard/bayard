@@ -6,6 +6,7 @@ import { MockEspnClient } from './espn-client.js';
 import { MockNflScheduleClient } from './nfl-schedule-client.js';
 import { MockNflverseClient } from './nflverse-client.js';
 import { MockWeatherClient } from './weather-client.js';
+import { MockAnalyticsClient } from './analytics-client.js';
 import { MOCK_ESPN_LEAGUE_ID, MOCK_ESPN_SEASON } from './fixtures/espn.js';
 
 export { MOCK_SLEEPER_OWNER_ID } from './fixtures/sleeper.js';
@@ -15,6 +16,7 @@ export { MockEspnClient } from './espn-client.js';
 export { MockNflScheduleClient } from './nfl-schedule-client.js';
 export { MockNflverseClient } from './nflverse-client.js';
 export { MockWeatherClient } from './weather-client.js';
+export { MockAnalyticsClient } from './analytics-client.js';
 
 /**
  * Mock adapters are the *real* `SleeperAdapter`/`EspnAdapter` wired up with a mock HTTP client
@@ -41,3 +43,6 @@ export const mockNflverseClient = new MockNflverseClient();
 
 /** Mock counterpart to the real `WeatherClient` — the mock slate, with a fixture forecast over it. */
 export const mockWeatherClient = new MockWeatherClient(mockNflScheduleClient);
+
+/** Mock counterpart to the real `AnalyticsClient` — usage cards for the Redraft Rebels roster. */
+export const mockAnalyticsClient = new MockAnalyticsClient();

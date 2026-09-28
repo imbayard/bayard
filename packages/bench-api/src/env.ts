@@ -18,4 +18,6 @@ export const env = {
   espnSeason: Number(process.env['ESPN_SEASON'] ?? new Date().getFullYear()),
   debug: process.env['DEBUG'] === '1',
   integrationsBaseUrl: process.env['INTEGRATIONS_BASE_URL'] ?? 'http://localhost:8000',
+  /** Shared secret for the Coach backend's /analytics routes; unset locally, where they're open. */
+  analyticsToken: optional('ANALYTICS_TOKEN'),
 };

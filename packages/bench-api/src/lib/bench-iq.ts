@@ -1,6 +1,16 @@
-import type { BenchIqFlag, GameWeather, League, NflGameState, Platform, Player, Roster, Team } from '@benchpoints/core';
+import type {
+  BenchIqFlag,
+  GameWeather,
+  League,
+  NflGameState,
+  Platform,
+  Player,
+  PlayerCard,
+  Roster,
+  Team,
+} from '@benchpoints/core';
 import { computeBenchIqFlags } from '@benchpoints/core';
-import { adapterFor, nflScheduleFor, weatherFor } from '../adapters.js';
+import { adapterFor, analyticsFor, nflScheduleFor, weatherFor } from '../adapters.js';
 import { sumStarterProjections } from './projections.js';
 import { rosteredPlayerIds } from './rosters.js';
 
@@ -66,6 +76,16 @@ export async function computeLeagueBenchIq(
     : undefined;
   if (!roster) return null;
 
+  // Analytics is context too: if the pipeline is down, usage flags go quiet, nothing else does.
+  const cards = await analyticsFor(useMock)
+    .getPlayerCards(
+      platform,
+      roster.entries.map((e) => e.externalPlayerId),
+      league.season,
+    )
+    .then((c) => c.players)
+    .catch(() => new Map<string, PlayerCard>());
+
   const flags = computeBenchIqFlags(
     roster,
     players,
@@ -74,6 +94,7 @@ export async function computeLeagueBenchIq(
     rosteredPlayerIds(rosters),
     weather,
     gameStates,
+    cards,
   );
 
   return {

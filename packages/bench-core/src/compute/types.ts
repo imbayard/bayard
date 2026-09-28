@@ -7,7 +7,8 @@ export interface BenchIqFlag {
     | 'STARTING_INACTIVE'
     | 'BENCH_PLAYER_HIGHER_PROJECTION'
     | 'WAIVER_PLAYER_HIGHER_PROJECTION'
-    | 'WEATHER_RISK';
+    | 'WEATHER_RISK'
+    | 'USAGE_TREND';
   level: 'critical' | 'warning';
   playerId: string | null;
   playerName: string | null;
@@ -16,7 +17,7 @@ export interface BenchIqFlag {
   /**
    * Projection edge in fantasy points (candidate - starter) for the projection-based
    * flags, so consumers can rank and threshold instead of treating every flag alike.
-   * Null on flags that aren't a comparison (bye week, inactive, unfilled slot, weather).
+   * Null on flags that aren't a comparison (bye week, inactive, unfilled slot, weather, usage).
    */
   delta: number | null;
   /** The starter the candidate is measured against; null on non-comparison flags. */

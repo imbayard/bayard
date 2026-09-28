@@ -26,6 +26,8 @@ export { EspnAdapter } from './adapters/espn/adapter.js';
 export type * from './adapters/espn/types.js';
 export * from './adapters/nfl-schedule/index.js';
 export * from './adapters/weather/index.js';
+export * from './adapters/analytics/index.js';
+export type { MetricWindow, MetricWindows, PlayerCard, PlayerCards } from './types/analytics.js';
 export type {
   GameConditions,
   GameWeather,
