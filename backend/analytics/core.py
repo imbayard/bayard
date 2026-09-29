@@ -49,7 +49,8 @@ def load_players(db: sqlite3.Connection, seasons: list[int]) -> int:
     rosters = pl.concat(
         [read_raw("rosters_weekly", s).select("gsis_id", "sleeper_id", "espn_id", "pfr_id", "week", "season")
          .with_columns(pl.col("sleeper_id", "espn_id", "pfr_id").cast(pl.Utf8))
-         for s in seasons]
+         for s in seasons],
+        how="vertical_relaxed",  # older seasons store some columns at other int widths
     ).filter(pl.col("gsis_id").is_not_null()).sort("season", "week").unique("gsis_id", keep="last")
 
     df = (

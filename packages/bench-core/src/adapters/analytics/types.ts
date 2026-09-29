@@ -10,7 +10,7 @@ export interface AnalyticsBatchResponse {
       name: string;
       position: string | null;
       pos_group: string | null;
-      metrics: Record<string, Record<string, { value: number; n: number; pct: number | null }>>;
+      metrics: Record<string, Record<string, { value: number; shrunk: number | null; n: number; pct: number | null }>>;
     }
   >;
 }

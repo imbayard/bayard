@@ -1,9 +1,16 @@
 /** A metric's value over one window of games. */
 export interface MetricWindow {
+  /** The raw number over the window's games. Trend flags compare these. */
   value: number;
+  /**
+   * The value shrunk toward what the player's history predicts, in proportion to how few
+   * games are in the window (calibrated per metric). What a card should show. Null until the
+   * metric is calibrated.
+   */
+  shrunk: number | null;
   /** Games in the window. */
   n: number;
-  /** Percentile within the position group; null below the window's sample floor. */
+  /** Percentile of the shrunk value within the position group; null below the window's sample floor. */
   pct: number | null;
 }
 

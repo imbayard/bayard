@@ -12,7 +12,7 @@ function card(metrics: Record<string, MetricWindows>): PlayerCard {
   return { name: 'x', position: 'WR', posGroup: 'WR', metrics };
 }
 
-const w = (value: number, n: number) => ({ value, n, pct: null });
+const w = (value: number, n: number) => ({ value, shrunk: null, n, pct: null });
 
 const roster: Roster = {
   externalTeamId: '1',

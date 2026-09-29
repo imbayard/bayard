@@ -69,8 +69,8 @@ def init() -> None:
 async def run(kind: str = "update", season: int | None = None):
     """Start a run in the background. The run table is the lock, so a second trigger while
     one is going exits without doing anything; poll /analytics/health for the outcome."""
-    if kind not in ("ingest", "build", "update"):
-        raise HTTPException(400, "kind must be ingest, build or update")
+    if kind not in ("ingest", "build", "update", "calibrate", "backfill"):
+        raise HTTPException(400, "kind must be ingest, build, update, calibrate or backfill")
     task = asyncio.create_task(_spawn(kind, season))
     _running.add(task)
     task.add_done_callback(_running.discard)
@@ -129,7 +129,7 @@ async def players_batch(ids: str, source: str = "sleeper", season: int | None = 
         for p in players:
             by_pid.setdefault(p["pid"], p)
         rows = await db.execute_fetchall(
-            f"""SELECT v.subject, m.key, v.win, v.value, v.n, v.pct
+            f"""SELECT v.subject, m.key, v.win, v.value, v.value_shrunk, v.n, v.pct
                 FROM metric_value v JOIN metric m ON m.mid = v.mid
                 WHERE v.season = ? AND v.week = ? AND v.subject IN ({','.join('?' * len(by_pid))})""",
             [season, week, *by_pid]) if by_pid else []
@@ -142,5 +142,5 @@ async def players_batch(ids: str, source: str = "sleeper", season: int | None = 
     ext = {pid: p["ext"] for pid, p in by_pid.items()}
     for r in rows:
         windows = cards[ext[r["subject"]]]["metrics"].setdefault(r["key"], {})
-        windows[WINDOWS[r["win"]]] = {"value": r["value"], "n": r["n"], "pct": r["pct"]}
+        windows[WINDOWS[r["win"]]] = {"value": r["value"], "shrunk": r["value_shrunk"], "n": r["n"], "pct": r["pct"]}
     return {"season": season, "week": week, "as_of": as_of, "players": cards}

@@ -6,6 +6,8 @@ import type { BenchIqFlag } from '../types.js';
  * Usage is the one thing that repeats week to week (target and carry share hold at r ≈ 0.6
  * year over year; efficiency doesn't), so a real move in it is worth a look. Thresholds are
  * in share points: a WR going from 22% to 15% of targets is a role change, not noise.
+ * Raw values, not shrunk: shrinking the recent window toward last season would mute the very
+ * role changes this flag exists to catch. The games floors below do the noise control.
  */
 const TRENDS = [
   { key: 'target_share', label: 'target share', threshold: 0.07 },
