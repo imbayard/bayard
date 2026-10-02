@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import type { BenchIqTrend, League } from '@benchpoints/core';
+import { trendsByPlayer } from '@benchpoints/core/compute/trends/usage-trend';
 import { Link } from '@bench/lib/nav';
 import { useLeagueSummaries } from '@bench/lib/queries';
 import { cn } from '@bench/lib/utils';
@@ -8,16 +9,6 @@ import { cn } from '@bench/lib/utils';
 interface TrendEntry {
   leagues: League[];
   trend: BenchIqTrend;
-}
-
-function byPlayer(pairs: { league: League; trend: BenchIqTrend }[]): TrendEntry[] {
-  const entries = new Map<string, TrendEntry>();
-  for (const { league, trend } of pairs) {
-    const entry = entries.get(trend.playerId);
-    if (entry) entry.leagues.push(league);
-    else entries.set(trend.playerId, { leagues: [league], trend });
-  }
-  return [...entries.values()].sort((a, b) => b.trend.strength - a.trend.strength);
 }
 
 function leagueLabel(leagues: League[]): string {
@@ -58,7 +49,7 @@ export function TrendTicker({ leagues }: { leagues: League[] }) {
   const summaries = useLeagueSummaries(leagues);
   const [open, setOpen] = useState(false);
 
-  const entries = byPlayer(
+  const entries = trendsByPlayer(
     summaries.flatMap((s) => (s.benchIq?.trends ?? []).map((trend) => ({ league: s.league, trend }))),
   );
   // Heads-ups only: no skeleton while loading, no empty state when nothing moved.
@@ -96,7 +87,7 @@ export function TrendTicker({ leagues }: { leagues: League[] }) {
                 className="ticker-track flex min-w-full shrink-0 items-center justify-around gap-8 pr-8"
               >
                 {major.map((e) => (
-                  <TapeItem key={e.trend.playerId} {...e} showLeague={showLeague} />
+                  <TapeItem key={e.trend.pid} {...e} showLeague={showLeague} />
                 ))}
               </span>
             ))
@@ -131,7 +122,7 @@ export function TrendTicker({ leagues }: { leagues: League[] }) {
             const rowClass = 'glass flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-4 py-2 text-sm';
             // A player in one league links there; across several there's no single place to go.
             return (
-              <li key={trend.playerId}>
+              <li key={trend.pid}>
                 {where.length === 1 ? (
                   <Link
                     href={`/leagues/${where[0]!.platform}/${where[0]!.externalLeagueId}`}

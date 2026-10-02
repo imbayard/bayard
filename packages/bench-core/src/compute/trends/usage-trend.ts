@@ -78,6 +78,7 @@ export function usageTrends(
     const where = entry.slot === 'bench' ? ' (bench)' : '';
     trends.push({
       playerId: player.externalPlayerId,
+      pid: card.pid,
       playerName: player.fullName,
       slot: entry.slot,
       metric: best.label,
@@ -93,4 +94,21 @@ export function usageTrends(
     });
   }
   return trends.sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * One entry per player across leagues, strongest first: a player rostered in three leagues is
+ * one move, not three. Keyed on the analytics `pid`, not `playerId` — Sleeper and ESPN give
+ * the same player different IDs.
+ */
+export function trendsByPlayer<L>(
+  pairs: { league: L; trend: BenchIqTrend }[],
+): { leagues: L[]; trend: BenchIqTrend }[] {
+  const entries = new Map<number, { leagues: L[]; trend: BenchIqTrend }>();
+  for (const { league, trend } of pairs) {
+    const entry = entries.get(trend.pid);
+    if (entry) entry.leagues.push(league);
+    else entries.set(trend.pid, { leagues: [league], trend });
+  }
+  return [...entries.values()].sort((a, b) => b.trend.strength - a.trend.strength);
 }

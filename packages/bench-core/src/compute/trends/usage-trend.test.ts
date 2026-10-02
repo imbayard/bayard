@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { mockAnalyticsClient } from '../../mocks/index.js';
 import type { MetricWindows, PlayerCard } from '../../types/analytics.js';
 import type { Player, Roster } from '../../types/league.js';
-import { usageTrends } from './usage-trend.js';
+import { trendsByPlayer, usageTrends } from './usage-trend.js';
 
 function player(id: string, position = 'WR'): Player {
   return { externalPlayerId: id, fullName: id, position, nflTeam: null, injuryStatus: null, byeWeek: null, projectedPoints: null };
 }
 
 function card(metrics: Record<string, MetricWindows>): PlayerCard {
-  return { name: 'x', position: 'WR', posGroup: 'WR', metrics };
+  return { pid: 1, name: 'x', position: 'WR', posGroup: 'WR', metrics };
 }
 
 const w = (value: number, n: number) => ({ value, shrunk: null, n, pct: null });
@@ -91,6 +91,35 @@ describe('usageTrends', () => {
     expect(usageTrends(mockRoster, mockPlayers, cards).map((t) => [t.playerId, t.major])).toEqual([
       ['p-ddf-bn1', true],
       ['p-ddf-wr2', false],
+    ]);
+  });
+});
+
+describe('trendsByPlayer', () => {
+  const trend = (playerId: string, pid: number, strength: number) => ({
+    playerId,
+    pid,
+    playerName: `pid ${pid}`,
+    slot: 'starter' as const,
+    metric: 'snap share',
+    recent: 0.8,
+    baseline: 0.4,
+    baselineLabel: 'this season',
+    games: 4,
+    strength,
+    major: strength >= 2,
+    message: '',
+  });
+
+  it('merges one player across Sleeper and ESPN leagues, whose player IDs differ', () => {
+    const entries = trendsByPlayer([
+      { league: 'Sleeper league', trend: trend('11834', 7, 2.5) },
+      { league: 'ESPN league', trend: trend('4569559', 7, 2.5) },
+      { league: 'ESPN league', trend: trend('4612826', 8, 3) },
+    ]);
+    expect(entries.map((e) => [e.trend.pid, e.leagues])).toEqual([
+      [8, ['ESPN league']],
+      [7, ['Sleeper league', 'ESPN league']],
     ]);
   });
 });

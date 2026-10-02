@@ -53,7 +53,7 @@ export { offenseGiveawayRatings, priorSeasonWeight } from './compute/scout/offen
 export { scoutFrame } from './compute/scout/scout-frame.js';
 export type { ScoutCandidate, ScoutFrameInput, ScoutWeekCell } from './compute/scout/scout-frame.js';
 export type { BenchIqFlag, BenchIqTrend } from './compute/types.js';
-export { MAJOR_TREND_STRENGTH, usageTrends } from './compute/trends/usage-trend.js';
+export { MAJOR_TREND_STRENGTH, trendsByPlayer, usageTrends } from './compute/trends/usage-trend.js';
 export { computeRosterNeeds } from './compute/roster-needs.js';
 export type { PositionNeed, RosterNeeds } from './compute/roster-needs.js';
 export * from './compute/flags/index.js';

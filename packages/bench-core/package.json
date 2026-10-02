@@ -22,6 +22,10 @@
       "types": "./dist/compute/flags/severity.d.ts",
       "import": "./dist/compute/flags/severity.js"
     },
+    "./compute/trends/usage-trend": {
+      "types": "./dist/compute/trends/usage-trend.d.ts",
+      "import": "./dist/compute/trends/usage-trend.js"
+    },
     "./team-codes": {
       "types": "./dist/adapters/nflverse/team-codes.d.ts",
       "import": "./dist/adapters/nflverse/team-codes.js"

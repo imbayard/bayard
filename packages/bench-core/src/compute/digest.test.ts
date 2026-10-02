@@ -154,9 +154,11 @@ describe('buildWaiverSection', () => {
   });
 });
 
-function trend(playerName: string, strength: number): BenchIqTrend {
+function trend(playerName: string, strength: number, playerId = playerName): BenchIqTrend {
   return {
-    playerId: playerName,
+    playerId,
+    // A stand-in pid, one per name — as the pipeline has one per player, whatever the platform.
+    pid: [...playerName].reduce((h, c) => h * 31 + c.charCodeAt(0), 0),
     playerName,
     slot: 'starter',
     metric: 'target share',
@@ -185,6 +187,14 @@ describe('buildTrendsSection', () => {
       entry({ league: league('B'), trends: [trend('Big', 2.4), trend('Minor', 1.2)] }),
     ]);
     expect(section!.lines).toEqual(['A, B — Big moved', 'And 1 other trend.']);
+  });
+
+  it('reports a player once across Sleeper and ESPN, whose player IDs differ', () => {
+    const section = buildTrendsSection([
+      entry({ league: league('Sleeper'), trends: [trend('Vele', 2.5, '11834')] }),
+      entry({ league: league('ESPN'), trends: [trend('Vele', 2.5, '4569559')] }),
+    ]);
+    expect(section!.lines).toEqual(['Sleeper, ESPN — Vele moved']);
   });
 
   it('points to the deck when nothing is big', () => {

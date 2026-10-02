@@ -41,7 +41,7 @@ export class AnalyticsClient {
       players: new Map(
         Object.entries(body.players).map(([id, p]): [string, PlayerCard] => [
           id,
-          { name: p.name, position: p.position, posGroup: p.pos_group, metrics: p.metrics },
+          { pid: p.pid, name: p.name, position: p.position, posGroup: p.pos_group, metrics: p.metrics },
         ]),
       ),
     };

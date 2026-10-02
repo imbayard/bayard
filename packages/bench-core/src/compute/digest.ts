@@ -2,6 +2,7 @@ import type { League } from '../types/league.js';
 import { compareFlagTypes } from './flags/severity.js';
 import type { InjuryEntry } from './injury.js';
 import { formatRecord, tallyResults, type MatchupResult } from './results.js';
+import { trendsByPlayer } from './trends/usage-trend.js';
 import type { BenchIqFlag, BenchIqTrend } from './types.js';
 import type { WeatherExposure } from './weather.js';
 
@@ -90,18 +91,11 @@ export function buildFlagsDigestSection(entries: LeagueDigestEntry[]): DigestSec
  * on the deck. A heads-up section, so it stays quiet when nothing has moved.
  */
 export function buildTrendsSection(entries: LeagueDigestEntry[]): DigestSection | null {
-  // One line per player: a player rostered in three leagues is one move, not three.
-  const byPlayer = new Map<string, { leagues: string[]; trend: BenchIqTrend }>();
-  for (const { league, trends } of entries) {
-    for (const trend of trends) {
-      const seen = byPlayer.get(trend.playerId);
-      if (seen) seen.leagues.push(league.name);
-      else byPlayer.set(trend.playerId, { leagues: [league.name], trend });
-    }
-  }
-  const all = [...byPlayer.values()];
+  const all = trendsByPlayer(
+    entries.flatMap(({ league, trends }) => trends.map((trend) => ({ league: league.name, trend }))),
+  );
   if (all.length === 0) return null;
-  const major = all.filter((e) => e.trend.major).sort((a, b) => b.trend.strength - a.trend.strength);
+  const major = all.filter((e) => e.trend.major);
   const others = all.length - major.length;
   const plural = others === 1 ? 'trend' : 'trends';
 

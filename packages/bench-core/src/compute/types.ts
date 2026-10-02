@@ -29,7 +29,10 @@ export interface BenchIqFlag {
  * shows them on their own ticker instead of in the attention queue.
  */
 export interface BenchIqTrend {
+  /** The platform's player ID (Sleeper or ESPN) — differs across platforms for one player. */
   playerId: string;
+  /** The analytics pipeline's player ID — the same across platforms; group by this. */
+  pid: number;
   playerName: string;
   slot: 'starter' | 'bench';
   /** Human label, e.g. "target share". */

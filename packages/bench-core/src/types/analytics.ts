@@ -22,6 +22,8 @@ export type MetricWindows = Partial<Record<'week' | 'last4' | 'season' | 'prior'
 
 /** One player's analytics card, keyed by metric (e.g. `target_share`, `off_snap_pct`). */
 export interface PlayerCard {
+  /** The pipeline's own player ID: the same NFL player whichever platform asked. */
+  pid: number;
   name: string;
   position: string | null;
   /** QB RB WR TE OL DL LB DB K P LS */
