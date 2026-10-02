@@ -1,5 +1,6 @@
 import type {
   BenchIqFlag,
+  BenchIqTrend,
   DigestKind,
   DraftBoard,
   GameWeather,
@@ -29,6 +30,8 @@ export interface LeaguesResponse {
 
 export interface BenchIqResponse {
   flags: BenchIqFlag[];
+  /** Usage moves, strongest first — heads-ups for the ticker, never counted as flags. */
+  trends: BenchIqTrend[];
   week: number;
   /** The caller's own team in this league — canonical "my team" id. */
   teamId: string;

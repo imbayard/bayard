@@ -76,6 +76,7 @@ async function buildEntry(
   const entry: LeagueDigestEntry = {
     league,
     flags: summary.flags,
+    trends: kind === 'pre-game' ? summary.trends : [],
     injuries: kind === 'pre-game' ? injuryReport(roster, players) : [],
     projectedPoints: summary.projectedPoints,
     opponentProjectedPoints: null,

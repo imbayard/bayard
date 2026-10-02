@@ -1,5 +1,6 @@
 import type {
   BenchIqFlag,
+  BenchIqTrend,
   GameWeather,
   League,
   NflGameState,
@@ -9,7 +10,7 @@ import type {
   Roster,
   Team,
 } from '@benchpoints/core';
-import { computeBenchIqFlags } from '@benchpoints/core';
+import { computeBenchIqFlags, usageTrends } from '@benchpoints/core';
 import { adapterFor, analyticsFor, nflScheduleFor, weatherFor } from '../adapters.js';
 import { sumStarterProjections } from './projections.js';
 import { rosteredPlayerIds } from './rosters.js';
@@ -17,6 +18,8 @@ import { rosteredPlayerIds } from './rosters.js';
 /** Exactly what `GET /bench-iq` serializes. Kept separate from the richer internal result. */
 export interface BenchIqSummary {
   flags: BenchIqFlag[];
+  /** Usage moves, strongest first — heads-ups, kept apart from flags. */
+  trends: BenchIqTrend[];
   week: number;
   teamId: string;
   rosterCount: number;
@@ -76,7 +79,7 @@ export async function computeLeagueBenchIq(
     : undefined;
   if (!roster) return null;
 
-  // Analytics is context too: if the pipeline is down, usage flags go quiet, nothing else does.
+  // Analytics is context too: if the pipeline is down, trends go quiet, nothing else does.
   const cards = await analyticsFor(useMock)
     .getPlayerCards(
       platform,
@@ -94,12 +97,12 @@ export async function computeLeagueBenchIq(
     rosteredPlayerIds(rosters),
     weather,
     gameStates,
-    cards,
   );
 
   return {
     summary: {
       flags,
+      trends: usageTrends(roster, players, cards),
       week: league.currentWeek,
       teamId: roster.externalTeamId,
       rosterCount: roster.entries.length,

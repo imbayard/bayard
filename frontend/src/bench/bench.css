@@ -214,4 +214,23 @@
     backdrop-filter: blur(24px);
     border: 1px solid color-mix(in oklab, white 10%, transparent);
   }
+
+  /* Ticker tape: two identical copies each slide their own width left, so the loop is seamless. */
+  .bench-scope .ticker-track {
+    animation: bench-ticker var(--ticker-duration, 30s) linear infinite;
+  }
+  .bench-scope .ticker:hover .ticker-track {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bench-scope .ticker-track {
+      animation: none;
+    }
+  }
+}
+
+@keyframes bench-ticker {
+  to {
+    transform: translateX(-100%);
+  }
 }

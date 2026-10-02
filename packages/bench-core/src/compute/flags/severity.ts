@@ -14,8 +14,6 @@ export const FLAG_TYPE_RANK: Record<BenchIqFlag['type'], number> = {
   WAIVER_PLAYER_HIGHER_PROJECTION: 4,
   // Last: weather is context for a decision, not a better player sitting on your bench.
   WEATHER_RISK: 5,
-  // A trend is a reason to look closer, not a lineup emergency.
-  USAGE_TREND: 6,
 };
 
 export function compareFlagTypes(a: BenchIqFlag['type'], b: BenchIqFlag['type']): number {

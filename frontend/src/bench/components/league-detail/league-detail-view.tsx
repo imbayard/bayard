@@ -2,6 +2,7 @@ import type { League, Platform } from '@benchpoints/core';
 import { Link } from '@bench/lib/nav';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { PlatformBadge } from '@bench/components/system/platform-badge';
+import { TrendTicker } from '@bench/components/trend-ticker';
 import { useLeagues, useLeagueSummaries } from '@bench/lib/queries';
 import { cn } from '@bench/lib/utils';
 import { DraftBoard } from './draft-board';
@@ -158,6 +159,7 @@ export function LeagueDetailView({ platform, leagueId }: { platform: Platform; l
       </div>
       {summary && <MatchupHeader summary={summary} />}
       <FlagList league={league} />
+      <TrendTicker leagues={[league]} />
       <section aria-label="Roster">
         <h2 className="mb-2 text-sm font-medium text-muted-foreground">Roster</h2>
         <RosterView league={league} />

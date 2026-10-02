@@ -46,8 +46,6 @@ function summarizeGroup(type: BenchIqFlag['type'], flags: BenchIqFlag[]): string
       return `${list} on waivers ${verb} your starters`;
     case 'WEATHER_RISK':
       return `Harsh weather: ${list}`;
-    case 'USAGE_TREND':
-      return `Usage shifting: ${list}`;
   }
 }
 

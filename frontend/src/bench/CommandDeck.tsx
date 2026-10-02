@@ -3,6 +3,7 @@ import { LeagueCardGrid } from '@bench/components/command-deck/league-card-grid'
 import { PortfolioPulse } from '@bench/components/command-deck/portfolio-pulse';
 import { RootingBoard } from '@bench/components/command-deck/rooting-board';
 import { MockToggle } from '@bench/components/system/mock-toggle';
+import { TrendTicker } from '@bench/components/trend-ticker';
 import { useLeagues } from '@bench/lib/queries';
 
 export function CommandDeck() {
@@ -32,6 +33,7 @@ export function CommandDeck() {
           <PortfolioPulse leagues={leagues} isLoading={isPending} />
           <RootingBoard />
           <AttentionQueue leagues={leagues} isLoading={isPending} />
+          <TrendTicker leagues={leagues} />
           <section aria-label="Leagues">
             <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Leagues

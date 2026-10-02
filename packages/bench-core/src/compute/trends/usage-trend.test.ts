@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mockAnalyticsClient } from '../../mocks/index.js';
 import type { MetricWindows, PlayerCard } from '../../types/analytics.js';
 import type { Player, Roster } from '../../types/league.js';
-import { usageTrendFlags } from './usage-trend.js';
+import { usageTrends } from './usage-trend.js';
 
 function player(id: string, position = 'WR'): Player {
   return { externalPlayerId: id, fullName: id, position, nflTeam: null, injuryStatus: null, byeWeek: null, projectedPoints: null };
@@ -24,28 +24,31 @@ const roster: Roster = {
 };
 const players = new Map(['starter', 'bench', 'ir'].map((id) => [id, player(id)]));
 
-describe('usageTrendFlags', () => {
-  it('flags a starter losing targets against this season', () => {
+describe('usageTrends', () => {
+  it('reports a starter losing targets against this season', () => {
     const cards = new Map([['starter', card({ target_share: { last4: w(0.15, 4), season: w(0.26, 8) } })]]);
-    const [flag] = usageTrendFlags(roster, players, cards);
-    expect(flag).toMatchObject({ type: 'USAGE_TREND', level: 'warning', playerId: 'starter', slot: 'starter' });
-    expect(flag!.message).toBe('starter: target share 15% over the last 4 games, down from 26% this season');
+    const [trend] = usageTrends(roster, players, cards);
+    expect(trend).toMatchObject({ playerId: 'starter', slot: 'starter', recent: 0.15, baseline: 0.26, major: false });
+    expect(trend!.message).toBe('starter: target share 15% over the last 4 games, down from 26% this season');
   });
 
   it('compares against last season while the season is still short', () => {
     const cards = new Map([
       ['bench', card({ carry_share: { last4: w(0.47, 3), season: w(0.47, 3), prior: w(0.17, 16) } })],
     ]);
-    const [flag] = usageTrendFlags(roster, players, cards);
-    expect(flag!.message).toBe('bench (bench): carry share 47% over the last 3 games, up from 17% last season');
+    const [trend] = usageTrends(roster, players, cards);
+    expect(trend!.message).toBe('bench (bench): carry share 47% over the last 3 games, up from 17% last season');
   });
 
-  it('ignores the direction that does not change a lineup', () => {
+  it('reports both directions, strongest first, and marks moves of 2+ thresholds major', () => {
     const cards = new Map([
-      ['starter', card({ target_share: { last4: w(0.3, 4), season: w(0.2, 8) } })], // starter rising
-      ['bench', card({ target_share: { last4: w(0.05, 4), season: w(0.2, 8) } })], // bench falling
+      ['starter', card({ target_share: { last4: w(0.3, 4), season: w(0.2, 8) } })], // +10 pts ≈ 1.4
+      ['bench', card({ target_share: { last4: w(0.05, 4), season: w(0.2, 8) } })], // -15 pts ≈ 2.1
     ]);
-    expect(usageTrendFlags(roster, players, cards)).toEqual([]);
+    expect(usageTrends(roster, players, cards).map((t) => [t.playerId, t.major])).toEqual([
+      ['bench', true],
+      ['starter', false],
+    ]);
   });
 
   it('stays quiet under the threshold, on thin samples, and for IR', () => {
@@ -54,7 +57,7 @@ describe('usageTrendFlags', () => {
       ['bench', card({ carry_share: { last4: w(0.6, 1), season: w(0.2, 8) } })], // one game
       ['ir', card({ target_share: { last4: w(0.0, 4), season: w(0.3, 8) } })],
     ]);
-    expect(usageTrendFlags(roster, players, cards)).toEqual([]);
+    expect(usageTrends(roster, players, cards)).toEqual([]);
   });
 
   it('reports only the strongest move per player', () => {
@@ -67,12 +70,12 @@ describe('usageTrendFlags', () => {
         }),
       ],
     ]);
-    const flags = usageTrendFlags(roster, players, cards);
-    expect(flags).toHaveLength(1);
-    expect(flags[0]!.message).toContain('snap share 50%');
+    const trends = usageTrends(roster, players, cards);
+    expect(trends).toHaveLength(1);
+    expect(trends[0]!.message).toContain('snap share 50%');
   });
 
-  it('flags the mock roster through the mock client', async () => {
+  it('finds both mock stories through the mock client', async () => {
     const mockRoster: Roster = {
       externalTeamId: '1',
       entries: [
@@ -84,6 +87,10 @@ describe('usageTrendFlags', () => {
     const mockPlayers = new Map(['p-ddf-wr2', 'p-ddf-rb2', 'p-ddf-bn1'].map((id) => [id, player(id)]));
     const { players: cards } = await mockAnalyticsClient.getPlayerCards('sleeper', ['p-ddf-wr2', 'p-ddf-rb2', 'p-ddf-bn1', 'nope'], 2026);
     expect([...cards.keys()].sort()).toEqual(['p-ddf-bn1', 'p-ddf-rb2', 'p-ddf-wr2']);
-    expect(usageTrendFlags(mockRoster, mockPlayers, cards).map((f) => f.playerId)).toEqual(['p-ddf-wr2', 'p-ddf-bn1']);
+    // Loomis's snap jump (37 pts) is major; Lang's target dip (11 pts) is real but minor.
+    expect(usageTrends(mockRoster, mockPlayers, cards).map((t) => [t.playerId, t.major])).toEqual([
+      ['p-ddf-bn1', true],
+      ['p-ddf-wr2', false],
+    ]);
   });
 });

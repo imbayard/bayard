@@ -3,10 +3,10 @@
  * (mock-sleeper-2, whose games are all still to kick off, so nothing is locked), served by
  * `MockAnalyticsClient` in place of the Coach backend. Two stories:
  *  - Tobias Lang (starting WR) is losing targets: 15% over the last 4 vs 26% this season
- *    → USAGE_TREND on a starter.
+ *    → a minor trend (behind the ticker's click).
  *  - Dexter Loomis (bench WR) has stepped into a starting role: 23% of targets over the
- *    last 3 vs 9% last season → USAGE_TREND on the bench.
- * Everyone else is steady, so nothing else flags.
+ *    last 3 vs 9% last season, snaps 79% vs 42% → a major trend (on the ticker).
+ * Everyone else is steady, so nothing else trends.
  */
 import type { AnalyticsBatchResponse } from '../../adapters/analytics/types.js';
 

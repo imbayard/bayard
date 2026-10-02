@@ -5,13 +5,14 @@ import {
   buildInjurySection,
   buildProjectionsSection,
   buildRecordSection,
+  buildTrendsSection,
   buildWaiverSection,
   renderDigestEmail,
   type LeagueDigestEntry,
 } from './digest.js';
 import { injuryReport } from './injury.js';
 import { formatRecord, matchupResult, tallyResults } from './results.js';
-import type { BenchIqFlag } from './types.js';
+import type { BenchIqFlag, BenchIqTrend } from './types.js';
 
 function league(name: string): League {
   return {
@@ -33,6 +34,7 @@ function entry(overrides: Partial<LeagueDigestEntry> = {}): LeagueDigestEntry {
   return {
     league: league('Test League'),
     flags: [],
+    trends: [],
     injuries: [],
     projectedPoints: null,
     opponentProjectedPoints: null,
@@ -149,6 +151,50 @@ describe('buildWaiverSection', () => {
     const benchFlag: BenchIqFlag = { ...waiverFlag('Benched', 'Starter', 5), type: 'BENCH_PLAYER_HIGHER_PROJECTION' };
     const section = buildWaiverSection([entry({ flags: [benchFlag] })]);
     expect(section.lines).toEqual(['Nothing on the wire clears the threshold.']);
+  });
+});
+
+function trend(playerName: string, strength: number): BenchIqTrend {
+  return {
+    playerId: playerName,
+    playerName,
+    slot: 'starter',
+    metric: 'target share',
+    recent: 0.1,
+    baseline: 0.2,
+    baselineLabel: 'this season',
+    games: 4,
+    strength,
+    major: strength >= 2,
+    message: `${playerName} moved`,
+  };
+}
+
+describe('buildTrendsSection', () => {
+  it('lists only the big moves and counts the rest', () => {
+    const section = buildTrendsSection([
+      entry({ league: league('A'), trends: [trend('Minor', 1.2), trend('Small', 1.5)] }),
+      entry({ league: league('B'), trends: [trend('Big', 2.4)] }),
+    ]);
+    expect(section!.lines).toEqual(['B — Big moved', 'And 2 other trends.']);
+  });
+
+  it('reports a player rostered in several leagues once', () => {
+    const section = buildTrendsSection([
+      entry({ league: league('A'), trends: [trend('Big', 2.4)] }),
+      entry({ league: league('B'), trends: [trend('Big', 2.4), trend('Minor', 1.2)] }),
+    ]);
+    expect(section!.lines).toEqual(['A, B — Big moved', 'And 1 other trend.']);
+  });
+
+  it('points to the deck when nothing is big', () => {
+    expect(buildTrendsSection([entry({ trends: [trend('Minor', 1.2)] })])!.lines).toEqual([
+      '1 smaller trend — see the deck.',
+    ]);
+  });
+
+  it('drops out of the email when nothing moved', () => {
+    expect(buildTrendsSection([entry()])).toBeNull();
   });
 });
 

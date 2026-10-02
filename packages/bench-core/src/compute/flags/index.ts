@@ -1,5 +1,4 @@
 import { normalizeTeamCode } from '../../adapters/nflverse/team-codes.js';
-import type { PlayerCard } from '../../types/analytics.js';
 import type { NflGameState, Player, Roster } from '../../types/league.js';
 import type { GameWeather } from '../../types/weather.js';
 import type { BenchIqFlag } from '../types.js';
@@ -7,7 +6,6 @@ import { benchHigherProjectionFlags } from './bench-higher-projection.js';
 import { byeWeekStarterFlags } from './bye-week-starter.js';
 import { incompleteLineupFlags } from './incomplete-lineup.js';
 import { startingInactiveFlags } from './starting-inactive.js';
-import { usageTrendFlags } from './usage-trend.js';
 import { waiverHigherProjectionFlags } from './waiver-higher-projection.js';
 import { weatherRiskFlags } from './weather-risk.js';
 
@@ -15,7 +13,6 @@ export { benchHigherProjectionFlags } from './bench-higher-projection.js';
 export { byeWeekStarterFlags } from './bye-week-starter.js';
 export { incompleteLineupFlags } from './incomplete-lineup.js';
 export { startingInactiveFlags } from './starting-inactive.js';
-export { usageTrendFlags } from './usage-trend.js';
 export { waiverHigherProjectionFlags } from './waiver-higher-projection.js';
 export { weatherRiskFlags } from './weather-risk.js';
 export { MIN_BENCH_UPGRADE_DELTA, MIN_WAIVER_UPGRADE_DELTA } from './upgrades.js';
@@ -46,8 +43,6 @@ export function computeBenchIqFlags(
   weather: Map<string, GameWeather> = new Map(),
   /** This week's NFL game states keyed by team; empty when unknown — every player treated as unlocked. */
   gameStates: Map<string, NflGameState> = new Map(),
-  /** Analytics cards keyed by platform player ID; empty when the pipeline is unreachable. */
-  cards: Map<string, PlayerCard> = new Map(),
 ): BenchIqFlag[] {
   // An empty roster means the team hasn't drafted yet (or the league hasn't started) —
   // nothing to flag until there are actually players on it.
@@ -75,6 +70,5 @@ export function computeBenchIqFlags(
     ...incompleteLineupFlags(roster, rosterSlots),
     ...collapseUpgradesPerSlot(upgrades),
     ...weatherRiskFlags(roster, open, weather),
-    ...usageTrendFlags(roster, open, cards),
   ];
 }

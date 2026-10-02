@@ -2,7 +2,7 @@ import type { League } from '../types/league.js';
 import { compareFlagTypes } from './flags/severity.js';
 import type { InjuryEntry } from './injury.js';
 import { formatRecord, tallyResults, type MatchupResult } from './results.js';
-import type { BenchIqFlag } from './types.js';
+import type { BenchIqFlag, BenchIqTrend } from './types.js';
 import type { WeatherExposure } from './weather.js';
 
 export type DigestKind = 'pre-game' | 'post-game';
@@ -11,6 +11,8 @@ export type DigestKind = 'pre-game' | 'post-game';
 export interface LeagueDigestEntry {
   league: League;
   flags: BenchIqFlag[];
+  /** Usage moves, strongest first. Kept apart from flags: context, not a call to action. */
+  trends: BenchIqTrend[];
   injuries: InjuryEntry[];
   projectedPoints: number | null;
   opponentProjectedPoints: number | null;
@@ -81,6 +83,33 @@ export function buildFlagsDigestSection(entries: LeagueDigestEntry[]): DigestSec
   }
 
   return { title: 'Flags', lines };
+}
+
+/**
+ * Only the big usage moves get a line; the rest are a count, with the detail one click away
+ * on the deck. A heads-up section, so it stays quiet when nothing has moved.
+ */
+export function buildTrendsSection(entries: LeagueDigestEntry[]): DigestSection | null {
+  // One line per player: a player rostered in three leagues is one move, not three.
+  const byPlayer = new Map<string, { leagues: string[]; trend: BenchIqTrend }>();
+  for (const { league, trends } of entries) {
+    for (const trend of trends) {
+      const seen = byPlayer.get(trend.playerId);
+      if (seen) seen.leagues.push(league.name);
+      else byPlayer.set(trend.playerId, { leagues: [league.name], trend });
+    }
+  }
+  const all = [...byPlayer.values()];
+  if (all.length === 0) return null;
+  const major = all.filter((e) => e.trend.major).sort((a, b) => b.trend.strength - a.trend.strength);
+  const others = all.length - major.length;
+  const plural = others === 1 ? 'trend' : 'trends';
+
+  const lines = major.map(({ leagues, trend }) => `${leagues.join(', ')} — ${trend.message}`);
+  if (others > 0) {
+    lines.push(major.length > 0 ? `And ${others} other ${plural}.` : `${others} smaller ${plural} — see the deck.`);
+  }
+  return { title: 'Trends', lines };
 }
 
 /** Questionable/Doubtful/Out across every roster — starters first, worst first. */
@@ -182,7 +211,8 @@ export function buildDigest(kind: DigestKind, entries: LeagueDigestEntry[]): Dig
         buildFlagsDigestSection(entries),
         buildInjurySection(entries),
         buildWeatherSection(entries),
-      ]
+        buildTrendsSection(entries),
+      ].filter((s): s is DigestSection => s !== null)
     : [buildRecordSection(entries), buildWaiverSection(entries)];
 }
 
