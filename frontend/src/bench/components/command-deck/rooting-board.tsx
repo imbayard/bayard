@@ -96,12 +96,12 @@ function Leader({ row, side, tab }: { row: RootingRow | undefined; side: Rooting
         </span>
         <span className="truncate text-sm font-semibold sm:text-base">{row?.fullName ?? 'Nobody yet'}</span>
         {row && (
-          <span className={cn('flex items-center gap-1.5 text-xs text-muted-foreground', mirrored && 'flex-row-reverse')}>
+          <span className={cn('flex max-w-full min-w-0 items-center gap-1.5 text-xs text-muted-foreground', mirrored && 'flex-row-reverse')}>
             <PositionTag position={row.position} />
             <span className="truncate" title={stakesTitle(row)}>
               {leagueNote(row)}
             </span>
-            <GameStatus game={row.game} />
+            <GameStatus game={row.game} className="desktop-only" />
           </span>
         )}
       </div>
@@ -135,10 +135,10 @@ function SideList({ rows, side, tab }: { rows: RootingRow[]; side: RootingSide; 
             <li key={row.key} className="flex items-center gap-3 py-1.5 text-sm">
               <PositionTag position={row.position} />
               <span className="min-w-0 flex-1 truncate font-medium">{row.fullName}</span>
-              <span className="hidden truncate text-xs text-muted-foreground sm:inline" title={stakesTitle(row)}>
+              <span className="desktop-only truncate text-xs text-muted-foreground" title={stakesTitle(row)}>
                 {leagueNote(row)}
               </span>
-              <span className="flex w-20 shrink-0 justify-end">
+              <span className="desktop-only flex w-20 shrink-0 justify-end">
                 <GameStatus game={row.game} />
               </span>
               <span className="scoreboard w-12 shrink-0 text-right font-semibold" title="Average per league">

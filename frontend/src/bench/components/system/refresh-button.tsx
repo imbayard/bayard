@@ -59,7 +59,10 @@ export function RefreshButton() {
         />
         <path d="M13.5 1.5v3.5H10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      {status === 'refreshing' ? 'Refreshing…' : status === 'error' ? 'Failed' : 'Refresh'}
+      {/* Icon-only on phones while idle; the spinning icon carries the refreshing state. */}
+      <span className={cn(status !== 'error' && 'desktop-only')}>
+        {status === 'refreshing' ? 'Refreshing…' : status === 'error' ? 'Failed' : 'Refresh'}
+      </span>
     </button>
   );
 }

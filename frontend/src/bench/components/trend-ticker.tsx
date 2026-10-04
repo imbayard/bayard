@@ -107,13 +107,14 @@ export function TrendTicker({ leagues }: { leagues: League[] }) {
                 <Arrow trend={trend} />
                 <span className={cn('font-medium', !trend.major && 'text-muted-foreground')}>{trend.playerName}</span>
                 <span className="text-xs tracking-wider text-muted-foreground uppercase">{trend.slot}</span>
-                <span className="min-w-0 flex-1 text-muted-foreground">
+                {/* Phones: name, description and leagues each take their own line instead of squeezing into columns. */}
+                <span className="min-w-0 flex-1 basis-full text-muted-foreground sm:basis-auto">
                   {trend.metric} <span className="scoreboard text-foreground">{pct(trend.recent)}</span> over the{' '}
                   {trend.games === 1 ? 'last game' : `last ${trend.games} games`}, from{' '}
                   <span className="scoreboard">{pct(trend.baseline)}</span> {trend.baselineLabel}
                 </span>
                 {showLeague && (
-                  <span className="max-w-60 shrink-0 truncate text-xs text-muted-foreground" title={where.map((l) => l.name).join(', ')}>
+                  <span className="max-w-full shrink-0 basis-full truncate text-xs text-muted-foreground sm:max-w-60 sm:basis-auto" title={where.map((l) => l.name).join(', ')}>
                     {where.map((l) => l.name).join(', ')}
                   </span>
                 )}

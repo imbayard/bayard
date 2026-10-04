@@ -46,8 +46,8 @@ function Stat({
   const labelEl = (
     <span className="flex items-center gap-1">
       {/* Capped so a long label wraps to a second line instead of clipping or pushing the gauge. */}
-      <span className={cn(labelClass, shortLabel && 'sm:hidden')}>{shortLabel ?? label}</span>
-      {shortLabel && <span className={cn(labelClass, 'hidden sm:inline')}>{label}</span>}
+      <span className={cn(labelClass, shortLabel && 'mobile-only')}>{shortLabel ?? label}</span>
+      {shortLabel && <span className={cn(labelClass, 'desktop-only')}>{label}</span>}
       {onToggle && (
         <ChevronDown
           className={cn('size-3 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')}
@@ -84,9 +84,10 @@ function HealthGauge({ score, color }: { score: number; color: string }) {
   const circumference = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, score)) / 100;
   return (
-    <div className="flex w-full items-center gap-3 sm:w-auto">
+    // Phones: a smaller dial with no label, so it fits on the stats row instead of wrapping below.
+    <div className="flex shrink-0 items-center gap-3" title="Portfolio health">
       <div className="relative flex items-center justify-center">
-        <svg width="68" height="68" viewBox="0 0 68 68" className="-rotate-90">
+        <svg viewBox="0 0 68 68" className="size-12 -rotate-90 sm:size-[68px]">
           <circle cx="34" cy="34" r={r} fill="none" strokeWidth="5" className="stroke-muted" />
           <circle
             cx="34"
@@ -101,11 +102,11 @@ function HealthGauge({ score, color }: { score: number; color: string }) {
             style={{ filter: `drop-shadow(0 0 5px ${color})`, transition: 'stroke-dashoffset 600ms ease' }}
           />
         </svg>
-        <span className="scoreboard absolute text-base font-bold" style={{ color }}>
+        <span className="scoreboard absolute text-sm font-bold sm:text-base" style={{ color }}>
           {Math.round(score)}
         </span>
       </div>
-      <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+      <span className="desktop-only text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
         Portfolio
         <br />
         Health
@@ -174,7 +175,7 @@ export function PortfolioPulse({ leagues, isLoading }: { leagues: League[]; isLo
         className="pointer-events-none absolute top-1/2 -right-10 size-52 -translate-y-1/2 rounded-full opacity-15 blur-3xl"
         style={{ background: scoreColor }}
       />
-      <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap sm:gap-6">
+      <div className="flex items-center gap-4 sm:gap-6">
         <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-8">
           <Stat
             label={

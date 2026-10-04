@@ -44,7 +44,7 @@ export function DataFreshness() {
             isPending && 'bg-muted-foreground/40',
           )}
         />
-        {label}
+        <span className="desktop-only">{label}</span>
       </PopoverTrigger>
       <PopoverContent align="end">
         <PopoverHeader>

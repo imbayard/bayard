@@ -44,12 +44,12 @@ export default function BenchApp({ onExitToHome }: { onExitToHome: () => void })
           <BenchNavProvider value={{ view, navigate: setView }}>
             <div className="bench-scope dark">
               <HealthAccent />
-              <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6">
+              <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6">
                 <header className="flex h-16 shrink-0 items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={onExitToHome}
-                      className="text-sm text-muted-foreground hover:text-foreground"
+                      className="text-sm whitespace-nowrap text-muted-foreground hover:text-foreground"
                     >
                       ← Home
                     </button>

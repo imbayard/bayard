@@ -49,7 +49,10 @@ export function SendDigestButton() {
         />
         <path d="M2.5 4.5 8 9l5.5-4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      {status === 'sending' ? 'Sending…' : status === 'sent' ? 'Sent' : status === 'error' ? 'Failed' : 'Digest'}
+      {/* Icon-only on phones while idle; status text still shows so feedback isn't lost. */}
+      <span className={cn(status === 'idle' && 'desktop-only')}>
+        {status === 'sending' ? 'Sending…' : status === 'sent' ? 'Sent' : status === 'error' ? 'Failed' : 'Digest'}
+      </span>
     </button>
   );
 }

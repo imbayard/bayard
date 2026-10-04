@@ -229,6 +229,25 @@
   }
 }
 
+/*
+ * Responsive convention: mobile-first, and `sm` (40rem / 640px) is the one phone ↔ desktop
+ * boundary. Unprefixed classes are the phone layout; `sm:` classes add the desktop layout.
+ * To drop something on phones use `desktop-only` (or `mobile-only` for the reverse), not
+ * `hidden sm:inline-flex` — these only ever set `display: none`, so the element keeps its own
+ * display on the side where it shows. `!important` because Tailwind sorts these ahead of
+ * `flex`/`inline-flex`, which would otherwise win on source order.
+ */
+@utility desktop-only {
+  @variant max-sm {
+    display: none !important;
+  }
+}
+@utility mobile-only {
+  @variant sm {
+    display: none !important;
+  }
+}
+
 @keyframes bench-ticker {
   to {
     transform: translateX(-100%);
