@@ -30,6 +30,8 @@ from backend.integrations import calendar as gcal
 from backend.integrations.routes import router as integrations_router, callback_router as oauth_callback_router
 from backend.health.routes import router as health_router
 from backend.health.store import create_table as create_health_table
+from backend.dinner.routes import router as dinner_router
+from backend.dinner.store import create_table as create_dinner_table
 from backend.analytics import routes as analytics
 from backend.api.artifact_store import (
     create_table as create_artifacts_table,
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI):
     await create_modules_table()
     await create_artifacts_table()
     await create_health_table()
+    await create_dinner_table()
     analytics.init()
     schedule = asyncio.create_task(analytics.schedule_loop())
     yield
@@ -70,6 +73,7 @@ app.add_middleware(
 app.include_router(integrations_router)
 app.include_router(oauth_callback_router)
 app.include_router(health_router)
+app.include_router(dinner_router)
 app.include_router(analytics.router)
 
 

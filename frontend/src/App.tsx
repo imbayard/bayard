@@ -3,6 +3,7 @@ import Home, { type AppId } from './Home'
 import CoachApp from './coach/CoachApp'
 import BenchApp from './bench/BenchApp'
 import HealthApp from './health/HealthApp'
+import DinnerApp from './dinner/DinnerApp'
 
 export default function App() {
   const path = usePathname()
@@ -16,6 +17,9 @@ export default function App() {
   }
   if (appId === 'health') {
     return <HealthApp onExitToHome={() => navigate('/')} />
+  }
+  if (appId === 'dinner') {
+    return <DinnerApp onExitToHome={() => navigate('/')} />
   }
   return <Home onOpen={(id) => navigate(`/${id}`)} />
 }

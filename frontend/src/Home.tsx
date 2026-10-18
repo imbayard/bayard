@@ -7,7 +7,7 @@ import {
   type ProviderStatus,
 } from './lib/integrations'
 
-export type AppId = 'coach' | 'bench' | 'health'
+export type AppId = 'coach' | 'bench' | 'health' | 'dinner'
 
 interface Widget {
   id: AppId
@@ -35,6 +35,12 @@ const WIDGETS: Widget[] = [
     name: 'Am I Healthy',
     version: '0.1',
     blurb: 'Strain and recovery from WHOOP, tracked over any timeframe.',
+  },
+  {
+    id: 'dinner',
+    name: "What's4Dinner",
+    version: '0.1',
+    blurb: 'Your recipe box, your week’s dinners, your shopping list.',
   },
 ]
 
