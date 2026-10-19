@@ -4,6 +4,7 @@ export interface Ingredient {
   qty: string
   unit: string
   name: string
+  optional?: boolean
 }
 
 export interface Recipe {

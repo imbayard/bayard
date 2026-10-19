@@ -6,11 +6,12 @@ import {
   fetchRecipes,
   suggestIngredients,
   suggestTags,
+  updateRecipe,
   type Ingredient,
   type Recipe,
 } from './lib/api'
 
-const EMPTY_INGREDIENT: Ingredient = { qty: '', unit: '', name: '' }
+const EMPTY_INGREDIENT: Ingredient = { qty: '', unit: '', name: '', optional: false }
 
 const inputStyle: CSSProperties = {
   padding: '8px 10px',
@@ -41,6 +42,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
   const [ingredientNames, setIngredientNames] = useState<string[]>([])
   const [tagNames, setTagNames] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
 
   const load = () => {
     fetchRecipes()
@@ -55,6 +57,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
   }, [])
 
   const resetForm = () => {
+    setEditingId(null)
     setName('')
     setServings('4')
     setIngredients([{ ...EMPTY_INGREDIENT }])
@@ -62,18 +65,31 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
     setTags('')
   }
 
+  const startEdit = (recipe: Recipe) => {
+    setEditingId(recipe.id)
+    setName(recipe.name)
+    setServings(String(recipe.servings))
+    setIngredients(recipe.ingredients.length ? recipe.ingredients : [{ ...EMPTY_INGREDIENT }])
+    setSteps(recipe.steps.length ? recipe.steps : [''])
+    setTags(recipe.tags.join(', '))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const submit = async () => {
     setSaving(true)
     setError(null)
     try {
-      const recipe = await createRecipe({
+      const payload = {
         name,
         servings: Number(servings) || 1,
         ingredients: ingredients.filter((i) => i.name.trim()),
         steps: steps.map((s) => s.trim()).filter(Boolean),
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
-      })
-      setRecipes((prev) => [...prev, recipe].sort((a, b) => a.name.localeCompare(b.name)))
+      }
+      const recipe = editingId ? await updateRecipe(editingId, payload) : await createRecipe(payload)
+      setRecipes((prev) =>
+        [...prev.filter((r) => r.id !== recipe.id), recipe].sort((a, b) => a.name.localeCompare(b.name)),
+      )
       setIngredientNames((prev) =>
         Array.from(new Set([...prev, ...recipe.ingredients.map((i) => i.name)])).sort(),
       )
@@ -90,6 +106,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
     try {
       await deleteRecipe(id)
       setRecipes((prev) => prev.filter((r) => r.id !== id))
+      if (editingId === id) resetForm()
     } catch (e) {
       setError((e as Error).message)
     }
@@ -164,6 +181,18 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
                     setIngredients((prev) => prev.map((p, j) => (j === i ? { ...p, name: e.target.value } : p)))
                   }
                 />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#6b7280', flexShrink: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={ing.optional ?? false}
+                    onChange={(e) =>
+                      setIngredients((prev) =>
+                        prev.map((p, j) => (j === i ? { ...p, optional: e.target.checked } : p)),
+                      )
+                    }
+                  />
+                  optional
+                </label>
                 <button
                   style={ghostBtnStyle}
                   onClick={() => setIngredients((prev) => prev.filter((_, j) => j !== i))}
@@ -212,13 +241,20 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
           />
         </div>
 
-        <button
-          style={{ ...primaryBtnStyle, padding: '12px 24px', alignSelf: 'flex-start' }}
-          disabled={saving || !name.trim()}
-          onClick={submit}
-        >
-          {saving ? 'Saving…' : 'Save recipe'}
-        </button>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <button
+            style={{ ...primaryBtnStyle, padding: '12px 24px', alignSelf: 'flex-start' }}
+            disabled={saving || !name.trim()}
+            onClick={submit}
+          >
+            {saving ? 'Saving…' : editingId ? 'Update recipe' : 'Save recipe'}
+          </button>
+          {editingId && (
+            <button style={ghostBtnStyle} onClick={resetForm}>
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -233,6 +269,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
               </button>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: '#9ca3af' }}>serves {r.servings}</span>
+                <button style={ghostBtnStyle} onClick={() => startEdit(r)}>Edit</button>
                 <button style={ghostBtnStyle} onClick={() => removeRecipe(r.id)}>Delete</button>
               </div>
             </div>
@@ -244,6 +281,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
                     {r.ingredients.map((ing, i) => (
                       <li key={i}>
                         {ing.qty} {ing.unit} {ing.name}
+                        {ing.optional && <span style={{ color: '#9ca3af' }}> (optional)</span>}
                       </li>
                     ))}
                   </ul>

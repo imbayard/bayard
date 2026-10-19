@@ -10,6 +10,7 @@ class Ingredient(BaseModel):
     qty: str
     unit: str
     name: str
+    optional: bool = False
 
 
 class RecipeIn(BaseModel):
