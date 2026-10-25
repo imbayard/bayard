@@ -10,6 +10,7 @@ import {
   type Ingredient,
   type Recipe,
 } from './lib/api'
+import MealPlanner from './MealPlanner'
 
 const EMPTY_INGREDIENT: Ingredient = { qty: '', unit: '', name: '', optional: false }
 
@@ -43,6 +44,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
   const [tagNames, setTagNames] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [view, setView] = useState<'recipes' | 'plan'>('recipes')
 
   const load = () => {
     fetchRecipes()
@@ -93,7 +95,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
       setIngredientNames((prev) =>
         Array.from(new Set([...prev, ...recipe.ingredients.map((i) => i.name)])).sort(),
       )
-      setTagNames((prev) => Array.from(new Set([...prev, ...recipe.tags])).sort())
+      suggestTags('').then(setTagNames).catch(() => {}) // server keeps registry tags first
       resetForm()
     } catch (e) {
       setError((e as Error).message)
@@ -129,10 +131,22 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
         <h1 style={{ fontSize: 16, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
           What's4Dinner
         </h1>
-        <button style={ghostBtnStyle} onClick={onExitToHome}>Home</button>
+        <div style={{ display: 'flex', gap: 16 }}>
+          {(['recipes', 'plan'] as const).map((v) => (
+            <button key={v} style={{ ...ghostBtnStyle, color: view === v ? '#111827' : '#9ca3af' }} onClick={() => setView(v)}>
+              {v === 'recipes' ? 'Recipes' : 'Plan'}
+            </button>
+          ))}
+          <button style={ghostBtnStyle} onClick={onExitToHome}>Home</button>
+        </div>
       </div>
 
       {error && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
+
+      {view === 'plan' && <MealPlanner recipes={recipes} />}
+
+      {view === 'recipes' && (
+      <>
 
       <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
@@ -300,6 +314,8 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   )
 }
