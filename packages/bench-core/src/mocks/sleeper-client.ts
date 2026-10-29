@@ -27,6 +27,15 @@ import {
   sleeperSeasonStats,
   sleeperState,
 } from './fixtures/sleeper.js';
+import {
+  TRADE_LEAGUE_ID,
+  tradeLeague,
+  tradeLeagueUsers,
+  tradePlayers,
+  tradePriorSeasonStats,
+  tradeRosters,
+  tradeSeasonStats,
+} from './fixtures/trades.js';
 
 /**
  * Serves the raw fixtures in `./fixtures/sleeper.ts` in place of real HTTP calls. Subclasses the
@@ -48,20 +57,22 @@ export class MockSleeperClient extends SleeperClient {
   }
 
   override async getLeagues(): Promise<SleeperLeague[]> {
-    return Object.values(sleeperLeaguesById);
+    return [...Object.values(sleeperLeaguesById), tradeLeague];
   }
 
   override async getLeague(leagueId: string): Promise<SleeperLeague> {
-    const league = sleeperLeaguesById[leagueId];
+    const league = leagueId === TRADE_LEAGUE_ID ? tradeLeague : sleeperLeaguesById[leagueId];
     if (!league) throw new Error(`No mock Sleeper league "${leagueId}"`);
     return league;
   }
 
   override async getLeagueUsers(leagueId: string): Promise<SleeperLeagueUser[]> {
+    if (leagueId === TRADE_LEAGUE_ID) return tradeLeagueUsers;
     return sleeperLeagueUsersById[leagueId] ?? [];
   }
 
   override async getRosters(leagueId: string): Promise<SleeperRoster[]> {
+    if (leagueId === TRADE_LEAGUE_ID) return tradeRosters;
     return sleeperRostersById[leagueId] ?? [];
   }
 
@@ -84,14 +95,15 @@ export class MockSleeperClient extends SleeperClient {
   }
 
   override async getPlayers(): Promise<SleeperPlayersResponse> {
-    return sleeperPlayers;
+    return { ...sleeperPlayers, ...tradePlayers };
   }
 
   override async getProjections(): Promise<SleeperProjectionsResponse> {
     return sleeperProjections;
   }
 
-  override async getSeasonStats(): Promise<SleeperSeasonStatsResponse> {
-    return sleeperSeasonStats;
+  override async getSeasonStats(season: number): Promise<SleeperSeasonStatsResponse> {
+    if (season < Number(sleeperState.season)) return tradePriorSeasonStats;
+    return { ...sleeperSeasonStats, ...tradeSeasonStats };
   }
 }

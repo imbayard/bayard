@@ -1,6 +1,6 @@
 import type { Cache } from '../../cache/cache.js';
-import type { PlayerCard, PlayerCards } from '../../types/analytics.js';
-import type { AnalyticsBatchResponse } from './types.js';
+import type { MetricCalibration, PlayerCard, PlayerCards } from '../../types/analytics.js';
+import type { AnalyticsBatchResponse, AnalyticsMetricsResponse } from './types.js';
 
 /** The pipeline rebuilds at most hourly and usage moves weekly; an hour of staleness is free. */
 const TTL = 60 * 60 * 1000;
@@ -47,6 +47,30 @@ export class AnalyticsClient {
     };
     this.cache.set(key, cards, TTL);
     return cards;
+  }
+
+  /**
+   * How much a metric repeats season to season and how noisy a few games of it are, as the
+   * pipeline last measured them. Null until the metric has been calibrated.
+   */
+  async getCalibration(key: string): Promise<MetricCalibration | null> {
+    const cacheKey = 'analytics:metrics';
+    let body = this.cache.get<AnalyticsMetricsResponse>(cacheKey);
+    if (body === undefined) {
+      body = await this.fetchMetrics();
+      this.cache.set(cacheKey, body, TTL);
+    }
+    const m = body.metrics[key];
+    return m && m.yoy_r !== null && m.shrink_k !== null ? { yoyR: m.yoy_r, shrinkK: m.shrink_k } : null;
+  }
+
+  /** Overridden by the mock client (../../mocks/analytics-client.ts). */
+  protected async fetchMetrics(): Promise<AnalyticsMetricsResponse> {
+    const res = await fetch(`${this.baseUrl}/analytics/metrics`, {
+      headers: this.token ? { 'x-analytics-token': this.token } : {},
+    });
+    if (!res.ok) throw new AnalyticsApiError(`analytics metrics ${res.status}`, res.status);
+    return (await res.json()) as AnalyticsMetricsResponse;
   }
 
   /** Overridden by the mock client (../../mocks/analytics-client.ts). */

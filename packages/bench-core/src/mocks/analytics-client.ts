@@ -1,5 +1,5 @@
 import { AnalyticsClient } from '../adapters/analytics/client.js';
-import type { AnalyticsBatchResponse } from '../adapters/analytics/types.js';
+import type { AnalyticsBatchResponse, AnalyticsMetricsResponse } from '../adapters/analytics/types.js';
 import { LruCache } from '../cache/lru-cache.js';
 import { analyticsBatch } from './fixtures/analytics.js';
 
@@ -18,5 +18,10 @@ export class MockAnalyticsClient extends AnalyticsClient {
       ...analyticsBatch,
       players: Object.fromEntries(Object.entries(analyticsBatch.players).filter(([id]) => wanted.has(id))),
     };
+  }
+
+  /** The pipeline's measured ppr_pg calibration (2016–2025), so mock shrinkage looks real. */
+  protected override async fetchMetrics(): Promise<AnalyticsMetricsResponse> {
+    return { metrics: { ppr_pg: { key: 'ppr_pg', yoy_r: 0.783, shrink_k: 1.144 } } };
   }
 }

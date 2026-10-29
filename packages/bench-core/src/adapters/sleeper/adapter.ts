@@ -1,6 +1,6 @@
 import type { Cache } from '../../cache/cache.js';
 import type { DraftBoard, League, Matchup, Player, Roster, Team } from '../../types/league.js';
-import type { PlatformAdapter } from '../../types/platform.js';
+import type { PlatformAdapter, SeasonProduction } from '../../types/platform.js';
 import { starterSlotTypes } from '../../types/roster-slots.js';
 import { SleeperClient } from './client.js';
 import {
@@ -12,6 +12,7 @@ import {
   mapProjections,
   mapRoster,
   mapSeasonAverages,
+  mapSeasonProduction,
   mapTeams,
   mapWeekPoints,
   parseDraftStatus,
@@ -113,5 +114,14 @@ export class SleeperAdapter implements PlatformAdapter {
   async getSeasonAverages(season: number): Promise<Map<string, number>> {
     const raw = await this.client.getSeasonStats(season);
     return mapSeasonAverages(raw);
+  }
+
+  /** Season totals aren't week-scoped on Sleeper either, so `throughWeek` is unused. */
+  async getSeasonProduction(league: League): Promise<Map<string, SeasonProduction>> {
+    const [current, prior] = await Promise.all([
+      this.client.getSeasonStats(league.season),
+      this.client.getSeasonStats(league.season - 1),
+    ]);
+    return mapSeasonProduction(current, prior, league.scoringFormat);
   }
 }

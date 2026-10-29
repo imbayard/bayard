@@ -1,5 +1,14 @@
 import type { DraftBoard, League, Matchup, Platform, Player, Roster, Team } from './league.js';
 
+/** One player's production this season and last, scored with the league's rules. */
+export interface SeasonProduction {
+  ppg: number;
+  games: number;
+  /** Last season's points per game; null when he didn't play. */
+  priorPpg: number | null;
+  priorGames: number;
+}
+
 export interface PlatformAdapter {
   platform: Platform;
   resolveUserId(usernameOrId: string): Promise<string>;
@@ -29,4 +38,9 @@ export interface PlatformAdapter {
     throughWeek: number,
     externalLeagueId?: string,
   ): Promise<Map<string, number>>;
+  /**
+   * Season-to-date and prior-season points per game for every player the platform reports,
+   * scored with `league`'s rules as closely as the platform allows. Keyed by externalPlayerId.
+   */
+  getSeasonProduction(league: League, throughWeek: number): Promise<Map<string, SeasonProduction>>;
 }

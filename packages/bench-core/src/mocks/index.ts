@@ -7,6 +7,7 @@ import { MockNflScheduleClient } from './nfl-schedule-client.js';
 import { MockNflverseClient } from './nflverse-client.js';
 import { MockWeatherClient } from './weather-client.js';
 import { MockAnalyticsClient } from './analytics-client.js';
+import { MockFantasyCalcClient } from './fantasycalc-client.js';
 import { MOCK_ESPN_LEAGUE_ID, MOCK_ESPN_SEASON } from './fixtures/espn.js';
 
 export { MOCK_SLEEPER_OWNER_ID } from './fixtures/sleeper.js';
@@ -17,6 +18,8 @@ export { MockNflScheduleClient } from './nfl-schedule-client.js';
 export { MockNflverseClient } from './nflverse-client.js';
 export { MockWeatherClient } from './weather-client.js';
 export { MockAnalyticsClient } from './analytics-client.js';
+export { MockFantasyCalcClient } from './fantasycalc-client.js';
+export { TRADE_LEAGUE_ID } from './fixtures/trades.js';
 
 /**
  * Mock adapters are the *real* `SleeperAdapter`/`EspnAdapter` wired up with a mock HTTP client
@@ -46,3 +49,6 @@ export const mockWeatherClient = new MockWeatherClient(mockNflScheduleClient);
 
 /** Mock counterpart to the real `AnalyticsClient` — usage cards for the Redraft Rebels roster. */
 export const mockAnalyticsClient = new MockAnalyticsClient();
+
+/** Mock counterpart to the real `FantasyCalcClient` — market values for the Trade Winds league. */
+export const mockFantasyCalcClient = new MockFantasyCalcClient();

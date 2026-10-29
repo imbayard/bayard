@@ -7,11 +7,13 @@ import type {
   RosterEntry,
   Team,
 } from '../../types/league.js';
+import type { SeasonProduction } from '../../types/platform.js';
 import type {
   EspnDraftDetail,
   EspnLeagueResponse,
   EspnMatchupSide,
   EspnPlayerInfoResponse,
+  EspnPlayerStat,
   EspnProPlayer,
   EspnTeamDetail,
 } from './types.js';
@@ -21,6 +23,7 @@ import {
   NFL_TEAM_BY_ID,
   POSITION_BY_ID,
 } from './constants.js';
+import { round1 } from '../../compute/normalize.js';
 
 export function mapLeague(raw: EspnLeagueResponse): League {
   // ESPN keys scoring rules by numeric statId under scoringSettings.scoringItems
@@ -251,18 +254,43 @@ export function mapWeekPoints(raw: EspnPlayerInfoResponse, week: number): Map<st
  * Season points per game, keyed by ESPN player id. Costs no extra request: the projections call
  * already asks for the `00{season}` stat period, so the season-actual entry (statSourceId 0,
  * statSplitTypeId 0) is already in that response — and `appliedAverage` is already league-scored.
+ * The response also carries last season's line, hence the season match.
  */
-export function mapSeasonAverages(raw: EspnPlayerInfoResponse): Map<string, number> {
+export function mapSeasonAverages(raw: EspnPlayerInfoResponse, season: number): Map<string, number> {
   const averages = new Map<string, number>();
   for (const wrap of raw.players ?? []) {
     const p = wrap.player;
     if (!p) continue;
-    const entry = (p.stats ?? []).find((s) => s.statSourceId === 0 && s.statSplitTypeId === 0);
-    if (entry && typeof entry.appliedAverage === 'number') {
-      averages.set(String(p.id), entry.appliedAverage);
-    }
+    const entry = seasonLine(p.stats, season);
+    if (entry) averages.set(String(p.id), entry.ppg);
   }
   return averages;
+}
+
+/** Same response, read for this season and last: both lines are league-scored. */
+export function mapSeasonProduction(raw: EspnPlayerInfoResponse, season: number): Map<string, SeasonProduction> {
+  const out = new Map<string, SeasonProduction>();
+  for (const wrap of raw.players ?? []) {
+    const p = wrap.player;
+    const now = p ? seasonLine(p.stats, season) : null;
+    if (!p || !now) continue;
+    const last = seasonLine(p.stats, season - 1);
+    out.set(String(p.id), { ...now, priorPpg: last?.ppg ?? null, priorGames: last?.games ?? 0 });
+  }
+  return out;
+}
+
+function seasonLine(stats: EspnPlayerStat[] | undefined, season: number): { ppg: number; games: number } | null {
+  const entry = (stats ?? []).find(
+    (s) => s.statSourceId === 0 && s.statSplitTypeId === 0 && s.seasonId === season,
+  );
+  if (!entry || typeof entry.appliedAverage !== 'number') return null;
+  // ESPN carries no games-played count on the line; total ÷ average recovers it.
+  const games =
+    entry.appliedAverage > 0 && typeof entry.appliedTotal === 'number'
+      ? Math.round(entry.appliedTotal / entry.appliedAverage)
+      : 0;
+  return { ppg: round1(entry.appliedAverage), games };
 }
 
 export function normalizeInjuryStatus(raw: string | null | undefined): string | null {

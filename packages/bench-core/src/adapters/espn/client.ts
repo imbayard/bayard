@@ -113,6 +113,8 @@ export class EspnClient {
           value: 2,
           additionalValue: [
             `00${season}`,
+            // Last season's actual line, scored with this league's rules — Trade Radar's prior.
+            `00${season - 1}`,
             `10${season}`,
             `01${season}${week}`,
             `11${season}${week}`,

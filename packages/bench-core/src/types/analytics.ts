@@ -40,3 +40,11 @@ export interface PlayerCards {
   /** Keyed by the platform player ID the caller asked with. Unknown IDs are absent. */
   players: Map<string, PlayerCard>;
 }
+
+/** A metric's calibration, measured by the pipeline over its closed seasons. */
+export interface MetricCalibration {
+  /** Correlation of a player's full season with his next one. */
+  yoyR: number;
+  /** Games of prior weight a season-to-date value is shrunk with. */
+  shrinkK: number;
+}

@@ -1,6 +1,6 @@
 import type { Cache } from '../../cache/cache.js';
 import type { League, Matchup, Player, Roster, Team } from '../../types/league.js';
-import type { PlatformAdapter } from '../../types/platform.js';
+import type { PlatformAdapter, SeasonProduction } from '../../types/platform.js';
 import { EspnApiError, EspnClient } from './client.js';
 import {
   mapLeague,
@@ -9,6 +9,7 @@ import {
   mapProjections,
   mapRoster,
   mapSeasonAverages,
+  mapSeasonProduction,
   mapWeekPoints,
   mapTeams,
 } from './mapper.js';
@@ -129,7 +130,17 @@ export class EspnAdapter implements PlatformAdapter {
       season,
       throughWeek,
     );
-    return mapSeasonAverages(raw);
+    return mapSeasonAverages(raw, season);
+  }
+
+  /** Same cached response again — it carries this season's line and last season's. */
+  async getSeasonProduction(league: League, throughWeek: number): Promise<Map<string, SeasonProduction>> {
+    const raw = await this.client.getPlayerProjections(
+      this.leagueIdFor(league.externalLeagueId),
+      league.season,
+      Math.max(1, throughWeek),
+    );
+    return mapSeasonProduction(raw, league.season);
   }
 
   private leagueIdFor(externalLeagueId?: string): string {

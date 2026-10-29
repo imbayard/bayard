@@ -19,8 +19,10 @@ import type {
   SleeperPlayer,
   SleeperProjectionsResponse,
   SleeperRoster,
+  SleeperSeasonStat,
   SleeperSeasonStatsResponse,
 } from './types.js';
+import type { SeasonProduction } from '../../types/platform.js';
 import { round1 } from '../../compute/normalize.js';
 
 export function mapLeague(
@@ -174,6 +176,38 @@ export function mapSeasonAverages(raw: SleeperSeasonStatsResponse): Map<string, 
     averages.set(playerId, round1(points / games));
   }
   return averages;
+}
+
+/**
+ * A season line's points under a league's rules. Sleeper totals assume standard scoring
+ * (`pts_std`: 0 per catch, 4 per passing TD), so re-score the two rules leagues most often
+ * change. Position-specific bonuses (TE premium) and yardage tweaks aren't applied.
+ */
+export function leagueScoredPoints(stat: SleeperSeasonStat, scoring: Record<string, number>): number | null {
+  const std = stat.pts_std;
+  if (typeof std !== 'number') return typeof stat.pts_ppr === 'number' ? stat.pts_ppr : null;
+  return std + (scoring['rec'] ?? 0) * (stat.rec ?? 0) + ((scoring['pass_td'] ?? 4) - 4) * (stat.pass_td ?? 0);
+}
+
+/** Season-to-date and prior-season PPG, league-scored, keyed by player_id. */
+export function mapSeasonProduction(
+  current: SleeperSeasonStatsResponse,
+  prior: SleeperSeasonStatsResponse,
+  scoring: Record<string, number>,
+): Map<string, SeasonProduction> {
+  const perGame = (stat: SleeperSeasonStat | undefined): { ppg: number; games: number } | null => {
+    const games = stat?.gp;
+    const points = stat ? leagueScoredPoints(stat, scoring) : null;
+    return games && points !== null ? { ppg: round1(points / games), games } : null;
+  };
+  const out = new Map<string, SeasonProduction>();
+  for (const [playerId, stat] of Object.entries(current)) {
+    const now = perGame(stat);
+    if (!now) continue;
+    const last = perGame(prior[playerId]);
+    out.set(playerId, { ...now, priorPpg: last?.ppg ?? null, priorGames: last?.games ?? 0 });
+  }
+  return out;
 }
 
 const STATUS_ACRONYMS = new Set(['IR', 'PUP', 'NA', 'COV', 'DNR']);

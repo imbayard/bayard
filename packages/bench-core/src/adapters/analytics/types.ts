@@ -14,3 +14,8 @@ export interface AnalyticsBatchResponse {
     }
   >;
 }
+
+/** `GET /analytics/metrics`: the registry with each metric's calibration. */
+export interface AnalyticsMetricsResponse {
+  metrics: Record<string, { key: string; yoy_r: number | null; shrink_k: number | null }>;
+}

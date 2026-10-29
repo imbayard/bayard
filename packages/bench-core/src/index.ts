@@ -14,7 +14,7 @@ export type {
   RosterEntry,
   Team,
 } from './types/league.js';
-export type { PlatformAdapter } from './types/platform.js';
+export type { PlatformAdapter, SeasonProduction } from './types/platform.js';
 export type { Cache } from './cache/cache.js';
 export { LruCache } from './cache/lru-cache.js';
 export { SleeperClient, SleeperApiError } from './adapters/sleeper/client.js';
@@ -27,7 +27,8 @@ export type * from './adapters/espn/types.js';
 export * from './adapters/nfl-schedule/index.js';
 export * from './adapters/weather/index.js';
 export * from './adapters/analytics/index.js';
-export type { MetricWindow, MetricWindows, PlayerCard, PlayerCards } from './types/analytics.js';
+export type { MetricCalibration, MetricWindow, MetricWindows, PlayerCard, PlayerCards } from './types/analytics.js';
+export * from './adapters/fantasycalc/index.js';
 export type {
   GameConditions,
   GameWeather,
@@ -76,3 +77,4 @@ export { buildRootingBoard, rootingKey } from './compute/rooting.js';
 export type { RootingRow, RootingSide, RootingStake, RootingStarter } from './compute/rooting.js';
 export type { MatchupResult, WinLossRecord } from './compute/results.js';
 export * from './mocks/index.js';
+export * from './compute/trades/index.js';

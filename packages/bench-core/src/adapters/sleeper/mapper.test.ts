@@ -3,6 +3,7 @@ import {
   draftSlotForPick,
   mapDraft,
   mapDraftPicks,
+  mapSeasonProduction,
   mapLeague,
   mapMatchups,
   mapPlayer,
@@ -309,5 +310,15 @@ describe('mapDraftPicks', () => {
     expect(result?.playerName).toBe('4984');
     expect(result?.position).toBe('UNK');
     expect(result?.nflTeam).toBeNull();
+  });
+});
+
+describe('mapSeasonProduction', () => {
+  it('re-scores standard totals to the league rules, with last season alongside', () => {
+    const current = { a: { gp: 4, pts_std: 40, pts_ppr: 60, rec: 20 } };
+    const prior = { a: { gp: 10, pts_std: 100, rec: 30, pass_td: 0 } };
+    const half = mapSeasonProduction(current, prior, { rec: 0.5 }).get('a');
+    expect(half).toEqual({ ppg: 12.5, games: 4, priorPpg: 11.5, priorGames: 10 });
+    expect(mapSeasonProduction(current, {}, {}).get('a')).toEqual({ ppg: 10, games: 4, priorPpg: null, priorGames: 0 });
   });
 });
