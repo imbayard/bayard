@@ -1,9 +1,11 @@
 import {
   AnalyticsClient,
   EspnAdapter,
+  FantasyCalcClient,
   LruCache,
   mockAnalyticsClient,
   mockEspnAdapter,
+  mockFantasyCalcClient,
   mockNflScheduleClient,
   mockNflverseClient,
   mockSleeperAdapter,
@@ -32,6 +34,9 @@ export const weatherClient = new WeatherClient(cache, nflScheduleClient);
 
 /** The analytics pipeline lives in the Coach backend, beside the integrations. */
 export const analyticsClient = new AnalyticsClient(cache, env.integrationsBaseUrl, env.analyticsToken);
+
+/** FantasyCalc market values: public, keyed by league format, shared across every league. */
+export const fantasyCalcClient = new FantasyCalcClient(cache);
 
 export const espnAdapter: EspnAdapter | undefined =
   env.espnLeagueIds.length > 0 && env.espnSwid && env.espnS2
@@ -73,4 +78,8 @@ export function weatherFor(useMock: boolean): WeatherClient {
 
 export function analyticsFor(useMock: boolean): AnalyticsClient {
   return useMock ? mockAnalyticsClient : analyticsClient;
+}
+
+export function fantasyCalcFor(useMock: boolean): FantasyCalcClient {
+  return useMock ? mockFantasyCalcClient : fantasyCalcClient;
 }

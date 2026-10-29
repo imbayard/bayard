@@ -11,6 +11,7 @@ const PRESERVED = [
   '/players/nfl', // Sleeper player DB, 24h
   '/stats/nfl/regular/', // Sleeper season totals, 6h
   'view=kona_player_info', // ESPN player pool, 24h
+  'fantasycalc:', // trade values, 6h
 ];
 
 export const refresh = new Hono();

@@ -11,6 +11,7 @@ import { refresh } from './routes/refresh.js';
 import { rooting } from './routes/rooting.js';
 import { rosters } from './routes/rosters.js';
 import { scout } from './routes/scout.js';
+import { trades } from './routes/trades.js';
 import { weather } from './routes/weather.js';
 
 // Mounted under /api/bench so it can be served both by the Netlify Function
@@ -25,6 +26,7 @@ app.route('/', rosters);
 app.route('/', matchups);
 app.route('/', benchIq);
 app.route('/', scout);
+app.route('/', trades);
 app.route('/', refresh);
 app.route('/', digest);
 app.route('/', weather);
