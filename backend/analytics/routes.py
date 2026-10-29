@@ -98,6 +98,16 @@ async def health():
     }
 
 
+@router.get("/metrics")
+async def metrics():
+    """The registry with each metric's calibration, for callers that shrink their own numbers
+    (Trade Radar re-scores PPG to league rules and borrows fantasy_ppg's yoy_r / shrink_k)."""
+    async with _db() as db:
+        rows = await db.execute_fetchall(
+            "SELECT key, family, label, uom, yoy_r, shrink_k, validated_on FROM metric ORDER BY key")
+    return {"metrics": {r["key"]: dict(r) for r in rows}}
+
+
 _ID_COLUMN = {"sleeper": "sleeper_id", "espn": "espn_id", "gsis": "gsis_id"}
 
 
