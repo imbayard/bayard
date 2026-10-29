@@ -7,7 +7,8 @@ import type { Platform } from '@benchpoints/core';
 // unchanged — hrefs are parsed into an internal view instead of a browser navigation.
 export type BenchView =
   | { name: 'deck' }
-  | { name: 'league'; platform: Platform; leagueId: string };
+  | { name: 'league'; platform: Platform; leagueId: string }
+  | { name: 'trades'; platform: Platform; leagueId: string };
 
 interface BenchNav {
   view: BenchView;
@@ -29,9 +30,9 @@ export function useBenchNav(): BenchNav {
 }
 
 function parseHref(href: string): BenchView {
-  const m = /^\/leagues\/([^/]+)\/([^/]+)\/?$/.exec(href);
+  const m = /^\/leagues\/([^/]+)\/([^/]+)(\/trades)?\/?$/.exec(href);
   if (m) {
-    return { name: 'league', platform: m[1] as Platform, leagueId: decodeURIComponent(m[2]) };
+    return { name: m[3] ? 'trades' : 'league', platform: m[1] as Platform, leagueId: decodeURIComponent(m[2]) };
   }
   return { name: 'deck' };
 }

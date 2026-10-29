@@ -1,5 +1,6 @@
 import type { League, Platform } from '@benchpoints/core';
 import { Link } from '@bench/lib/nav';
+import { buttonVariants } from '@bench/components/ui/button';
 import { Skeleton } from '@bench/components/ui/skeleton';
 import { PlatformBadge } from '@bench/components/system/platform-badge';
 import { TrendTicker } from '@bench/components/trend-ticker';
@@ -77,6 +78,29 @@ function ScoutSection({ league }: { league: League }) {
         <ScoutBoard league={league} />
       </div>
     </details>
+  );
+}
+
+/**
+ * Trade Radar's way in, beside Scout: another planning tool, so it's one line and a button
+ * rather than a board. Best-ball leagues have no trades, so no section.
+ */
+function TradesSection({ league }: { league: League }) {
+  if (league.leagueType === 'bestball') return null;
+  const href = `/leagues/${league.platform}/${encodeURIComponent(league.externalLeagueId)}/trades`;
+
+  return (
+    <section aria-label="Trades" className="flex items-center justify-between gap-3">
+      <div>
+        <h2 className="text-sm font-medium text-muted-foreground">Trades</h2>
+        <p className="text-xs text-muted-foreground">
+          Fair deals with teams whose needs fit yours, as a buyer or a seller.
+        </p>
+      </div>
+      <Link href={href} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+        Find trades
+      </Link>
+    </section>
   );
 }
 
@@ -165,11 +189,11 @@ export function LeagueDetailView({ platform, leagueId }: { platform: Platform; l
         <RosterView league={league} />
       </section>
       <ScoutSection league={league} />
+      <TradesSection league={league} />
       <DraftSection league={league} />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <ComingSoon title="Standings" />
         <WaiversPreview summary={summary} />
-        <ComingSoon title="Trades" />
       </div>
     </div>
   );

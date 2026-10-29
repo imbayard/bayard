@@ -11,6 +11,7 @@ import { RefreshButton } from '@bench/components/system/refresh-button';
 import { SendDigestButton } from '@bench/components/system/send-digest-button';
 import { CommandDeck } from '@bench/CommandDeck';
 import { LeagueDetailView } from '@bench/components/league-detail/league-detail-view';
+import { TradesView } from '@bench/components/trades/trades-view';
 import { usePathname, navigate } from '../lib/router';
 import '@bench/bench.css';
 
@@ -24,17 +25,20 @@ export default function BenchApp({ onExitToHome }: { onExitToHome: () => void })
       }),
   );
   const path = usePathname();
-  const segments = path.split('/').filter(Boolean); // ['bench'] or ['bench', 'leagues', platform, leagueId]
+  // ['bench'], ['bench', 'leagues', platform, leagueId] or [..., leagueId, 'trades']
+  const segments = path.split('/').filter(Boolean);
   const view: BenchView =
     segments[1] === 'leagues' && segments[2] && segments[3]
-      ? { name: 'league', platform: segments[2] as Platform, leagueId: decodeURIComponent(segments[3]) }
+      ? {
+          name: segments[4] === 'trades' ? 'trades' : 'league',
+          platform: segments[2] as Platform,
+          leagueId: decodeURIComponent(segments[3]),
+        }
       : { name: 'deck' };
   function setView(v: BenchView) {
-    navigate(
-      v.name === 'deck'
-        ? '/bench'
-        : `/bench/leagues/${v.platform}/${encodeURIComponent(v.leagueId)}`,
-    );
+    if (v.name === 'deck') return navigate('/bench');
+    const league = `/bench/leagues/${v.platform}/${encodeURIComponent(v.leagueId)}`;
+    navigate(v.name === 'trades' ? `${league}/trades` : league);
   }
 
   return (
@@ -64,6 +68,8 @@ export default function BenchApp({ onExitToHome }: { onExitToHome: () => void })
                 <main className="flex-1 pb-6">
                   {view.name === 'deck' ? (
                     <CommandDeck />
+                  ) : view.name === 'trades' ? (
+                    <TradesView platform={view.platform} leagueId={view.leagueId} />
                   ) : (
                     <LeagueDetailView platform={view.platform} leagueId={view.leagueId} />
                   )}

@@ -13,6 +13,8 @@ import type {
   RootingRow,
   ScoutCandidate,
   Team,
+  TradeMode,
+  TradeRadarResult,
 } from '@benchpoints/core';
 
 // Same-origin: the bench Netlify Function is bound to /api/bench/* on this site.
@@ -188,6 +190,22 @@ export function fetchScout(
 ): Promise<ScoutResponse> {
   const query = new URLSearchParams({ position, from: String(from), to: String(to), pool });
   return get(`/leagues/${platform}/${leagueId}/scout?${query}`, mock);
+}
+
+/**
+ * Trade Radar packages for my team. Omitting `mode` takes the server's suggestion; `market`
+ * false judges fairness on our values instead of FantasyCalc's. 400s for best-ball leagues.
+ */
+export function fetchTrades(
+  platform: Platform,
+  leagueId: string,
+  mode: TradeMode | undefined,
+  market: boolean,
+  mock: boolean,
+): Promise<TradeRadarResult> {
+  const query = new URLSearchParams(mode ? { mode } : {});
+  if (!market) query.set('market', 'off');
+  return get(`/leagues/${platform}/${leagueId}/trades?${query}`, mock);
 }
 
 /**

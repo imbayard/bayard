@@ -1,5 +1,5 @@
 
-import type { DraftBoard, League, Matchup, Platform, Team } from '@benchpoints/core';
+import type { DraftBoard, League, Matchup, Platform, Team, TradeMode } from '@benchpoints/core';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import {
   fetchBenchIq,
@@ -10,6 +10,7 @@ import {
   fetchRooting,
   fetchScout,
   fetchTeams,
+  fetchTrades,
   fetchWeather,
   type BenchIqResponse,
   type ScoutPool,
@@ -136,6 +137,19 @@ export function useScout(
   return useQuery({
     queryKey: ['scout', platform, leagueId, position, from, to, pool, mock],
     queryFn: () => fetchScout(platform, leagueId, position, from, to, pool, mock),
+    staleTime: 30 * MINUTE,
+  });
+}
+
+/**
+ * Rosters and values move daily at most, so a found set of trades can sit for a while; mode
+ * and market are in the key, so flipping either refetches.
+ */
+export function useTrades(platform: Platform, leagueId: string, mode: TradeMode | undefined, market: boolean) {
+  const [mock] = useMockMode();
+  return useQuery({
+    queryKey: ['trades', platform, leagueId, mode ?? 'suggested', market, mock],
+    queryFn: () => fetchTrades(platform, leagueId, mode, market, mock),
     staleTime: 30 * MINUTE,
   });
 }
