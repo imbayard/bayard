@@ -1,7 +1,8 @@
 import type { League } from '@benchpoints/core';
 import { MOCK_ESPN_OWNER_ID, MOCK_SLEEPER_OWNER_ID } from '@benchpoints/core';
-import { AdapterNotConfiguredError, adapterFor, sleeperAdapter } from '../adapters.js';
+import { AdapterNotConfiguredError, sleeperAdapter } from '../adapters.js';
 import { env } from '../env.js';
+import { getEspnLeagues, getSleeperLeagues } from '../routes/leagues.js';
 import type { Platform } from '@benchpoints/core';
 
 /** A league plus the id of the owner whose team we're reporting on. */
@@ -10,32 +11,29 @@ export interface LeagueLookup {
   ownerExternalUserId: string;
 }
 
+/**
+ * Lists the owner's leagues the same way `/leagues` does and picks one. A prior-season id
+ * still resolves (an old link, or the league list rolled over), so that fallback stays.
+ */
 async function findSleeperLeague(leagueId: string, useMock: boolean): Promise<LeagueLookup | undefined> {
-  if (useMock) {
-    const leagues = await adapterFor('sleeper', true).getLeagues(MOCK_SLEEPER_OWNER_ID, env.espnSeason);
-    const league = leagues.find((l) => l.externalLeagueId === leagueId);
-    return league ? { league, ownerExternalUserId: MOCK_SLEEPER_OWNER_ID } : undefined;
-  }
-
-  if (!env.sleeperUsername) {
-    throw new AdapterNotConfiguredError('sleeper');
-  }
-  const userId = await sleeperAdapter.resolveUserId(env.sleeperUsername);
-  const state = await sleeperAdapter.getNflState();
-  const stateSeason = Number(state.league_season ?? state.season);
-
-  let leagues = await sleeperAdapter.getLeagues(userId, stateSeason);
+  const [leagues, ownerExternalUserId] = await Promise.all([
+    getSleeperLeagues(useMock),
+    resolveOwnerId('sleeper', useMock),
+  ]);
   let league = leagues.find((l) => l.externalLeagueId === leagueId);
-  if (!league) {
-    leagues = await sleeperAdapter.getLeagues(userId, stateSeason - 1);
-    league = leagues.find((l) => l.externalLeagueId === leagueId);
+  if (!league && !useMock && leagues.length > 0) {
+    const priorSeason = leagues[0]!.season - 1;
+    const prior = await sleeperAdapter.getLeagues(ownerExternalUserId, priorSeason);
+    league = prior.find((l) => l.externalLeagueId === leagueId);
   }
-  return league ? { league, ownerExternalUserId: userId } : undefined;
+  return league ? { league, ownerExternalUserId } : undefined;
 }
 
 async function findEspnLeague(leagueId: string, useMock: boolean): Promise<LeagueLookup | undefined> {
-  const ownerExternalUserId = useMock ? MOCK_ESPN_OWNER_ID : (env.espnSwid ?? '');
-  const leagues = await adapterFor('espn', useMock).getLeagues(ownerExternalUserId, env.espnSeason);
+  const [leagues, ownerExternalUserId] = await Promise.all([
+    getEspnLeagues(useMock),
+    resolveOwnerId('espn', useMock),
+  ]);
   const league = leagues.find((l) => l.externalLeagueId === leagueId);
   return league ? { league, ownerExternalUserId } : undefined;
 }

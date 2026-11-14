@@ -4,6 +4,7 @@ import { AdapterNotConfiguredError } from './adapters.js';
 import { env } from './env.js';
 import { InvalidPlatformError } from './lib/platform.js';
 import { benchIq } from './routes/bench-iq.js';
+import { deck } from './routes/deck.js';
 import { digest } from './routes/digest.js';
 import { leagues } from './routes/leagues.js';
 import { matchups } from './routes/matchups.js';
@@ -19,9 +20,17 @@ import { weather } from './routes/weather.js';
 // No CORS: the function is same-origin with the SPA that calls it.
 export const app = new Hono().basePath('/api/bench');
 
+// Total handler time per request, readable in the browser's Network tab (Timing).
+app.use(async (c, next) => {
+  const start = performance.now();
+  await next();
+  c.header('Server-Timing', `total;dur=${(performance.now() - start).toFixed(1)}`);
+});
+
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 app.route('/', leagues);
+app.route('/', deck);
 app.route('/', rosters);
 app.route('/', matchups);
 app.route('/', benchIq);

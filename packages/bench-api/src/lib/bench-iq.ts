@@ -52,42 +52,56 @@ export async function computeLeagueBenchIq(
   useMock: boolean,
 ): Promise<LeagueBenchIq | null> {
   const adapter = adapterFor(platform, useMock);
-  const [teams, rosters, players, projections, weather, gameStates] = await Promise.all([
-    adapter.getTeams(league.externalLeagueId),
-    adapter.getRosters(league.externalLeagueId),
-    adapter.getPlayers(),
-    adapter.getProjections(league.season, league.currentWeek, league.externalLeagueId),
-    // Weather is context, never a dependency: no forecast means no weather flags, not a 502.
-    weatherFor(useMock)
-      .getWeekWeather(league.season, league.currentWeek)
-      .catch(() => new Map<string, GameWeather>()),
-    // Same for kickoff state: without it no player counts as locked, so flags just stay on.
-    nflScheduleFor(useMock)
-      .getWeekGameStates(league.season, league.currentWeek)
-      .catch(() => new Map<string, NflGameState>()),
-  ]);
+  const leagueId = league.externalLeagueId;
+
+  // Analytics (a separate service) only needs my roster's player ids, so it starts as soon
+  // as teams + rosters land instead of waiting on the player DB and the rest.
+  const mine = Promise.all([adapter.getTeams(leagueId), adapter.getRosters(leagueId)]).then(
+    ([teams, rosters]) => {
+      const myTeam = teams.find(
+        (t) => t.ownerExternalUserId.toLowerCase() === ownerExternalUserId.toLowerCase(),
+      );
+      const roster = myTeam
+        ? rosters.find((r) => r.externalTeamId === myTeam.externalTeamId)
+        : undefined;
+      return { teams, rosters, roster };
+    },
+  );
+  // Analytics is context too: if the pipeline is down, trends go quiet, nothing else does.
+  const cardsPromise = mine.then(({ roster }) =>
+    roster
+      ? analyticsFor(useMock)
+          .getPlayerCards(
+            platform,
+            roster.entries.map((e) => e.externalPlayerId),
+            league.season,
+          )
+          .then((c) => c.players)
+          .catch(() => new Map<string, PlayerCard>())
+      : new Map<string, PlayerCard>(),
+  );
+
+  const [{ teams, rosters, roster }, players, projections, weather, gameStates, cards] =
+    await Promise.all([
+      mine,
+      adapter.getPlayers(),
+      adapter.getProjections(league.season, league.currentWeek, leagueId),
+      // Weather is context, never a dependency: no forecast means no weather flags, not a 502.
+      weatherFor(useMock)
+        .getWeekWeather(league.season, league.currentWeek)
+        .catch(() => new Map<string, GameWeather>()),
+      // Same for kickoff state: without it no player counts as locked, so flags just stay on.
+      nflScheduleFor(useMock)
+        .getWeekGameStates(league.season, league.currentWeek)
+        .catch(() => new Map<string, NflGameState>()),
+      cardsPromise,
+    ]);
+  if (!roster) return null;
+
   for (const [playerId, projectedPoints] of projections) {
     const player = players.get(playerId);
     if (player) player.projectedPoints = projectedPoints;
   }
-
-  const myTeam = teams.find(
-    (t) => t.ownerExternalUserId.toLowerCase() === ownerExternalUserId.toLowerCase(),
-  );
-  const roster = myTeam
-    ? rosters.find((r) => r.externalTeamId === myTeam.externalTeamId)
-    : undefined;
-  if (!roster) return null;
-
-  // Analytics is context too: if the pipeline is down, trends go quiet, nothing else does.
-  const cards = await analyticsFor(useMock)
-    .getPlayerCards(
-      platform,
-      roster.entries.map((e) => e.externalPlayerId),
-      league.season,
-    )
-    .then((c) => c.players)
-    .catch(() => new Map<string, PlayerCard>());
 
   const flags = computeBenchIqFlags(
     roster,

@@ -1,4 +1,5 @@
 import type { Cache } from '../../cache/cache.js';
+import { InFlight } from '../../cache/in-flight.js';
 import type { NflGameState, NflWeekOpponent } from '../../types/league.js';
 import type { NflGameVenue } from '../../types/weather.js';
 import { mapGameStates, mapWeekOpponents, mapWeekVenues } from './mapper.js';
@@ -30,6 +31,8 @@ export class NflScheduleApiError extends Error {
  * one request covers every team, so every league's matchups share the same cached map.
  */
 export class NflScheduleClient {
+  private readonly inFlight = new InFlight();
+
   constructor(
     private readonly cache: Cache,
     private readonly baseUrl: string = BASE_URL,
@@ -41,7 +44,7 @@ export class NflScheduleClient {
     const cached = this.cache.get<Map<string, NflGameState>>(key);
     if (cached !== undefined) return cached;
 
-    const raw = await this.fetchScoreboard(season, week);
+    const raw = await this.scoreboard(season, week);
     const states = mapGameStates(raw);
     this.cache.set(key, states, TTL.states);
     return states;
@@ -57,7 +60,7 @@ export class NflScheduleClient {
     const cached = this.cache.get<Map<string, NflWeekOpponent>>(key);
     if (cached !== undefined) return cached;
 
-    const opponents = mapWeekOpponents(await this.fetchScoreboard(season, week));
+    const opponents = mapWeekOpponents(await this.scoreboard(season, week));
     this.cache.set(key, opponents, TTL.opponents);
     return opponents;
   }
@@ -68,9 +71,14 @@ export class NflScheduleClient {
     const cached = this.cache.get<NflGameVenue[]>(key);
     if (cached !== undefined) return cached;
 
-    const venues = mapWeekVenues(await this.fetchScoreboard(season, week));
+    const venues = mapWeekVenues(await this.scoreboard(season, week));
     this.cache.set(key, venues, TTL.venues);
     return venues;
+  }
+
+  /** States, opponents and venues all read the same slate; concurrent callers share one fetch. */
+  private scoreboard(season: number, week: number): Promise<EspnScoreboardResponse> {
+    return this.inFlight.run(`${season}:${week}`, () => this.fetchScoreboard(season, week));
   }
 
   /** Overridden by the mock client (../../mocks/nfl-schedule-client.ts). */

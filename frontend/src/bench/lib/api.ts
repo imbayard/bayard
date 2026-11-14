@@ -101,8 +101,22 @@ function post<T>(path: string, mock: boolean): Promise<T> {
   return request<T>('POST', path, mock);
 }
 
-export function fetchLeagues(mock: boolean): Promise<LeaguesResponse> {
-  return get('/leagues', mock);
+/** One league's slice of `/deck` — null where that part failed; `error` says why. */
+export interface DeckLeagueSummary {
+  teams: Team[] | null;
+  matchups: Matchup[] | null;
+  benchIq: BenchIqResponse | null;
+  error: string | null;
+}
+
+export interface DeckResponse extends LeaguesResponse {
+  /** Keyed `${platform}:${externalLeagueId}`. */
+  summaries: Record<string, DeckLeagueSummary>;
+}
+
+/** Everything the Command Deck renders, in one request. */
+export function fetchDeck(mock: boolean): Promise<DeckResponse> {
+  return get('/deck', mock);
 }
 
 export function fetchTeams(platform: Platform, leagueId: string, mock: boolean): Promise<Team[]> {

@@ -17,6 +17,7 @@ export type {
 export type { PlatformAdapter, SeasonProduction } from './types/platform.js';
 export type { Cache } from './cache/cache.js';
 export { LruCache } from './cache/lru-cache.js';
+export type { SharedStore } from './cache/shared-store.js';
 export { SleeperClient, SleeperApiError } from './adapters/sleeper/client.js';
 export { SleeperAdapter } from './adapters/sleeper/adapter.js';
 export * from './adapters/sleeper/mapper.js';

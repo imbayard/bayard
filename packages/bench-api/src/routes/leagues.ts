@@ -25,8 +25,10 @@ export async function getSleeperLeagues(useMock: boolean): Promise<League[]> {
   if (!env.sleeperUsername) {
     throw new AdapterNotConfiguredError('sleeper');
   }
-  const userId = await sleeperAdapter.resolveUserId(env.sleeperUsername);
-  const state = await sleeperAdapter.getNflState();
+  const [userId, state] = await Promise.all([
+    sleeperAdapter.resolveUserId(env.sleeperUsername),
+    sleeperAdapter.getNflState(),
+  ]);
   const stateSeason = Number(state.league_season ?? state.season);
 
   const result = await sleeperAdapter.getLeagues(userId, stateSeason);

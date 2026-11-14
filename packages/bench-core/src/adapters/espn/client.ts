@@ -1,4 +1,6 @@
 import type { Cache } from '../../cache/cache.js';
+import { InFlight } from '../../cache/in-flight.js';
+import { readThroughShared, type SharedStore } from '../../cache/shared-store.js';
 import type {
   EspnLeagueResponse,
   EspnPlayerInfoResponse,
@@ -27,15 +29,22 @@ export class EspnApiError extends Error {
   }
 }
 
+/**
+ * Every call goes through the cache, and concurrent calls for the same URL share one request.
+ * The player pool also goes through `shared` when given. Cache keys are the URL only — the
+ * credentials travel in the Cookie header, so they never reach a key.
+ */
 export class EspnClient {
   private readonly swid: string;
   private readonly espnS2: string;
+  private readonly inFlight = new InFlight();
 
   constructor(
     private readonly cache: Cache,
     swid: string,
     espnS2: string,
     private readonly baseUrl: string = BASE_URL,
+    private readonly shared?: SharedStore,
   ) {
     this.swid = swid;
     this.espnS2 = espnS2;
@@ -45,11 +54,27 @@ export class EspnClient {
     return `SWID=${this.swid}; espn_s2=${this.espnS2}`;
   }
 
-  private async fetchJson<T>(url: string, ttlMs: number, options?: RequestInit): Promise<T> {
+  private fetchJson<T>(
+    url: string,
+    ttlMs: number,
+    options?: RequestInit,
+    shared = false,
+  ): Promise<T> {
     const key = `espn:${url}`;
     const cached = this.cache.get<T>(key);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) return Promise.resolve(cached);
 
+    return this.inFlight.run(key, async () => {
+      const load = () => this.request<T>(url, options);
+      const result = shared
+        ? await readThroughShared(this.shared, key, ttlMs, load)
+        : { data: await load(), ttlMs };
+      this.cache.set(key, result.data, result.ttlMs);
+      return result.data;
+    });
+  }
+
+  private async request<T>(url: string, options?: RequestInit): Promise<T> {
     const headers = {
       ...options?.headers,
       Cookie: this.getCookieHeader(),
@@ -59,10 +84,7 @@ export class EspnClient {
     if (!res.ok) {
       throw new EspnApiError(`ESPN API ${res.status} for ${url}`, res.status);
     }
-
-    const data = (await res.json()) as T;
-    this.cache.set(key, data, ttlMs);
-    return data;
+    return (await res.json()) as T;
   }
 
   /**
@@ -85,11 +107,12 @@ export class EspnClient {
     const filter = JSON.stringify({
       players: { limit: 2000, filterActive: { value: true } },
     });
-    return this.fetchJson<EspnPlayerPool>(url, TTL.playerPool, {
-      headers: {
-        'x-fantasy-filter': filter,
-      },
-    });
+    return this.fetchJson<EspnPlayerPool>(
+      url,
+      TTL.playerPool,
+      { headers: { 'x-fantasy-filter': filter } },
+      true,
+    );
   }
 
   /**

@@ -1,4 +1,6 @@
 import type { Cache } from '../../cache/cache.js';
+import { InFlight } from '../../cache/in-flight.js';
+import { readThroughShared, type SharedStore } from '../../cache/shared-store.js';
 import type {
   SleeperDraft,
   SleeperDraftPick,
@@ -42,19 +44,41 @@ export class SleeperApiError extends Error {
   }
 }
 
-/** Raw HTTP client for the Sleeper API. Every call goes through the cache. */
+/**
+ * Raw HTTP client for the Sleeper API. Every call goes through the cache, and concurrent
+ * calls for the same path share one request. The player DB also goes through `shared`
+ * when given, so a cold instance can skip the ~5MB download.
+ */
 export class SleeperClient {
+  private readonly inFlight = new InFlight();
+
   constructor(
     private readonly cache: Cache,
     private readonly baseUrl: string = BASE_URL,
+    private readonly shared?: SharedStore,
   ) {}
 
-  private async fetchJson<T>(path: string, ttlMs: number, baseUrl: string = this.baseUrl): Promise<T> {
+  private fetchJson<T>(
+    path: string,
+    ttlMs: number,
+    { baseUrl = this.baseUrl, shared = false }: { baseUrl?: string; shared?: boolean } = {},
+  ): Promise<T> {
     const key = `sleeper:${path}`;
     const cached = this.cache.get<T>(key);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) return Promise.resolve(cached);
 
-    const res = await fetch(`${baseUrl}${path}`);
+    return this.inFlight.run(key, async () => {
+      const load = () => this.request<T>(`${baseUrl}${path}`, path);
+      const result = shared
+        ? await readThroughShared(this.shared, key, ttlMs, load)
+        : { data: await load(), ttlMs };
+      this.cache.set(key, result.data, result.ttlMs);
+      return result.data;
+    });
+  }
+
+  private async request<T>(url: string, path: string): Promise<T> {
+    const res = await fetch(url);
     if (!res.ok) {
       throw new SleeperApiError(`Sleeper API ${res.status} for ${path}`, res.status);
     }
@@ -63,7 +87,6 @@ export class SleeperClient {
     if (data === null) {
       throw new SleeperApiError(`Sleeper returned no data for ${path}`, 404);
     }
-    this.cache.set(key, data, ttlMs);
     return data;
   }
 
@@ -117,14 +140,16 @@ export class SleeperClient {
     return this.fetchJson(`/league/${encodeURIComponent(leagueId)}/matchups/${week}`, TTL.matchups);
   }
 
-  /** ~5MB response — cached for 24h. */
+  /** ~5MB response — cached for 24h, shared across instances. */
   getPlayers(): Promise<SleeperPlayersResponse> {
-    return this.fetchJson('/players/nfl', TTL.players);
+    return this.fetchJson('/players/nfl', TTL.players, { shared: true });
   }
 
   /** ~5MB response, undocumented endpoint (Backend/Data Sources.md: Sleeper NFL endpoints carry projections). */
   getProjections(season: number, week: number): Promise<SleeperProjectionsResponse> {
-    return this.fetchJson(`/${season}/${week}?season_type=regular`, TTL.projections, PROJECTIONS_BASE_URL);
+    return this.fetchJson(`/${season}/${week}?season_type=regular`, TTL.projections, {
+      baseUrl: PROJECTIONS_BASE_URL,
+    });
   }
 
   /** Season-to-date totals for every player, in one object. A documented /v1 endpoint, unlike projections. */

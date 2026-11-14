@@ -28,6 +28,7 @@
   "dependencies": {
     "@benchpoints/core": "workspace:*",
     "@hono/node-server": "^1.13.0",
+    "@netlify/blobs": "^11.1.9",
     "hono": "^4.6.0"
   },
   "devDependencies": {

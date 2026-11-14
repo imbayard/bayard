@@ -6,6 +6,9 @@ import { cache } from '../adapters.js';
  * no roster move or score change can invalidate — Sleeper's player DB is several MB and
  * turns over once a day, and season totals only move when a week finishes. Re-downloading
  * them on every click would make the button feel worse than the staleness it fixes.
+ *
+ * The two player pools are also mirrored in Netlify Blobs (lib/blob-store.ts). Because they
+ * are spared here, the refresh never needs to touch Blobs; their own 24h expiry handles it.
  */
 const PRESERVED = [
   '/players/nfl', // Sleeper player DB, 24h

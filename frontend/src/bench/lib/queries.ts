@@ -1,10 +1,10 @@
 
 import type { DraftBoard, League, Matchup, Platform, Team, TradeMode } from '@benchpoints/core';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   fetchBenchIq,
+  fetchDeck,
   fetchDraft,
-  fetchLeagues,
   fetchMatchups,
   fetchRosters,
   fetchRooting,
@@ -13,23 +13,63 @@ import {
   fetchTrades,
   fetchWeather,
   type BenchIqResponse,
+  type DeckResponse,
+  type LeaguesResponse,
   type ScoutPool,
 } from './api';
 import { useMockMode } from './mock-mode';
 
 const MINUTE = 60_000;
 
-export function leaguesQuery(mock: boolean) {
+function summaryKey(league: League): string {
+  return `${league.platform}:${league.externalLeagueId}`;
+}
+
+/**
+ * The whole Command Deck in one request. Its staleTime is the shortest of its parts
+ * (matchups, bench-iq), so nothing on home goes staler than when each was fetched alone.
+ * Each league's parts are also written into the per-league query keys, so league detail
+ * opens from cache.
+ */
+function deckQuery(mock: boolean, queryClient: QueryClient) {
   return {
-    queryKey: ['leagues', mock] as const,
-    queryFn: () => fetchLeagues(mock),
-    staleTime: 5 * MINUTE,
+    queryKey: ['deck', mock] as const,
+    queryFn: async () => {
+      const deck = await fetchDeck(mock);
+      for (const l of deck.leagues) {
+        const summary = deck.summaries[summaryKey(l)];
+        if (!summary) continue;
+        if (summary.teams) {
+          queryClient.setQueryData(teamsQuery(l.platform, l.externalLeagueId, mock).queryKey, summary.teams);
+        }
+        if (summary.matchups) {
+          const { queryKey } = matchupsQuery(l.platform, l.externalLeagueId, l.season, l.currentWeek, mock);
+          queryClient.setQueryData(queryKey, summary.matchups);
+        }
+        if (summary.benchIq) {
+          queryClient.setQueryData(benchIqQuery(l.platform, l.externalLeagueId, mock).queryKey, summary.benchIq);
+        }
+      }
+      return deck;
+    },
+    staleTime: 0.5 * MINUTE,
   };
 }
 
+function useDeck() {
+  const [mock] = useMockMode();
+  return useQuery(deckQuery(mock, useQueryClient()));
+}
+
+const selectLeagues = (deck: DeckResponse): LeaguesResponse => ({
+  leagues: deck.leagues,
+  errors: deck.errors,
+});
+
+/** Read from the deck, so home's league list and its summaries arrive in one request. */
 export function useLeagues() {
   const [mock] = useMockMode();
-  return useQuery(leaguesQuery(mock));
+  return useQuery({ ...deckQuery(mock, useQueryClient()), select: selectLeagues });
 }
 
 export function teamsQuery(platform: Platform, leagueId: string, mock: boolean) {
@@ -211,26 +251,51 @@ function summarize(
 }
 
 /**
- * Per-league summaries for a set of leagues, fetched in parallel.
- * Query keys match the single-league hooks, so modules calling this
- * share the cache instead of refetching (allSettled semantics: one
- * failing league never blocks the others).
+ * Per-league summaries, read from the deck. A league the deck didn't cover (shouldn't happen)
+ * falls back to the per-league queries — same keys the single-league hooks use, so they share
+ * the cache. One failing league never blocks the others.
  */
 export function useLeagueSummaries(leagues: League[]): LeagueSummary[] {
   const [mock] = useMockMode();
+  const deck = useDeck();
+  const fromDeck = (l: League) => deck.data?.summaries[summaryKey(l)];
+  const needsFallback = (l: League) => deck.isSuccess && !fromDeck(l);
+
   const teamsResults = useQueries({
-    queries: leagues.map((l) => teamsQuery(l.platform, l.externalLeagueId, mock)),
+    queries: leagues.map((l) => ({
+      ...teamsQuery(l.platform, l.externalLeagueId, mock),
+      enabled: needsFallback(l),
+    })),
   });
   const matchupsResults = useQueries({
-    queries: leagues.map((l) =>
-      matchupsQuery(l.platform, l.externalLeagueId, l.season, l.currentWeek, mock),
-    ),
+    queries: leagues.map((l) => ({
+      ...matchupsQuery(l.platform, l.externalLeagueId, l.season, l.currentWeek, mock),
+      enabled: needsFallback(l),
+    })),
   });
   const benchIqResults = useQueries({
-    queries: leagues.map((l) => benchIqQuery(l.platform, l.externalLeagueId, mock)),
+    queries: leagues.map((l) => ({
+      ...benchIqQuery(l.platform, l.externalLeagueId, mock),
+      enabled: needsFallback(l),
+    })),
   });
 
   return leagues.map((league, i) => {
+    const summary = fromDeck(league);
+    if (summary) {
+      return summarize(
+        league,
+        summary.teams ?? undefined,
+        summary.matchups ?? undefined,
+        summary.benchIq ?? undefined,
+        false,
+        summary.teams === null || summary.benchIq === null,
+      );
+    }
+    if (!deck.isSuccess) {
+      return summarize(league, undefined, undefined, undefined, deck.isPending, deck.isError);
+    }
+
     const teams = teamsResults[i];
     const matchups = matchupsResults[i];
     const benchIq = benchIqResults[i];
