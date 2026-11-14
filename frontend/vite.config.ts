@@ -6,6 +6,10 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Netlify builds on every deploy, so build time is deploy time. Shown on Home.
+  define: {
+    __DEPLOYED_AT__: JSON.stringify(new Date().toISOString()),
+  },
   resolve: {
     alias: {
       '@bench': fileURLToPath(new URL('./src/bench', import.meta.url)),

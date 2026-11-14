@@ -7,6 +7,14 @@ import {
   type ProviderStatus,
 } from './lib/integrations'
 
+declare const __DEPLOYED_AT__: string
+
+// Formatted in the browser's own timezone.
+const DEPLOYED_AT = new Date(__DEPLOYED_AT__).toLocaleString(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 export type AppId = 'coach' | 'bench' | 'health' | 'dinner'
 
 interface Widget {
@@ -107,6 +115,11 @@ export default function Home({ onOpen }: { onOpen: (id: AppId) => void }) {
               </div>
             )
           })}
+        </div>
+
+        <div style={s.deploy}>
+          <span style={s.connectionsLabel}>Last deploy</span>
+          <span style={s.deployTime}>{DEPLOYED_AT}</span>
         </div>
       </div>
     </div>
@@ -234,6 +247,18 @@ const s: Record<string, React.CSSProperties> = {
     marginLeft: 'auto',
     textDecoration: 'none',
     borderBottom: '1px solid #111827',
+  },
+  deploy: {
+    marginTop: 24,
+    borderTop: '2px solid #111827',
+    paddingTop: 14,
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  deployTime: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   connectionNote: {
     ...labelStyle,
