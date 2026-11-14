@@ -120,3 +120,28 @@ export function fetchPlans(week: string) {
 export function fetchPlan(id: number) {
   return request<SavedPlan & { slots: PlanSlot[] }>(`/dinner/plans/${id}`)
 }
+
+// Shopping list: the week's latest saved plan, scaled and combined; status is check-off state.
+export type ShoppingStatus = 'checked' | 'removed' | null
+
+export interface ShoppingItem {
+  key: string
+  name: string
+  unit: string
+  qty: string
+  optional: boolean
+  sources: { recipe: string; qty: string }[] // this line's share per recipe
+  status: ShoppingStatus
+}
+
+export function fetchShoppingList(week: string) {
+  return request<{ plan_id: number | null; recipes: string[]; items: ShoppingItem[] }>(`/dinner/shopping-list?week=${week}`)
+}
+
+export function setShoppingStatus(week: string, key: string, status: ShoppingStatus) {
+  return request<{ ok: true }>('/dinner/shopping-list/item', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ week, key, status }),
+  })
+}

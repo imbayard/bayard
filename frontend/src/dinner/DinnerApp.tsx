@@ -11,6 +11,8 @@ import {
   type Recipe,
 } from './lib/api'
 import MealPlanner from './MealPlanner'
+import ShoppingList from './ShoppingList'
+import { upcomingSunday } from './lib/week'
 
 const EMPTY_INGREDIENT: Ingredient = { qty: '', unit: '', name: '', optional: false }
 
@@ -23,6 +25,11 @@ const inputStyle: CSSProperties = {
   borderRadius: 0,
   width: '100%',
 }
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const drawerMotion = reducedMotion
+  ? 'none'
+  : 'grid-template-rows 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease, transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)'
 
 const cardStyle: CSSProperties = {
   border: '1px solid #e5e7eb',
@@ -44,7 +51,9 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
   const [tagNames, setTagNames] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [view, setView] = useState<'recipes' | 'plan'>('recipes')
+  const [formOpen, setFormOpen] = useState(false)
+  const [listWeek, setListWeek] = useState(upcomingSunday)
+  const [view, setView] = useState<'recipes' | 'plan' | 'list'>('recipes')
 
   const load = () => {
     fetchRecipes()
@@ -58,7 +67,13 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
     suggestTags('').then(setTagNames).catch(() => {})
   }, [])
 
+  // Close first; fields clear once the drawer finishes collapsing so it doesn't jump mid-animation.
   const resetForm = () => {
+    setFormOpen(false)
+    if (reducedMotion) clearForm()
+  }
+
+  const clearForm = () => {
     setEditingId(null)
     setName('')
     setServings('4')
@@ -69,6 +84,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
 
   const startEdit = (recipe: Recipe) => {
     setEditingId(recipe.id)
+    setFormOpen(true)
     setName(recipe.name)
     setServings(String(recipe.servings))
     setIngredients(recipe.ingredients.length ? recipe.ingredients : [{ ...EMPTY_INGREDIENT }])
@@ -132,9 +148,9 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
           What's4Dinner
         </h1>
         <div style={{ display: 'flex', gap: 16 }}>
-          {(['recipes', 'plan'] as const).map((v) => (
+          {(['recipes', 'plan', 'list'] as const).map((v) => (
             <button key={v} style={{ ...ghostBtnStyle, color: view === v ? '#111827' : '#9ca3af' }} onClick={() => setView(v)}>
-              {v === 'recipes' ? 'Recipes' : 'Plan'}
+              {{ recipes: 'Recipes', plan: 'Plan', list: 'List' }[v]}
             </button>
           ))}
           <button style={ghostBtnStyle} onClick={onExitToHome}>Home</button>
@@ -143,12 +159,55 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
 
       {error && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
 
-      {view === 'plan' && <MealPlanner recipes={recipes} />}
+      {view === 'plan' && (
+        <MealPlanner
+          recipes={recipes}
+          onAccept={(week) => {
+            setListWeek(week)
+            setView('list')
+          }}
+        />
+      )}
+      {view === 'list' && <ShoppingList initialWeek={listWeek} />}
 
       {view === 'recipes' && (
       <>
 
-      <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+      <button
+        style={{ ...primaryBtnStyle, padding: '12px 24px', minWidth: 160 }}
+        onClick={() => (formOpen ? resetForm() : setFormOpen(true))}
+      >
+        {formOpen ? 'Close' : '+ Add recipe'}
+      </button>
+
+      {/* Drawer: grid rows 0fr ⇄ 1fr animates to the form's natural height. */}
+      <div
+        inert={!formOpen}
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && e.propertyName === 'grid-template-rows' && !formOpen) clearForm()
+        }}
+        style={{
+          display: 'grid',
+          gridTemplateRows: formOpen ? '1fr' : '0fr',
+          opacity: formOpen ? 1 : 0,
+          transition: drawerMotion,
+        }}
+      >
+      <div style={{ overflow: 'hidden', minHeight: 0 }}>
+      <div
+        style={{
+          ...cardStyle,
+          marginTop: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          transform: formOpen ? 'translateY(0)' : 'translateY(-12px)',
+          transition: drawerMotion,
+        }}
+      >
+        <span style={labelStyle}>{editingId ? 'Edit recipe' : 'New recipe'}</span>
+
         <div>
           <label style={labelStyle}>Recipe name</label>
           <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} />
@@ -263,12 +322,13 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
           >
             {saving ? 'Saving…' : editingId ? 'Update recipe' : 'Save recipe'}
           </button>
-          {editingId && (
-            <button style={ghostBtnStyle} onClick={resetForm}>
-              Cancel
-            </button>
-          )}
+          <button style={ghostBtnStyle} onClick={resetForm}>
+            Cancel
+          </button>
         </div>
+      </div>
+      </div>
+      </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

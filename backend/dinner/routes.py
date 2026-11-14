@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from . import planner, store
+from . import planner, shopping, store
 from .tags import TAG_REGISTRY, normalize_tags
 
 router = APIRouter(prefix="/dinner")
@@ -55,6 +55,12 @@ class SlotActionIn(BaseModel):
 class PlanIn(BaseModel):
     week_start: datetime.date
     slots: list[PlanSlot]
+
+
+class ShoppingStateIn(BaseModel):
+    week: datetime.date
+    key: str
+    status: Literal["checked", "removed"] | None = None
 
 
 async def _plan(action, slots: list[PlanSlot], *args) -> list[dict]:
@@ -181,3 +187,25 @@ async def get_plan(plan_id: int):
     if plan is None:
         raise HTTPException(404, "Plan not found.")
     return plan
+
+
+@router.get("/shopping-list")
+async def shopping_list(week: datetime.date):
+    """The week's latest saved plan, dumped into a list, with check-off state merged in."""
+    plans = await store.get_plans(week.isoformat())
+    if not plans:
+        return {"plan_id": None, "recipes": [], "items": []}
+    plan = await store.get_plan(plans[0]["id"])
+    state = await store.get_shopping_state(week.isoformat())
+    built = shopping.build(plan["slots"], await store.get_recipes())
+    return {
+        "plan_id": plan["id"],
+        "recipes": built["recipes"],
+        "items": [i | {"status": state.get(i["key"])} for i in built["items"]],
+    }
+
+
+@router.put("/shopping-list/item")
+async def set_shopping_item(body: ShoppingStateIn):
+    await store.set_shopping_state(body.week.isoformat(), body.key, body.status)
+    return {"ok": True}

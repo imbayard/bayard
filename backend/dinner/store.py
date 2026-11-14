@@ -56,6 +56,16 @@ async def create_table() -> None:
                 PRIMARY KEY (plan_id, day, meal)
             )"""
         )
+        # Check-off state lives per week, not per plan, so re-saving the plan keeps it.
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS shopping_item_state (
+                week_start TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                status TEXT NOT NULL,
+                PRIMARY KEY (week_start, item_key)
+            )"""
+        )
         await db.commit()
 
 
@@ -174,3 +184,26 @@ async def get_plan(plan_id: int) -> dict | None:
         for s in slots:
             del s["plan_id"]
         return dict(plan) | {"slots": slots}
+
+
+async def get_shopping_state(week_start: str) -> dict[str, str]:
+    async with get_db() as db:
+        cursor = await db.execute(
+            "SELECT item_key, status FROM shopping_item_state WHERE week_start = ?", (week_start,)
+        )
+        return {row["item_key"]: row["status"] for row in await cursor.fetchall()}
+
+
+async def set_shopping_state(week_start: str, item_key: str, status: str | None) -> None:
+    async with get_db() as db:
+        if status is None:
+            await db.execute(
+                "DELETE FROM shopping_item_state WHERE week_start = ? AND item_key = ?", (week_start, item_key)
+            )
+        else:
+            await db.execute(
+                """INSERT INTO shopping_item_state (week_start, item_key, status) VALUES (?, ?, ?)
+                   ON CONFLICT (week_start, item_key) DO UPDATE SET status = excluded.status""",
+                (week_start, item_key, status),
+            )
+        await db.commit()

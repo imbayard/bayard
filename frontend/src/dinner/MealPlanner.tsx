@@ -14,6 +14,7 @@ import {
   type Recipe,
   type SavedPlan,
 } from './lib/api'
+import { addDays, dayLabel, isoDate, upcomingSunday } from './lib/week'
 
 // Window: Sunday dinner (day 0) → the following Sunday's lunch (day 7).
 const blankSlots = (): PlanSlot[] => [
@@ -23,28 +24,6 @@ const blankSlots = (): PlanSlot[] => [
 
 function blankSlot(day: number, meal: Meal): PlanSlot {
   return { day, meal, servings: 0, recipe_id: null, source: null, source_day: null, batch_servings: null, flagged: false }
-}
-
-function isoDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function addDays(iso: string, n: number) {
-  const d = new Date(`${iso}T00:00:00`)
-  d.setDate(d.getDate() + n)
-  return d
-}
-
-// Today if it's Sunday, otherwise the next one.
-function upcomingSunday() {
-  const d = new Date()
-  d.setDate(d.getDate() + ((7 - d.getDay()) % 7))
-  return isoDate(d)
-}
-
-function dayLabel(weekStart: string, day: number) {
-  const d = addDays(weekStart, day)
-  return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${d.getMonth() + 1}/${d.getDate()}`
 }
 
 const cellStyle: CSSProperties = {
@@ -69,7 +48,7 @@ const servingsInputStyle: CSSProperties = {
 
 const metaStyle: CSSProperties = { fontSize: 11, color: '#6b7280' }
 
-export default function MealPlanner({ recipes }: { recipes: Recipe[] }) {
+export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; onAccept: (weekStart: string) => void }) {
   const [weekStart, setWeekStart] = useState(upcomingSunday)
   const [slots, setSlots] = useState<PlanSlot[]>(blankSlots)
   const [saved, setSaved] = useState<SavedPlan | null>(null)
@@ -118,13 +97,13 @@ export default function MealPlanner({ recipes }: { recipes: Recipe[] }) {
     setSlots((prev) => prev.map((s) => (s.day === day && s.meal === meal ? { ...s, servings } : s)))
   }
 
-  const save = async () => {
+  // Accepting saves the week (a new history row) and hands off to its shopping list.
+  const accept = async () => {
     setBusy(true)
     setError(null)
     try {
-      const plan = await savePlan(weekStart, slots)
-      setSlots(plan.slots)
-      setSaved(plan)
+      await savePlan(weekStart, slots)
+      onAccept(weekStart)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -259,10 +238,10 @@ export default function MealPlanner({ recipes }: { recipes: Recipe[] }) {
         )}
         <button
           style={{ ...primaryBtnStyle, padding: '10px 18px', background: '#fff', color: '#111827', border: '1px solid #111827' }}
-          disabled={busy}
-          onClick={save}
+          disabled={busy || !hasPicks}
+          onClick={accept}
         >
-          Save
+          Accept plan
         </button>
         {saved && (
           <span style={{ ...metaStyle, marginLeft: 'auto' }}>
