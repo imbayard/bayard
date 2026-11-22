@@ -157,6 +157,16 @@ class Cascades(TempDB):
         self.assertEqual(run(store.tag_categories())["weeknight"], "meal")
         self.assertEqual(run(store.get_registry())["free_form"], [])
 
+    def test_patch_route_omitted_vs_null(self):
+        app = FastAPI()
+        app.include_router(router)
+        client = TestClient(app)
+        tag = self.tag_id("hot")
+        client.patch(f"/dinner/tag-registry/tags/{tag}", json={"name": "Spicy"})
+        self.assertEqual(run(store.tag_categories())["Spicy"], "temperature")  # category untouched
+        reg = client.patch(f"/dinner/tag-registry/tags/{tag}", json={"category_id": None}).json()
+        self.assertIn("Spicy", [t["name"] for t in reg["uncategorized"]])
+
     def test_assign_and_unassign_category(self):
         tag = self.tag_id("hot")
         run(store.update_tag(tag, category_id=self.category_id("cuisine"), set_category=True))
