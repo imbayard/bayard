@@ -61,12 +61,19 @@ export class SleeperAdapter implements PlatformAdapter {
   }
 
   async getRosters(externalLeagueId: string): Promise<Roster[]> {
-    const [rosters, league] = await Promise.all([
+    const [rosters, league, state] = await Promise.all([
       this.client.getRosters(externalLeagueId),
       this.client.getLeague(externalLeagueId),
+      this.client.getNflState(),
     ]);
+    // The week's matchup lineup is what Sleeper scores; roster.starters can disagree with it.
+    // Offseason/pre-week there may be no matchups — fall back to roster.starters then.
+    const weekMatchups = await this.client
+      .getMatchups(externalLeagueId, Math.max(1, state.week))
+      .catch(() => []);
+    const startersByRoster = new Map(weekMatchups.map((m) => [m.roster_id, m.starters]));
     const slots = starterSlotTypes(league.roster_positions ?? []);
-    return rosters.map((r) => mapRoster(r, slots));
+    return rosters.map((r) => mapRoster(r, slots, startersByRoster.get(r.roster_id)));
   }
 
   /** The league's most recent draft plus every pick made so far; null if the league has no draft. */

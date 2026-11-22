@@ -98,6 +98,18 @@ describe('mapRoster', () => {
       { externalPlayerId: '5849', slot: 'bench', positionSlot: null },
     ]);
   });
+
+  it('prefers the week matchup lineup over roster.starters, moving displaced starters to the bench', () => {
+    const roster = mapRoster(rosters[1]!, ['QB'], ['5849']);
+    expect(roster.entries).toEqual([
+      { externalPlayerId: '5849', slot: 'starter', positionSlot: 'QB' },
+      { externalPlayerId: '4034', slot: 'bench', positionSlot: null },
+    ]);
+  });
+
+  it('falls back to roster.starters when the matchup lineup is empty', () => {
+    expect(mapRoster(rosters[1]!, ['QB'], [])).toEqual(mapRoster(rosters[1]!, ['QB']));
+  });
 });
 
 describe('mapMatchups', () => {

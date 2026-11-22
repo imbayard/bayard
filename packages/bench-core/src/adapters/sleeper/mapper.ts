@@ -87,9 +87,14 @@ function combinePoints(whole?: number, decimal?: number): number {
  * `starterSlotTypes[i]`. That lets us label which specific slot each starter
  * occupies instead of just bucketing them as "starter".
  */
-export function mapRoster(raw: SleeperRoster, starterSlotTypes: string[]): Roster {
-  // starters is slot-ordered; '0' marks an empty slot
-  const rawStarters = raw.starters ?? [];
+export function mapRoster(
+  raw: SleeperRoster,
+  starterSlotTypes: string[],
+  weekStarters?: string[] | null,
+): Roster {
+  // starters is slot-ordered; '0' marks an empty slot. The week's matchup lineup, when given,
+  // wins: `roster.starters` can lag what Sleeper actually scores for the week.
+  const rawStarters = weekStarters && weekStarters.length > 0 ? weekStarters : (raw.starters ?? []);
   const starterIds = rawStarters.filter((id) => id !== '0' && id !== '');
   const reserve = raw.reserve ?? [];
   const taxi = raw.taxi ?? [];
