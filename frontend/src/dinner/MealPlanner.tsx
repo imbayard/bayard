@@ -46,7 +46,53 @@ const servingsInputStyle: CSSProperties = {
   fontFamily: 'inherit',
 }
 
+const stepBtnStyle: CSSProperties = {
+  width: 44,
+  height: 44,
+  flexShrink: 0,
+  padding: 0,
+  border: '1px solid #e5e7eb',
+  borderRadius: 0,
+  background: '#fff',
+  color: '#111827',
+  fontSize: 20,
+  fontFamily: 'inherit',
+  lineHeight: 1,
+  cursor: 'pointer',
+  touchAction: 'manipulation',
+}
+
 const metaStyle: CSSProperties = { fontSize: 11, color: '#6b7280' }
+
+// Large − / + around the number so servings are easy to set one-handed on a phone. 0 = skip the slot.
+function ServingsStepper({ value, onChange }: { value: number; onChange: (value: string) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'stretch', minWidth: 0 }}>
+      <button
+        type="button"
+        aria-label="Fewer servings"
+        style={{ ...stepBtnStyle, ...(value <= 0 && { color: '#d1d5db', cursor: 'default' }) }}
+        disabled={value <= 0}
+        onClick={() => onChange(String(value - 1))}
+      >
+        −
+      </button>
+      <input
+        type="number"
+        min={0}
+        inputMode="numeric"
+        aria-label="Servings"
+        style={{ ...servingsInputStyle, flex: 1, width: 'auto', minWidth: 0, borderLeft: 'none', borderRight: 'none', fontSize: 14, textAlign: 'center' }}
+        value={value || ''}
+        placeholder="0"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button type="button" aria-label="More servings" style={stepBtnStyle} onClick={() => onChange(String(value + 1))}>
+        +
+      </button>
+    </div>
+  )
+}
 
 export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; onAccept: (weekStart: string) => void }) {
   const [weekStart, setWeekStart] = useState(upcomingSunday)
@@ -136,17 +182,8 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
 
     return (
       <div key={key} style={style}>
-        <label style={{ ...metaStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input
-            type="number"
-            min={0}
-            style={servingsInputStyle}
-            value={s.servings || ''}
-            placeholder="0"
-            onChange={(e) => setServings(day, meal, e.target.value)}
-          />
-          servings
-        </label>
+        <span style={metaStyle}>Servings</span>
+        <ServingsStepper value={s.servings} onChange={(v) => setServings(day, meal, v)} />
 
         {!needed && <span style={{ color: '#d1d5db' }}>—</span>}
 
