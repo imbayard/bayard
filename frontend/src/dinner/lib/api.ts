@@ -56,8 +56,14 @@ export function suggestIngredients(q: string, signal?: AbortSignal) {
   return request<string[]>(`/dinner/ingredients?q=${encodeURIComponent(q)}`, { signal })
 }
 
+// Registry tags first (category null when uncategorized), then free-form tags seen on recipes.
+export interface TagSuggestion {
+  name: string
+  category: string | null
+}
+
 export function suggestTags(q: string, signal?: AbortSignal) {
-  return request<string[]>(`/dinner/tags?q=${encodeURIComponent(q)}`, { signal })
+  return request<TagSuggestion[]>(`/dinner/tags?q=${encodeURIComponent(q)}`, { signal })
 }
 
 // Meal plan. Day 0 is the plan's Sunday: dinners are days 0-6, lunches days 1-7.

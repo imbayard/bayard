@@ -9,6 +9,7 @@ import {
   updateRecipe,
   type Ingredient,
   type Recipe,
+  type TagSuggestion,
 } from './lib/api'
 import MealPlanner from './MealPlanner'
 import ShoppingList from './ShoppingList'
@@ -48,7 +49,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
   const [steps, setSteps] = useState<string[]>([''])
   const [tags, setTags] = useState('')
   const [ingredientNames, setIngredientNames] = useState<string[]>([])
-  const [tagNames, setTagNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<TagSuggestion[]>([])
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -139,7 +140,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
       </datalist>
       <datalist id="dinner-tag-names">
         {tagNames.map((t) => (
-          <option key={t} value={t} />
+          <option key={t.name} value={t.name} label={t.category ?? undefined} />
         ))}
       </datalist>
 
