@@ -66,6 +66,66 @@ export function suggestTags(q: string, signal?: AbortSignal) {
   return request<TagSuggestion[]>(`/dinner/tags?q=${encodeURIComponent(q)}`, { signal })
 }
 
+// Tag registry. Protected rows (built-in tags, the `meal` category) are refused server-side.
+export interface RegistryTag {
+  id: number
+  name: string
+  category_id: number | null
+  protected: boolean
+  recipe_count: number
+}
+
+export interface TagCategory {
+  id: number
+  name: string
+  protected: boolean
+  tags: RegistryTag[]
+}
+
+export interface TagRegistry {
+  categories: TagCategory[]
+  uncategorized: RegistryTag[]
+  free_form: { name: string; recipe_count: number }[] // in use on recipes, not registered
+}
+
+// Every registry write answers with the fresh registry.
+function send(path: string, method: string, body?: unknown) {
+  return request<TagRegistry>(`/dinner/tag-registry${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+export function fetchTagRegistry() {
+  return request<TagRegistry>('/dinner/tag-registry')
+}
+
+export function createTag(name: string, categoryId: number | null = null) {
+  return send('/tags', 'POST', { name, category_id: categoryId })
+}
+
+// Omit a field to leave it unchanged; category_id null = uncategorized.
+export function updateTag(id: number, patch: { name?: string; category_id?: number | null }) {
+  return send(`/tags/${id}`, 'PATCH', patch)
+}
+
+export function deleteTag(id: number) {
+  return send(`/tags/${id}`, 'DELETE')
+}
+
+export function createCategory(name: string) {
+  return send('/categories', 'POST', { name })
+}
+
+export function renameCategory(id: number, name: string) {
+  return send(`/categories/${id}`, 'PATCH', { name })
+}
+
+export function deleteCategory(id: number) {
+  return send(`/categories/${id}`, 'DELETE')
+}
+
 // Meal plan. Day 0 is the plan's Sunday: dinners are days 0-6, lunches days 1-7.
 export type Meal = 'lunch' | 'dinner'
 
