@@ -11,7 +11,9 @@ from .planner import (
     finalize,
     generate,
     manual_pick,
+    move_dinner,
     move_leftover,
+    move_lunch,
     swap_dinner,
     tags_in,
 )
@@ -262,6 +264,86 @@ class LeftoverTests(unittest.TestCase):
         self.assertEqual(at(out, 2, "lunch")["source_day"], 0)
         self.assertTrue(at(out, 1, "lunch")["flagged"])
         self.assertEqual(at(out, 0, "dinner")["batch_servings"], 5)
+
+
+class DragTests(unittest.TestCase):
+    """Drag and drop: move_dinner / move_lunch."""
+
+    def setUp(self):
+        # Sun: meal-prep 1 feeds Mon+Tue lunch. Wed: plain 2. Thu dinner empty (flagged).
+        self.recipes = [recipe(1, servings=10, prep=True), recipe(2), recipe(3)]
+        self.slots = draft({0: 1, 3: 2, 4: 2}, {1: 1, 2: 1, 4: 1, 5: 1})
+        at(self.slots, 0, "dinner").update(recipe_id=1, source="generated")
+        at(self.slots, 3, "dinner").update(recipe_id=2, source="manual")
+        at(self.slots, 1, "lunch").update(recipe_id=1, source="leftover", source_day=0)
+        at(self.slots, 2, "lunch").update(recipe_id=1, source="leftover", source_day=0)
+
+    def test_swap_rechains_leftovers(self):
+        out = move_dinner(self.slots, self.recipes, 0, 3)
+        self.assertEqual(at(out, 0, "dinner")["recipe_id"], 2)
+        self.assertEqual(at(out, 0, "dinner")["source"], "manual")
+        self.assertEqual(at(out, 3, "dinner")["recipe_id"], 1)
+        for d in (4, 5):
+            self.assertEqual(at(out, d, "lunch")["source_day"], 3)
+        for d in (1, 2):  # Sun's plain dinner can't feed them
+            self.assertTrue(at(out, d, "lunch")["flagged"])
+        self.assertEqual(at(out, 3, "dinner")["batch_servings"], 4)
+
+    def test_move_to_empty_dinner(self):
+        out = move_dinner(self.slots, self.recipes, 0, 4)
+        self.assertTrue(at(out, 0, "dinner")["flagged"])
+        self.assertEqual(at(out, 4, "dinner")["recipe_id"], 1)
+        self.assertEqual(at(out, 5, "lunch")["source_day"], 4)
+        self.assertTrue(at(out, 1, "lunch")["flagged"])
+
+    def test_freed_lunches_rehome_from_another_dinner(self):
+        recipes = self.recipes + [recipe(4, servings=10, prep=True)]
+        slots = draft({0: 1, 1: 1, 3: 1}, {2: 1})
+        at(slots, 0, "dinner").update(recipe_id=1, source="generated")
+        at(slots, 1, "dinner").update(recipe_id=4, source="generated")
+        at(slots, 2, "lunch").update(recipe_id=1, source="leftover", source_day=0)
+        out = move_dinner(slots, recipes, 0, 3)
+        self.assertEqual(at(out, 2, "lunch")["recipe_id"], 4)
+        self.assertEqual(at(out, 2, "lunch")["source_day"], 1)
+
+    def test_dinner_drop_needs_servings(self):
+        with self.assertRaisesRegex(PlanError, "isn't needed"):
+            move_dinner(self.slots, self.recipes, 0, 5)
+
+    def test_drag_from_empty_slot_raises(self):
+        with self.assertRaisesRegex(PlanError, "Nothing to move"):
+            move_dinner(self.slots, self.recipes, 4, 0)
+
+    def test_leftover_drag_keeps_reach_rule(self):
+        with self.assertRaisesRegex(PlanError, "only reach"):
+            move_lunch(self.slots, self.recipes, 2, 4)
+
+    def test_leftover_drag_moves_in_reach(self):
+        slots = delete_leftover(self.slots, self.recipes, 2)
+        out = move_lunch(slots, self.recipes, 1, 2)
+        self.assertEqual(at(out, 2, "lunch")["source_day"], 0)
+        self.assertTrue(at(out, 1, "lunch")["flagged"])
+
+    def test_standalone_lunch_moves_and_swaps(self):
+        slots = manual_pick(self.slots, self.recipes, 4, "lunch", 3)
+        out = move_lunch(slots, self.recipes, 4, 5)
+        self.assertEqual(at(out, 5, "lunch")["recipe_id"], 3)
+        self.assertTrue(at(out, 4, "lunch")["flagged"])
+        slots = manual_pick(out, self.recipes, 4, "lunch", 2)
+        out = move_lunch(slots, self.recipes, 4, 5)
+        self.assertEqual((at(out, 4, "lunch")["recipe_id"], at(out, 5, "lunch")["recipe_id"]), (3, 2))
+
+    def test_standalone_lunch_onto_leftovers_raises(self):
+        slots = manual_pick(self.slots, self.recipes, 4, "lunch", 3)
+        with self.assertRaisesRegex(PlanError, "leftovers"):
+            move_lunch(slots, self.recipes, 4, 1)
+
+    def test_finalize_clears_orphaned_leftovers(self):
+        slots = [dict(s) for s in self.slots]
+        at(slots, 0, "dinner").update(recipe_id=3)  # leftovers now point at a different dinner
+        out = finalize(slots)
+        self.assertTrue(at(out, 1, "lunch")["flagged"])
+        self.assertIsNone(at(out, 2, "lunch")["source"])
 
 
 class ManualPickTests(unittest.TestCase):

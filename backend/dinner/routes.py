@@ -248,6 +248,15 @@ async def move_leftover(body: SlotActionIn):
     return await _plan(planner.move_leftover, body.slots, body.day, body.to_day)
 
 
+@router.post("/plan/move")
+async def move_meal(body: SlotActionIn):
+    """Drag and drop: move (or swap) the `meal` on `day` to the same meal on `to_day`."""
+    if body.to_day is None:
+        raise HTTPException(422, "to_day is required.")
+    action = planner.move_dinner if body.meal == "dinner" else planner.move_lunch
+    return await _plan(action, body.slots, body.day, body.to_day)
+
+
 @router.post("/plan/pick")
 async def manual_pick(body: SlotActionIn):
     if body.recipe_id is None:

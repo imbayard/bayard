@@ -337,6 +337,67 @@ def move_leftover(slots: list[dict], recipes: list[dict], day: int, to_day: int)
     return _finalize(slots, idx)
 
 
+def _drop_target(idx: dict, day: int, meal: str, to_day: int) -> tuple[dict, dict]:
+    """The dragged slot and the slot it's dropped on, checked for the structural rules."""
+    slot = idx.get((day, meal))
+    if slot is None or slot["recipe_id"] is None:
+        raise PlanError("Nothing to move here.")
+    target = idx.get((to_day, meal))
+    if target is None:
+        raise PlanError(f"There's no {meal} slot on that day.")
+    if target["servings"] <= 0:
+        raise PlanError(f"{DAY_NAMES[to_day]} {meal} isn't needed — give it servings first.")
+    return slot, target
+
+
+def _trade(a: dict, b: dict) -> None:
+    """Swap two slots' picks; servings stay with the day."""
+    pick = (a["recipe_id"], a["source"], a["source_day"])
+    a.update(recipe_id=b["recipe_id"], source=b["source"], source_day=b["source_day"])
+    b.update(recipe_id=pick[0], source=pick[1], source_day=pick[2])
+
+
+def move_dinner(slots: list[dict], recipes: list[dict], day: int, to_day: int) -> list[dict]:
+    """Drag a dinner to another day: onto a planned dinner the two swap, onto an empty one it moves.
+
+    Each dinner's leftover lunches re-chain from its new day (earlier day first); lunches neither
+    can feed any more are re-homed from another meal-prep dinner with room, else flagged.
+    A user drag is a free override — no preference, variety or same-day rules.
+    """
+    slots, idx = _load(slots)
+    dinner, target = _drop_target(idx, day, "dinner", to_day)
+    if to_day == day:
+        return _finalize(slots, idx)
+    freed = _leftovers(idx, day) + _leftovers(idx, to_day)
+    for lunch in freed:
+        _clear(lunch)
+    _trade(dinner, target)
+    by_id = {r["id"]: r for r in recipes}
+    for d in sorted((day, to_day)):
+        recipe = by_id.get(idx[(d, "dinner")]["recipe_id"])
+        if recipe is not None:
+            _chain(idx, d, recipe)
+    for lunch in freed:
+        if lunch["recipe_id"] is None:
+            _refill(idx, by_id, lunch["day"], exclude_dinner_day=None)
+    return _finalize(slots, idx)
+
+
+def move_lunch(slots: list[dict], recipes: list[dict], day: int, to_day: int) -> list[dict]:
+    """Drag a lunch to another lunch slot. Leftovers follow `move_leftover`'s rules; a standalone
+    lunch moves to an empty slot or swaps with another standalone one (nothing to re-chain)."""
+    slots, idx = _load(slots)
+    lunch, target = _drop_target(idx, day, "lunch", to_day)
+    if lunch["source"] == "leftover":
+        return move_leftover(slots, recipes, day, to_day)
+    if to_day == day:
+        return _finalize(slots, idx)
+    if target["source"] == "leftover":
+        raise PlanError(f"{DAY_NAMES[to_day]} lunch is leftovers — delete or move that first.")
+    _trade(lunch, target)
+    return _finalize(slots, idx)
+
+
 def manual_pick(slots: list[dict], recipes: list[dict], day: int, meal: str, recipe_id: int) -> list[dict]:
     """User's own choice for a slot, from the full recipe list.
 
