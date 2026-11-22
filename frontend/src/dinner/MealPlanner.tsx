@@ -114,6 +114,9 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
   const [prefs, setPrefs] = useState<number[]>([])
 
   const byId = new Map(recipes.map((r) => [r.id, r]))
+  // Lunch picker lists `lunch`-tagged recipes first (any recipe can still be picked).
+  const isLunch = (r: Recipe) => r.tags.some((t) => t.trim().toLowerCase() === 'lunch')
+  const lunchFirst = [...recipes.filter(isLunch), ...recipes.filter((r) => !isLunch(r))]
   const slot = (day: number, meal: Meal) => slots.find((s) => s.day === day && s.meal === meal)
   const hasPicks = slots.some((s) => s.recipe_id !== null)
   const hasEmpties = slots.some((s) => s.servings > 0 && s.recipe_id === null)
@@ -270,7 +273,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
             <option value="" disabled>
               Choose recipe…
             </option>
-            {recipes.map((r) => (
+            {(meal === 'lunch' ? lunchFirst : recipes).map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}
               </option>
