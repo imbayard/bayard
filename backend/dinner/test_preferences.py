@@ -71,6 +71,18 @@ class Routes(TempDB):
         out = client().post("/dinner/plan/generate", json={"slots": self.slots(), "seed": 1}).json()
         self.assertEqual({s["recipe_id"] for s in out if s["meal"] == "dinner"} - {None}, ids)
 
+    def test_registry_reaches_planner_without_prefs(self):
+        # Cuisine bias needs the registry lookup even when the request carries no prefs.
+        self.recipe("Mexican")
+        self.recipe("mexican")
+        asian = self.recipe("Asian")
+        slots = self.slots(0)
+        for s in slots[:2]:
+            s["servings"] = 2
+        for seed in range(10):
+            out = client().post("/dinner/plan/generate", json={"slots": slots, "seed": seed}).json()
+            self.assertIn(asian, {s["recipe_id"] for s in out})
+
     def test_accept_ignores_prefs(self):
         out = client().post("/dinner/plans", json={"week_start": "2026-11-22", "slots": self.slots(0),
                                                    "prefs": [self.tag_id("cold")]})

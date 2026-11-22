@@ -8,6 +8,7 @@ from .planner import (
     blank_draft,
     delete_leftover,
     eligible,
+    finalize,
     generate,
     manual_pick,
     move_leftover,
@@ -340,6 +341,124 @@ class PreferenceTests(unittest.TestCase):
 
     def test_tags_in(self):
         self.assertEqual(tags_in(tagged(1, "mexican", "cold", "weeknight"), "cuisine", CATS), {"Mexican"})
+
+
+CATS_MEAL = {**CATS, "lunch": "meal", "dinner": "meal"}
+
+
+def ids(out: list[dict], meal: str) -> list[int | None]:
+    return [s["recipe_id"] for s in out if s["meal"] == meal]
+
+
+class MealPoolTests(unittest.TestCase):
+    def test_lunch_only_recipe_never_picked_for_dinner(self):
+        recipes = [tagged(i, "Lunch") for i in range(1, 6)] + [tagged(i) for i in range(10, 13)]
+        for seed in range(20):
+            out = generate(draft(every(0, 6, 2)), recipes, rng=rng(seed), cats=CATS_MEAL)
+            self.assertEqual(set(ids(out, "dinner")) - {None}, {10, 11, 12})
+            self.assertEqual(sum(at(out, d, "dinner")["flagged"] for d in range(7)), 4)
+
+    def test_lunch_and_dinner_recipe_fits_either(self):
+        both = [tagged(1, "lunch", "dinner")]
+        self.assertEqual(at(generate(draft({0: 2}), both, rng=rng()), 0, "dinner")["recipe_id"], 1)
+        self.assertEqual(at(generate(draft(lunches={3: 1}), both, rng=rng()), 3, "lunch")["recipe_id"], 1)
+
+    def test_lunch_auto_fill_uses_lunch_pool_and_prefs(self):
+        recipes = [tagged(1), tagged(2), tagged(3, "lunch", "cold"), tagged(4, "lunch", "hot"),
+                   tagged(5, "lunch", "cold")]
+        for mode in ("generate", "fill"):
+            for seed in range(10):
+                out = generate(draft(lunches=every(1, 7, 1)), recipes, mode, rng(seed),
+                               prefs={"temperature": {"cold"}}, cats=CATS_MEAL)
+                for d in range(1, 8):
+                    lunch = at(out, d, "lunch")
+                    self.assertIn(lunch["recipe_id"], {3, 5})
+                    self.assertEqual(lunch["source"], "generated")
+                    self.assertFalse(lunch["flagged"])
+
+    def test_leftovers_cover_lunch_before_the_lunch_pool(self):
+        recipes = [recipe(1, servings=4, prep=True), tagged(2, "lunch")]
+        out = generate(draft({0: 2}, {1: 2, 4: 1}), recipes, rng=rng())
+        self.assertEqual(at(out, 1, "lunch")["source"], "leftover")
+        self.assertEqual((at(out, 4, "lunch")["recipe_id"], at(out, 4, "lunch")["source"]), (2, "generated"))
+
+    def test_no_lunch_recipes_keeps_lunches_flagged(self):
+        out = generate(draft(every(0, 6, 1), every(1, 7, 1)), [tagged(i) for i in range(1, 10)], rng=rng())
+        self.assertTrue(all(at(out, d, "lunch")["flagged"] for d in range(1, 8)))
+
+    def test_generated_lunches_survive_finalize_and_fill(self):
+        out = generate(draft({0: 2}, {2: 1}), [tagged(1), tagged(2, "lunch")], rng=rng())
+        self.assertEqual(finalize(out), out)
+        self.assertEqual(at(generate(out, [tagged(1)], "fill", rng()), 2, "lunch")["recipe_id"], 2)
+
+    def test_lunch_never_matches_same_day_dinner_and_dinners_never_repeat(self):
+        recipes = [tagged(i, "lunch", "dinner") for i in range(1, 9)]
+        for seed in range(20):
+            out = generate(draft(every(0, 6, 1), every(1, 7, 1)), recipes, rng=rng(seed))
+            dinners = ids(out, "dinner")
+            self.assertEqual(len(set(dinners)), 7)
+            for d in range(1, 7):
+                self.assertNotEqual(at(out, d, "lunch")["recipe_id"], at(out, d, "dinner")["recipe_id"])
+
+    def test_lunch_falls_back_to_other_day_recipes_when_pool_is_small(self):
+        # Two lunch+dinner recipes, two dinners: Mon lunch can't be Mon's dinner, so it's Sun's.
+        recipes = [tagged(1, "lunch", "dinner"), tagged(2, "lunch", "dinner")]
+        for seed in range(10):
+            out = generate(draft({0: 1, 1: 1}, {1: 1}), recipes, rng=rng(seed))
+            self.assertEqual(at(out, 1, "lunch")["recipe_id"], at(out, 0, "dinner")["recipe_id"])
+
+
+class CuisineBiasTests(unittest.TestCase):
+    def test_spreads_cuisines(self):
+        recipes = [tagged(c * 10 + i, cuisine) for c, cuisine in enumerate(("Mexican", "Asian", "Italian"))
+                   for i in range(4)]
+        for seed in range(20):
+            out = generate(draft(every(0, 5, 2)), recipes, rng=rng(seed), cats=CATS)
+            picked = [r for r in ids(out, "dinner") if r is not None]
+            counts = [sum(1 for r in picked if r // 10 == c) for c in range(3)]
+            self.assertEqual(counts, [2, 2, 2])
+
+    def test_counts_standalone_lunches(self):
+        recipes = [tagged(1, "Mexican"), tagged(2, "Mexican"), tagged(3, "Asian"), tagged(4, "Asian"),
+                   tagged(5, "lunch", "Asian")]
+        for seed in range(10):
+            slots = draft({0: 1}, {1: 1})
+            at(slots, 1, "lunch").update(recipe_id=5, source="manual")
+            out = generate(slots, recipes, "fill", rng(seed), cats=CATS)
+            self.assertIn(at(out, 0, "dinner")["recipe_id"], {1, 2})
+
+    def test_untagged_cuisine_is_neutral(self):
+        recipes = [tagged(1, "Mexican"), tagged(2, "Mexican"), tagged(3)]
+        picks = set()
+        for seed in range(20):
+            slots = draft({0: 1, 1: 1})
+            at(slots, 0, "dinner").update(recipe_id=1, source="manual")
+            picks.add(at(generate(slots, recipes, "fill", rng(seed), cats=CATS), 1, "dinner")["recipe_id"])
+        self.assertEqual(picks, {2, 3})  # neither favored nor ruled out
+
+    def test_never_leaves_a_fillable_slot_empty(self):
+        recipes = [tagged(i, "Mexican") for i in range(1, 5)] + [tagged(9, "Asian")]
+        out = generate(draft(every(0, 4, 2)), recipes, rng=rng(), cats=CATS)
+        self.assertFalse(any(at(out, d, "dinner")["flagged"] for d in range(5)))
+
+    def test_meal_prep_coverage_outranks_cuisine(self):
+        # Sun is Mexican; Mon can be Asian (plain) or Mexican meal prep that covers Tue lunch.
+        recipes = [tagged(1, "Mexican"), tagged(2, "Asian"), {**tagged(3, "Mexican", PREP), "servings": 4}]
+        for seed in range(20):
+            slots = draft({0: 2, 1: 2}, {2: 2})
+            at(slots, 0, "dinner").update(recipe_id=1, source="manual")
+            out = generate(slots, recipes, "fill", rng(seed), cats=CATS)
+            self.assertEqual(at(out, 1, "dinner")["recipe_id"], 3)
+            self.assertEqual(at(out, 2, "lunch")["source"], "leftover")
+
+    def test_swap_applies_pools_and_bias(self):
+        recipes = [tagged(1, "Mexican"), tagged(2, "Mexican"), tagged(3, "Asian"), tagged(4, "lunch", "Asian"),
+                   tagged(5, "Mexican")]
+        for seed in range(10):
+            slots = draft({0: 1, 1: 1})
+            at(slots, 0, "dinner").update(recipe_id=1, source="manual")
+            at(slots, 1, "dinner").update(recipe_id=2, source="generated")
+            self.assertEqual(at(swap_dinner(slots, recipes, 1, rng(seed), cats=CATS), 1, "dinner")["recipe_id"], 3)
 
 
 if __name__ == "__main__":

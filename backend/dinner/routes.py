@@ -98,8 +98,9 @@ class StapleIn(BaseModel):
 
 async def _plan(action, slots: list[PlanSlot], *args, prefs: list[int] | None = None) -> list[dict]:
     """Run a planner action on the client's draft against the current recipe box.
-    With `prefs` (tag ids) the action also gets them grouped by category plus the registry lookup."""
-    kwargs = {"prefs": await store.pref_groups(prefs), "cats": await store.tag_categories()} if prefs else {}
+    Generating actions pass `prefs` (tag ids, maybe empty); they get them grouped by category plus
+    the registry lookup, which the meal pools and cuisine bias need even with no prefs."""
+    kwargs = {} if prefs is None else {"prefs": await store.pref_groups(prefs), "cats": await store.tag_categories()}
     try:
         return action([s.model_dump() for s in slots], await store.get_recipes(), *args, **kwargs)
     except planner.PlanError as e:

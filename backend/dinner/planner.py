@@ -6,14 +6,20 @@ dinners are days 0-6 and lunches days 1-7. A draft is a list of 14 slot dicts:
     {day, meal, servings, recipe_id, source, source_day, batch_servings, flagged, swapped_out}
 
 - servings: requested by the user; 0 means the slot isn't needed and is skipped.
-- source: "generated" | "leftover" | "manual" | None.
+- source: "generated" | "leftover" | "manual" | None. A "generated" lunch is standalone.
 - source_day: for a leftover lunch, the day of the dinner it comes from.
 - batch_servings: for a dinner, its servings plus every lunch it feeds.
 - flagged: needs a manual pick (servings > 0, nothing assigned).
 - swapped_out: recipes swapped away from this dinner during the draft session.
 
-Only dinners are generated. Lunches get leftovers from a meal-prep dinner (at most the
-LUNCH_REACH days after it, batch ≤ BATCH_CAP × the recipe's servings) or a manual pick.
+Pools come from the protected meal tags: an untagged recipe is a dinner; a `lunch` recipe joins
+the dinner pool only if it's also tagged `dinner`. Dinners are generated first and never repeat
+in the window. Lunches get leftovers from a meal-prep dinner (at most the LUNCH_REACH days after
+it, batch ≤ BATCH_CAP × the recipe's servings); whatever leftovers can't cover is filled from the
+`lunch` pool (never the same day's dinner), else flagged for a manual pick.
+Cuisine variety is a soft bias: among eligible picks, the cuisine least used so far wins (no
+cuisine tag = neutral, ties random); meal-prep lunch coverage outranks it for dinners.
+Manual picks are a free override of all of this.
 Every public function takes a draft and returns a new one; bad requests raise PlanError.
 
 Preferences narrow what generate/fill/swap may pick (manual picks ignore them): `prefs` maps a
@@ -24,11 +30,13 @@ nothing, and a recipe with no tag in a constrained category is out.
 
 import copy
 import random
+from collections import Counter
 
-from .tags import MEAL_PREP_TAG, normalize_tag, tag_key
+from .tags import DINNER_TAG, LUNCH_TAG, MEAL_PREP_TAG, normalize_tag, tag_key
 
 LUNCH_REACH = 2
 BATCH_CAP = 3
+CUISINE = "cuisine"
 DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 WINDOW = [(d, "dinner") for d in range(7)] + [(d, "lunch") for d in range(1, 8)]
 
@@ -57,8 +65,17 @@ def _clear(slot: dict) -> None:
     slot.update(recipe_id=None, source=None, source_day=None)
 
 
+def _has(recipe: dict | None, tag: str) -> bool:
+    return recipe is not None and any(normalize_tag(t) == tag for t in recipe["tags"])
+
+
 def _is_prep(recipe: dict | None) -> bool:
-    return recipe is not None and any(normalize_tag(t) == MEAL_PREP_TAG for t in recipe["tags"])
+    return _has(recipe, MEAL_PREP_TAG)
+
+
+def _for_dinner(recipe: dict) -> bool:
+    """Untagged = dinner; a `lunch` recipe only joins the dinner pool if it's also tagged `dinner`."""
+    return not _has(recipe, LUNCH_TAG) or _has(recipe, DINNER_TAG)
 
 
 def tags_in(recipe: dict, category: str, cats: dict[str, str | None]) -> set[str]:
@@ -147,16 +164,55 @@ def _chain(idx: dict, dinner_day: int, recipe: dict) -> None:
             lunch.update(recipe_id=recipe["id"], source="leftover", source_day=dinner_day)
 
 
-def _choose(idx: dict, day: int, recipes: list[dict], exclude: set[int], rng: random.Random) -> dict | None:
-    """Random eligible recipe; meal-prep ones covering the most lunch servings win when any cover some."""
+def _same_day(idx: dict, day: int, meal: str) -> set[int]:
+    """The recipe on the other meal of the same day, so lunch and dinner don't match."""
+    other = idx.get((day, "lunch" if meal == "dinner" else "dinner"))
+    return {other["recipe_id"]} - {None} if other else set()
+
+
+def _cuisine_counts(idx: dict, by_id: dict, cats: dict[str, str | None]) -> Counter:
+    """Cuisines already in the draft: dinners and standalone lunches (leftovers repeat a dinner)."""
+    counts = Counter()
+    for s in idx.values():
+        recipe = by_id.get(s["recipe_id"])
+        if recipe is not None and s["source"] != "leftover":
+            counts.update(tags_in(recipe, CUISINE, cats))
+    return counts
+
+
+def _choose(idx: dict, day: int, meal: str, recipes: list[dict], exclude: set[int], rng: random.Random,
+            by_id: dict, cats: dict[str, str | None]) -> dict | None:
+    """Random eligible recipe, narrowed in priority order:
+    1. dinners: meal-prep ones covering the most lunch servings win when any cover some;
+    2. the cuisine least used so far in the draft (recipes with no cuisine tag always stay in).
+    Each step only narrows a non-empty pool, so it never leaves a fillable slot empty."""
     pool = [r for r in recipes if r["id"] not in exclude]
     if not pool:
         return None
-    scored = [(sum(l["servings"] for l in _chain_targets(idx, day, r)), r) for r in pool if _is_prep(r)]
-    best = max((score for score, _ in scored), default=0)
-    if best > 0:
-        pool = [r for score, r in scored if score == best]
-    return rng.choice(pool)
+    if meal == "dinner":
+        scored = [(sum(l["servings"] for l in _chain_targets(idx, day, r)), r) for r in pool if _is_prep(r)]
+        best = max((score for score, _ in scored), default=0)
+        if best > 0:
+            pool = [r for score, r in scored if score == best]
+    counts = _cuisine_counts(idx, by_id, cats)
+    usage = {r["id"]: min((counts[c] for c in tags_in(r, CUISINE, cats)), default=None) for r in pool}
+    least = min((u for u in usage.values() if u is not None), default=None)
+    return rng.choice([r for r in pool if usage[r["id"]] in (None, least)])
+
+
+def _fill_lunches(idx: dict, pool: list[dict], rng: random.Random, by_id: dict, cats: dict[str, str | None]) -> None:
+    """Standalone lunches from the lunch pool for whatever leftovers couldn't cover.
+    Never the same day's dinner; a recipe not yet in the draft is preferred when there is one."""
+    for day in range(1, 8):
+        lunch = idx[(day, "lunch")]
+        if lunch["servings"] <= 0 or lunch["recipe_id"] is not None:
+            continue
+        same_day = _same_day(idx, day, "lunch")
+        planned = {s["recipe_id"] for s in idx.values()} - {None}
+        recipe = (_choose(idx, day, "lunch", pool, same_day | planned, rng, by_id, cats)
+                  or _choose(idx, day, "lunch", pool, same_day, rng, by_id, cats))
+        if recipe is not None:
+            lunch.update(recipe_id=recipe["id"], source="generated", source_day=None)
 
 
 def _refill(idx: dict, by_id: dict, lunch_day: int, exclude_dinner_day: int | None) -> None:
@@ -183,29 +239,40 @@ def generate(slots: list[dict], recipes: list[dict], mode: str = "generate", rng
 
     Dinners go in chronological order, so an earlier meal-prep dinner claims a shared lunch first.
     In fill mode only newly placed dinners chain — existing ones don't reach into empty lunches.
+    Lunches leftovers can't cover are then filled from the lunch pool.
     """
     rng = rng or random.Random()
+    cats = cats or {}
     slots, idx = _load(slots)
     if mode == "generate":
         for s in slots:
             _clear(s)
             s["swapped_out"] = []
     pool = _pool(recipes, prefs, cats)
+    dinners = [r for r in pool if _for_dinner(r)]
+    by_id = {r["id"]: r for r in recipes}
     for day in range(7):
         dinner = idx[(day, "dinner")]
         if dinner["servings"] <= 0 or dinner["recipe_id"] is not None:
             continue
-        recipe = _choose(idx, day, pool, _used(idx) | set(dinner["swapped_out"]), rng)
+        exclude = _used(idx) | set(dinner["swapped_out"]) | _same_day(idx, day, "dinner")
+        recipe = _choose(idx, day, "dinner", dinners, exclude, rng, by_id, cats)
         if recipe is not None:
             dinner.update(recipe_id=recipe["id"], source="generated")
             _chain(idx, day, recipe)
+    _fill_lunches(idx, [r for r in pool if _has(r, LUNCH_TAG)], rng, by_id, cats)
     return _finalize(slots, idx)
 
 
 def swap_dinner(slots: list[dict], recipes: list[dict], day: int, rng: random.Random | None = None,
                 prefs: dict[str, set[str]] | None = None, cats: dict[str, str | None] | None = None) -> list[dict]:
-    """Replace a dinner under the same rules, then re-chain or re-home the lunches it fed."""
+    """Replace a dinner under the same rules, then re-chain or re-home the lunches it fed.
+
+    Dinners only: a generated standalone lunch is changed with a manual pick (or another Generate).
+    Freed lunches no dinner can re-home stay flagged — Fill tops them up from the lunch pool.
+    """
     rng = rng or random.Random()
+    cats = cats or {}
     slots, idx = _load(slots)
     dinner = idx.get((day, "dinner"))
     if dinner is None or dinner["recipe_id"] is None:
@@ -215,12 +282,14 @@ def swap_dinner(slots: list[dict], recipes: list[dict], day: int, rng: random.Ra
         _clear(lunch)
     dinner["swapped_out"] = dinner["swapped_out"] + [dinner["recipe_id"]]
     _clear(dinner)
-    recipe = _choose(idx, day, _pool(recipes, prefs, cats), _used(idx) | set(dinner["swapped_out"]), rng)
+    by_id = {r["id"]: r for r in recipes}
+    dinners = [r for r in _pool(recipes, prefs, cats) if _for_dinner(r)]
+    exclude = _used(idx) | set(dinner["swapped_out"]) | _same_day(idx, day, "dinner")
+    recipe = _choose(idx, day, "dinner", dinners, exclude, rng, by_id, cats)
     if recipe is None:
         raise PlanError(f"No other eligible recipe for {DAY_NAMES[day]} dinner.")
     dinner.update(recipe_id=recipe["id"], source="generated")
     _chain(idx, day, recipe)
-    by_id = {r["id"]: r for r in recipes}
     for lunch in freed:
         if lunch["recipe_id"] is None:
             _refill(idx, by_id, lunch["day"], exclude_dinner_day=day)
