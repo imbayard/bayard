@@ -42,6 +42,7 @@ class GenerateIn(BaseModel):
     slots: list[PlanSlot]
     mode: Literal["generate", "fill"] = "generate"
     seed: int | None = None
+    prefs: list[int] = []  # the draft's selected tag ids; empty = no constraint
 
 
 class SlotActionIn(BaseModel):
@@ -50,6 +51,11 @@ class SlotActionIn(BaseModel):
     meal: Literal["lunch", "dinner"] = "dinner"
     to_day: int | None = None
     recipe_id: int | None = None
+    prefs: list[int] = []  # honored by swap only; manual picks are a free override
+
+
+class PreferencesIn(BaseModel):
+    tag_ids: list[int]
 
 
 class PlanIn(BaseModel):
@@ -90,10 +96,12 @@ class StapleIn(BaseModel):
         return name, self.quantity.strip() or None, self.unit.strip() or None
 
 
-async def _plan(action, slots: list[PlanSlot], *args) -> list[dict]:
-    """Run a planner action on the client's draft against the current recipe box."""
+async def _plan(action, slots: list[PlanSlot], *args, prefs: list[int] | None = None) -> list[dict]:
+    """Run a planner action on the client's draft against the current recipe box.
+    With `prefs` (tag ids) the action also gets them grouped by category plus the registry lookup."""
+    kwargs = {"prefs": await store.pref_groups(prefs), "cats": await store.tag_categories()} if prefs else {}
     try:
-        return action([s.model_dump() for s in slots], await store.get_recipes(), *args)
+        return action([s.model_dump() for s in slots], await store.get_recipes(), *args, **kwargs)
     except planner.PlanError as e:
         raise HTTPException(409, str(e))
 
@@ -204,14 +212,27 @@ async def delete_category(category_id: int):
 # Plan drafts live client-side; these endpoints are stateless — draft in, new draft out.
 
 
+@router.get("/preferences")
+async def get_preferences():
+    """Standing defaults a new week's draft starts from: selected tag ids."""
+    return {"tag_ids": await store.get_preferences()}
+
+
+@router.put("/preferences")
+async def set_preferences(body: PreferencesIn):
+    """Replace the defaults ("Save as default"). Unknown ids are dropped."""
+    await store.set_preferences(body.tag_ids)
+    return {"tag_ids": await store.get_preferences()}
+
+
 @router.post("/plan/generate")
 async def generate_plan(body: GenerateIn):
-    return await _plan(planner.generate, body.slots, body.mode, random.Random(body.seed))
+    return await _plan(planner.generate, body.slots, body.mode, random.Random(body.seed), prefs=body.prefs)
 
 
 @router.post("/plan/swap")
 async def swap_dinner(body: SlotActionIn):
-    return await _plan(planner.swap_dinner, body.slots, body.day)
+    return await _plan(planner.swap_dinner, body.slots, body.day, prefs=body.prefs)
 
 
 @router.post("/plan/leftover/delete")

@@ -7,10 +7,12 @@ from .planner import (
     PlanError,
     blank_draft,
     delete_leftover,
+    eligible,
     generate,
     manual_pick,
     move_leftover,
     swap_dinner,
+    tags_in,
 )
 
 PREP = "good for meal prep"
@@ -273,6 +275,71 @@ class ManualPickTests(unittest.TestCase):
         slots = generate(draft({0: 1}, {1: 1}), recipes, rng=rng())
         with self.assertRaises(PlanError):
             manual_pick(slots, recipes, 1, "lunch", 2)
+
+
+CATS = {"cold": "temperature", "hot": "temperature", "Mexican": "cuisine", "Asian": "cuisine",
+        "Italian": "cuisine", PREP: None}
+
+
+def tagged(id: int, *tags: str) -> dict:
+    return {"id": id, "name": f"r{id}", "servings": 2, "tags": list(tags)}
+
+
+class PreferenceTests(unittest.TestCase):
+    def test_empty_category_allows_everything(self):
+        r = tagged(1)
+        self.assertTrue(eligible(r, {}, CATS))
+        self.assertTrue(eligible(r, {"cuisine": set()}, CATS))
+
+    def test_or_within_and_across_categories(self):
+        prefs = {"cuisine": {"Mexican", "Asian"}, "temperature": {"cold"}}
+        self.assertTrue(eligible(tagged(1, "mexican", "Cold"), prefs, CATS))  # case-insensitive
+        self.assertTrue(eligible(tagged(2, "Asian", "cold"), prefs, CATS))
+        self.assertFalse(eligible(tagged(3, "Italian", "cold"), prefs, CATS))
+        self.assertFalse(eligible(tagged(4, "Mexican", "hot"), prefs, CATS))
+
+    def test_untagged_excluded_when_constrained(self):
+        self.assertFalse(eligible(tagged(1), {"temperature": {"cold"}}, CATS))
+        self.assertFalse(eligible(tagged(2, PREP, "Mexican"), {"temperature": {"cold"}}, CATS))
+
+    def test_generate_and_fill_honor_prefs(self):
+        recipes = [tagged(i, "cold" if i % 2 else "hot") for i in range(1, 15)]
+        prefs = {"temperature": {"cold"}}
+        for mode in ("generate", "fill"):
+            out = generate(draft(every(0, 6, 2)), recipes, mode, rng(), prefs=prefs, cats=CATS)
+            for d in range(7):
+                self.assertEqual(at(out, d, "dinner")["recipe_id"] % 2, 1)
+
+    def test_fill_keeps_existing_picks_outside_prefs(self):
+        recipes = [tagged(1, "hot"), tagged(2, "cold")]
+        slots = draft({0: 2, 1: 2})
+        at(slots, 0, "dinner").update(recipe_id=1, source="manual")
+        out = generate(slots, recipes, "fill", rng(), prefs={"temperature": {"cold"}}, cats=CATS)
+        self.assertEqual(at(out, 0, "dinner")["recipe_id"], 1)
+        self.assertEqual(at(out, 1, "dinner")["recipe_id"], 2)
+
+    def test_swap_honors_prefs(self):
+        recipes = [tagged(1, "cold"), tagged(2, "hot"), tagged(3, "cold")]
+        prefs = {"temperature": {"cold"}}
+        slots = generate(draft({0: 2}), recipes, rng=rng(), prefs=prefs, cats=CATS)
+        first = at(slots, 0, "dinner")["recipe_id"]
+        out = swap_dinner(slots, recipes, 0, rng(), prefs=prefs, cats=CATS)
+        self.assertEqual({first, at(out, 0, "dinner")["recipe_id"]}, {1, 3})
+        with self.assertRaises(PlanError):
+            swap_dinner(out, recipes, 0, rng(), prefs=prefs, cats=CATS)
+
+    def test_empty_pool_flags_slots(self):
+        out = generate(draft({0: 2, 1: 2}), [tagged(1, "hot"), tagged(2)], rng=rng(),
+                       prefs={"temperature": {"cold"}}, cats=CATS)
+        self.assertTrue(at(out, 0, "dinner")["flagged"])
+        self.assertTrue(at(out, 1, "dinner")["flagged"])
+
+    def test_manual_pick_ignores_prefs(self):
+        out = manual_pick(draft({0: 2}), [tagged(1, "hot")], 0, "dinner", 1)
+        self.assertEqual(at(out, 0, "dinner")["recipe_id"], 1)
+
+    def test_tags_in(self):
+        self.assertEqual(tags_in(tagged(1, "mexican", "cold", "weeknight"), "cuisine", CATS), {"Mexican"})
 
 
 if __name__ == "__main__":

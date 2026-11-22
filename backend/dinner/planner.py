@@ -15,12 +15,17 @@ dinners are days 0-6 and lunches days 1-7. A draft is a list of 14 slot dicts:
 Only dinners are generated. Lunches get leftovers from a meal-prep dinner (at most the
 LUNCH_REACH days after it, batch ≤ BATCH_CAP × the recipe's servings) or a manual pick.
 Every public function takes a draft and returns a new one; bad requests raise PlanError.
+
+Preferences narrow what generate/fill/swap may pick (manual picks ignore them): `prefs` maps a
+category to its selected tag names, `cats` is the registry's tag → category lookup (both passed in
+by the route layer). OR within a category, AND across them; a category with no selection imposes
+nothing, and a recipe with no tag in a constrained category is out.
 """
 
 import copy
 import random
 
-from .tags import MEAL_PREP_TAG, normalize_tag
+from .tags import MEAL_PREP_TAG, normalize_tag, tag_key
 
 LUNCH_REACH = 2
 BATCH_CAP = 3
@@ -54,6 +59,19 @@ def _clear(slot: dict) -> None:
 
 def _is_prep(recipe: dict | None) -> bool:
     return recipe is not None and any(normalize_tag(t) == MEAL_PREP_TAG for t in recipe["tags"])
+
+
+def tags_in(recipe: dict, category: str, cats: dict[str, str | None]) -> set[str]:
+    """The recipe's registry tags (canonical spelling) that belong to `category`."""
+    return {n for n in (normalize_tag(t, cats) for t in recipe["tags"]) if cats.get(n) == category}
+
+
+def eligible(recipe: dict, prefs: dict[str, set[str]], cats: dict[str, str | None]) -> bool:
+    """Does the recipe satisfy every constrained category (≥1 selected tag of each)?"""
+    return all(
+        {tag_key(t) for t in tags_in(recipe, category, cats)} & {tag_key(t) for t in selected}
+        for category, selected in prefs.items() if selected
+    )
 
 
 def _cap(recipe: dict) -> float:
@@ -153,7 +171,14 @@ def _refill(idx: dict, by_id: dict, lunch_day: int, exclude_dinner_day: int | No
             return
 
 
-def generate(slots: list[dict], recipes: list[dict], mode: str = "generate", rng: random.Random | None = None) -> list[dict]:
+def _pool(recipes: list[dict], prefs: dict[str, set[str]] | None, cats: dict[str, str | None] | None) -> list[dict]:
+    """Recipes generation may pick from, in a stable order."""
+    recipes = sorted(recipes, key=lambda r: r["id"])
+    return [r for r in recipes if eligible(r, prefs, cats or {})] if prefs else recipes
+
+
+def generate(slots: list[dict], recipes: list[dict], mode: str = "generate", rng: random.Random | None = None,
+             prefs: dict[str, set[str]] | None = None, cats: dict[str, str | None] | None = None) -> list[dict]:
     """mode="generate" rebuilds every pick; mode="fill" only fills empty slots and keeps the rest.
 
     Dinners go in chronological order, so an earlier meal-prep dinner claims a shared lunch first.
@@ -165,19 +190,20 @@ def generate(slots: list[dict], recipes: list[dict], mode: str = "generate", rng
         for s in slots:
             _clear(s)
             s["swapped_out"] = []
-    recipes = sorted(recipes, key=lambda r: r["id"])
+    pool = _pool(recipes, prefs, cats)
     for day in range(7):
         dinner = idx[(day, "dinner")]
         if dinner["servings"] <= 0 or dinner["recipe_id"] is not None:
             continue
-        recipe = _choose(idx, day, recipes, _used(idx) | set(dinner["swapped_out"]), rng)
+        recipe = _choose(idx, day, pool, _used(idx) | set(dinner["swapped_out"]), rng)
         if recipe is not None:
             dinner.update(recipe_id=recipe["id"], source="generated")
             _chain(idx, day, recipe)
     return _finalize(slots, idx)
 
 
-def swap_dinner(slots: list[dict], recipes: list[dict], day: int, rng: random.Random | None = None) -> list[dict]:
+def swap_dinner(slots: list[dict], recipes: list[dict], day: int, rng: random.Random | None = None,
+                prefs: dict[str, set[str]] | None = None, cats: dict[str, str | None] | None = None) -> list[dict]:
     """Replace a dinner under the same rules, then re-chain or re-home the lunches it fed."""
     rng = rng or random.Random()
     slots, idx = _load(slots)
@@ -189,8 +215,7 @@ def swap_dinner(slots: list[dict], recipes: list[dict], day: int, rng: random.Ra
         _clear(lunch)
     dinner["swapped_out"] = dinner["swapped_out"] + [dinner["recipe_id"]]
     _clear(dinner)
-    recipes = sorted(recipes, key=lambda r: r["id"])
-    recipe = _choose(idx, day, recipes, _used(idx) | set(dinner["swapped_out"]), rng)
+    recipe = _choose(idx, day, _pool(recipes, prefs, cats), _used(idx) | set(dinner["swapped_out"]), rng)
     if recipe is None:
         raise PlanError(f"No other eligible recipe for {DAY_NAMES[day]} dinner.")
     dinner.update(recipe_id=recipe["id"], source="generated")

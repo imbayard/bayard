@@ -100,6 +100,14 @@ async def create_table() -> None:
             )"""
         )
         await _seed_registry(db)
+        # Standing planner preferences: a row = that tag is selected by default. Each week's draft
+        # starts from these in the browser; accepted plans don't store preferences.
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS preferred_tags (
+                tag_id INTEGER PRIMARY KEY REFERENCES tags(id)
+            )"""
+        )
         # Staples: week-to-week items outside any recipe. AUTOINCREMENT so a deleted staple's id
         # (and so its "staple:<id>" check-off key) is never reused.
         await db.execute(
@@ -355,6 +363,7 @@ async def delete_tag(tag_id: int) -> int:
         if _protected_tag(tag["name"]):
             raise TagError(400, f"“{tag['name']}” is a built-in tag and can't be deleted.")
         await db.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
+        await db.execute("DELETE FROM preferred_tags WHERE tag_id = ?", (tag_id,))
         touched = await _rewrite_recipe_tags(db, tag["name"], None)
         await db.commit()
         return touched
@@ -387,6 +396,42 @@ async def delete_category(category_id: int) -> None:
         await db.execute("UPDATE tags SET category_id = NULL WHERE category_id = ?", (category_id,))
         await db.execute("DELETE FROM tag_categories WHERE id = ?", (category_id,))
         await db.commit()
+
+
+async def get_preferences() -> list[int]:
+    """Default preference picks: selected tag ids."""
+    async with get_db() as db:
+        cursor = await db.execute("SELECT tag_id FROM preferred_tags ORDER BY tag_id")
+        return [row["tag_id"] for row in await cursor.fetchall()]
+
+
+async def set_preferences(tag_ids: list[int]) -> None:
+    """Replace the defaults. Ids that aren't registry tags are dropped."""
+    async with get_db() as db:
+        await db.execute("DELETE FROM preferred_tags")
+        await db.executemany(
+            "INSERT OR IGNORE INTO preferred_tags (tag_id) SELECT id FROM tags WHERE id = ?",
+            [(i,) for i in tag_ids],
+        )
+        await db.commit()
+
+
+async def pref_groups(tag_ids: list[int]) -> dict[str, set[str]]:
+    """Selected tag ids → {category: {tag names}}, the planner's `prefs`. Uncategorized tags and
+    the `meal` category are ignored: meal pools are the planner's own rule, not a preference."""
+    if not tag_ids:
+        return {}
+    async with get_db() as db:
+        cursor = await db.execute(
+            f"""SELECT t.name, c.name AS category FROM tags t JOIN tag_categories c ON c.id = t.category_id
+                WHERE t.id IN ({",".join("?" * len(tag_ids))})""",
+            tag_ids,
+        )
+        groups: dict[str, set[str]] = {}
+        for row in await cursor.fetchall():
+            if not _protected_category(row["category"]):
+                groups.setdefault(row["category"], set()).add(row["name"])
+        return groups
 
 
 async def save_plan(week_start: str, slots: list[dict]) -> int:
