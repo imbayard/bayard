@@ -130,7 +130,8 @@ export interface ShoppingItem {
   unit: string
   qty: string
   optional: boolean
-  sources: { recipe: string; qty: string }[] // this line's share per recipe
+  sources: { recipe: string; qty: string }[] // this line's share per recipe; empty for staples
+  staple?: boolean // from the staples list: never scaled or merged with recipe lines
   status: ShoppingStatus
 }
 
@@ -144,4 +145,34 @@ export function setShoppingStatus(week: string, key: string, status: ShoppingSta
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ week, key, status }),
   })
+}
+
+// Staples: week-to-week items outside any recipe, appended to every saved week's list.
+export interface Staple {
+  id: number
+  name: string
+  quantity: string | null
+  unit: string | null
+}
+
+export type StapleInput = { name: string; quantity: string; unit: string }
+
+export function fetchStaples() {
+  return request<Staple[]>('/dinner/staples')
+}
+
+export function createStaple(staple: StapleInput) {
+  return post<Staple>('/dinner/staples', staple)
+}
+
+export function updateStaple(id: number, staple: StapleInput) {
+  return request<Staple>(`/dinner/staples/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(staple),
+  })
+}
+
+export function deleteStaple(id: number) {
+  return request<{ ok: true }>(`/dinner/staples/${id}`, { method: 'DELETE' })
 }

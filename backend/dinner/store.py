@@ -66,6 +66,17 @@ async def create_table() -> None:
                 PRIMARY KEY (week_start, item_key)
             )"""
         )
+        # Staples: week-to-week items outside any recipe. AUTOINCREMENT so a deleted staple's id
+        # (and so its "staple:<id>" check-off key) is never reused.
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS staples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                quantity TEXT,
+                unit TEXT
+            )"""
+        )
         await db.commit()
 
 
@@ -184,6 +195,42 @@ async def get_plan(plan_id: int) -> dict | None:
         for s in slots:
             del s["plan_id"]
         return dict(plan) | {"slots": slots}
+
+
+async def get_staples() -> list[dict]:
+    async with get_db() as db:
+        cursor = await db.execute("SELECT * FROM staples ORDER BY name COLLATE NOCASE, id")
+        return [dict(row) for row in await cursor.fetchall()]
+
+
+async def get_staple(staple_id: int) -> dict | None:
+    async with get_db() as db:
+        cursor = await db.execute("SELECT * FROM staples WHERE id = ?", (staple_id,))
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def create_staple(name: str, quantity: str | None, unit: str | None) -> int:
+    async with get_db() as db:
+        cursor = await db.execute(
+            "INSERT INTO staples (name, quantity, unit) VALUES (?, ?, ?)", (name, quantity, unit)
+        )
+        await db.commit()
+        return cursor.lastrowid
+
+
+async def update_staple(staple_id: int, name: str, quantity: str | None, unit: str | None) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "UPDATE staples SET name = ?, quantity = ?, unit = ? WHERE id = ?", (name, quantity, unit, staple_id)
+        )
+        await db.commit()
+
+
+async def delete_staple(staple_id: int) -> None:
+    async with get_db() as db:
+        await db.execute("DELETE FROM staples WHERE id = ?", (staple_id,))
+        await db.commit()
 
 
 async def get_shopping_state(week_start: str) -> dict[str, str]:
