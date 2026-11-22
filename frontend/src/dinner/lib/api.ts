@@ -155,12 +155,26 @@ function post<T>(path: string, body: unknown) {
   })
 }
 
-export function generatePlan(slots: PlanSlot[], mode: 'generate' | 'fill') {
-  return post<PlanSlot[]>('/dinner/plan/generate', { slots, mode })
+// Preferences: selected registry tag ids. The server keeps the standing defaults; each week's
+// draft holds its own copy, sent with Generate/Fill/Swap (never with Accept or manual picks).
+export function fetchPreferences() {
+  return request<{ tag_ids: number[] }>('/dinner/preferences')
 }
 
-export function swapDinner(slots: PlanSlot[], day: number) {
-  return post<PlanSlot[]>('/dinner/plan/swap', { slots, day })
+export function savePreferences(tagIds: number[]) {
+  return request<{ tag_ids: number[] }>('/dinner/preferences', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tag_ids: tagIds }),
+  })
+}
+
+export function generatePlan(slots: PlanSlot[], mode: 'generate' | 'fill', prefs: number[] = []) {
+  return post<PlanSlot[]>('/dinner/plan/generate', { slots, mode, prefs })
+}
+
+export function swapDinner(slots: PlanSlot[], day: number, prefs: number[] = []) {
+  return post<PlanSlot[]>('/dinner/plan/swap', { slots, day, prefs })
 }
 
 export function deleteLeftover(slots: PlanSlot[], day: number) {

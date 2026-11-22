@@ -4,16 +4,21 @@ import {
   deleteLeftover,
   fetchPlan,
   fetchPlans,
+  fetchPreferences,
+  fetchTagRegistry,
   generatePlan,
   moveLeftover,
   pickRecipe,
   savePlan,
+  savePreferences,
   swapDinner,
   type Meal,
   type PlanSlot,
   type Recipe,
   type SavedPlan,
+  type TagCategory,
 } from './lib/api'
+import PreferencesDrawer from './PreferencesDrawer'
 import { addDays, dayLabel, isoDate, upcomingSunday } from './lib/week'
 
 // Window: Sunday dinner (day 0) → the following Sunday's lunch (day 7).
@@ -103,6 +108,10 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
   const [picking, setPicking] = useState<string | null>(null)
   const [leftoverDay, setLeftoverDay] = useState<number | null>(null)
   const [moving, setMoving] = useState(false)
+  // Preferences: `prefs` is this draft's picks, seeded from the standing `defaults`.
+  const [prefCategories, setPrefCategories] = useState<TagCategory[]>([])
+  const [defaults, setDefaults] = useState<number[]>([])
+  const [prefs, setPrefs] = useState<number[]>([])
 
   const byId = new Map(recipes.map((r) => [r.id, r]))
   const slot = (day: number, meal: Meal) => slots.find((s) => s.day === day && s.meal === meal)
@@ -116,9 +125,35 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
       .catch(() => {})
   }, [weekStart])
 
+  // The `meal` category (protected) isn't a preference: lunch/dinner pools are the planner's rule.
+  useEffect(() => {
+    Promise.all([fetchTagRegistry(), fetchPreferences()])
+      .then(([registry, { tag_ids }]) => {
+        setPrefCategories(registry.categories.filter((c) => !c.protected && c.tags.length > 0))
+        setDefaults(tag_ids)
+        setPrefs(tag_ids)
+      })
+      .catch(() => {})
+  }, [])
+
+  const saveDefault = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const { tag_ids } = await savePreferences(prefs)
+      setDefaults(tag_ids)
+      setPrefs(tag_ids)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const shiftWeek = (days: number) => {
     setWeekStart(isoDate(addDays(weekStart, days)))
     setSlots(blankSlots())
+    setPrefs(defaults)
     setSaved(null)
     setPicking(null)
     setError(null)
@@ -208,7 +243,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
         {needed && (
           <div style={{ display: 'flex', gap: 12 }}>
             {meal === 'dinner' && s.recipe_id !== null && (
-              <button style={ghostBtnStyle} disabled={busy} onClick={() => run(() => swapDinner(slots, day))}>
+              <button style={ghostBtnStyle} disabled={busy} onClick={() => run(() => swapDinner(slots, day, prefs))}>
                 Swap
               </button>
             )}
@@ -261,14 +296,14 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button style={{ ...primaryBtnStyle, padding: '10px 18px' }} disabled={busy} onClick={() => run(() => generatePlan(slots, 'generate'))}>
+        <button style={{ ...primaryBtnStyle, padding: '10px 18px' }} disabled={busy} onClick={() => run(() => generatePlan(slots, 'generate', prefs))}>
           Generate
         </button>
         {hasPicks && hasEmpties && (
           <button
             style={{ ...primaryBtnStyle, padding: '10px 18px', background: '#fff', color: '#111827', border: '1px solid #111827' }}
             disabled={busy}
-            onClick={() => run(() => generatePlan(slots, 'fill'))}
+            onClick={() => run(() => generatePlan(slots, 'fill', prefs))}
           >
             Fill empties
           </button>
@@ -291,6 +326,15 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
       </div>
 
       {error && leftoverDay === null && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
+
+      <PreferencesDrawer
+        categories={prefCategories}
+        selected={prefs}
+        defaults={defaults}
+        busy={busy}
+        onChange={setPrefs}
+        onSaveDefault={saveDefault}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: '56px minmax(0, 1fr) minmax(0, 1fr)', gap: 6 }}>
         <span />
