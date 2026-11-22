@@ -185,6 +185,11 @@ export function moveLeftover(slots: PlanSlot[], day: number, toDay: number) {
   return post<PlanSlot[]>('/dinner/plan/leftover/move', { slots, day, to_day: toDay })
 }
 
+// Drag and drop: move the meal on `day` to the same meal on `toDay` (swaps if both are planned).
+export function moveMeal(slots: PlanSlot[], day: number, meal: Meal, toDay: number) {
+  return post<PlanSlot[]>('/dinner/plan/move', { slots, day, meal, to_day: toDay })
+}
+
 export function pickRecipe(slots: PlanSlot[], day: number, meal: Meal, recipeId: number) {
   return post<PlanSlot[]>('/dinner/plan/pick', { slots, day, meal, recipe_id: recipeId })
 }

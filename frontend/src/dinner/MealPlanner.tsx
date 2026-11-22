@@ -1,4 +1,15 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
 import { labelStyle, primaryBtnStyle, ghostBtnStyle } from '../lib/styles'
 import {
   deleteLeftover,
@@ -8,6 +19,7 @@ import {
   fetchTagRegistry,
   generatePlan,
   moveLeftover,
+  moveMeal,
   pickRecipe,
   savePlan,
   savePreferences,
@@ -99,12 +111,50 @@ function ServingsStepper({ value, onChange }: { value: number; onChange: (value:
   )
 }
 
+// Drag and drop: a slot is a drop target for its own meal; a planned meal's name block is the handle.
+// Nothing changes until the server accepts the move — a rejected drop just snaps back.
+function DropCell({ day, meal, dragging, style, children }: { day: number; meal: Meal; dragging: Meal | null; style: CSSProperties; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${day}-${meal}`, data: { day, meal }, disabled: dragging !== meal })
+  return (
+    <div ref={setNodeRef} style={{ ...style, ...(isOver && { outline: '2px solid #111827', outlineOffset: -2 }) }}>
+      {children}
+    </div>
+  )
+}
+
+function DragHandle({ day, meal, disabled, children }: { day: number; meal: Meal; disabled: boolean; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `${day}-${meal}`, data: { day, meal }, disabled })
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      aria-label={`Drag ${meal}`}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        cursor: disabled ? 'default' : isDragging ? 'grabbing' : 'grab',
+        touchAction: 'manipulation',
+        borderRadius: 0,
+        ...(transform && { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }),
+        ...(isDragging && { position: 'relative', zIndex: 10, background: '#fff', outline: '1px solid #111827', boxShadow: '0 4px 12px rgba(17,24,39,0.15)' }),
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; onAccept: (weekStart: string) => void }) {
   const [weekStart, setWeekStart] = useState(upcomingSunday)
   const [slots, setSlots] = useState<PlanSlot[]>(blankSlots)
   const [saved, setSaved] = useState<SavedPlan | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorAt, setErrorAt] = useState<string | null>(null) // cell key of a rejected drop; null = top of page
+  const [dragging, setDragging] = useState<Meal | null>(null)
+  const [confirmEdit, setConfirmEdit] = useState(false)
   const [picking, setPicking] = useState<string | null>(null)
   const [leftoverDay, setLeftoverDay] = useState<number | null>(null)
   const [moving, setMoving] = useState(false)
@@ -121,11 +171,22 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
   const hasPicks = slots.some((s) => s.recipe_id !== null)
   const hasEmpties = slots.some((s) => s.servings > 0 && s.recipe_id === null)
 
-  // The grid starts blank every time; a saved plan for the week is offered, not auto-loaded.
+  // Touch waits for a short press so the page still scrolls; keyboard: space to lift, arrows, space to drop.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  // The grid starts blank every time; the week's latest saved plan is offered for Edit, not auto-loaded.
   useEffect(() => {
+    let live = true
     fetchPlans(weekStart)
-      .then((plans) => setSaved(plans[0] ?? null))
+      .then((plans) => live && setSaved(plans[0] ?? null))
       .catch(() => {})
+    return () => {
+      live = false
+    }
   }, [weekStart])
 
   // The `meal` category (protected) isn't a preference: lunch/dinner pools are the planner's rule.
@@ -159,12 +220,14 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
     setPrefs(defaults)
     setSaved(null)
     setPicking(null)
+    setConfirmEdit(false)
     setError(null)
   }
 
-  const run = async (action: () => Promise<PlanSlot[]>) => {
+  const run = async (action: () => Promise<PlanSlot[]>, at: string | null = null) => {
     setBusy(true)
     setError(null)
+    setErrorAt(at)
     try {
       setSlots(await action())
       return true
@@ -186,7 +249,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
     setBusy(true)
     setError(null)
     try {
-      await savePlan(weekStart, slots)
+      setSaved(await savePlan(weekStart, slots))
       onAccept(weekStart)
     } catch (e) {
       setError((e as Error).message)
@@ -195,8 +258,24 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
     }
   }
 
-  const load = async (id: number) => {
-    await run(async () => (await fetchPlan(id)).slots)
+  // Edit: the week's latest saved plan (fetched fresh) becomes the draft; Accept then saves a new row.
+  const edit = async () => {
+    setConfirmEdit(false)
+    setPicking(null)
+    await run(async () => {
+      const [latest] = await fetchPlans(weekStart)
+      if (!latest) throw new Error('No saved plan for this week.')
+      setSaved(latest)
+      return (await fetchPlan(latest.id)).slots
+    })
+  }
+
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setDragging(null)
+    const from = active.data.current as { day: number; meal: Meal }
+    const to = over?.data.current as { day: number; meal: Meal } | undefined
+    if (!to || to.meal !== from.meal || to.day === from.day) return
+    run(() => moveMeal(slots, from.day, from.meal, to.day), `${from.day}-${from.meal}`)
   }
 
   const closeLeftover = () => {
@@ -219,15 +298,20 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
     }
 
     return (
-      <div key={key} style={style}>
+      <DropCell key={key} day={day} meal={meal} dragging={dragging} style={style}>
         <span style={metaStyle}>Servings</span>
         <ServingsStepper value={s.servings} onChange={(v) => setServings(day, meal, v)} />
 
         {!needed && <span style={{ color: '#d1d5db' }}>—</span>}
 
         {needed && s.recipe_id !== null && (
-          <>
-            <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{recipe?.name ?? 'Deleted recipe'}</span>
+          <DragHandle day={day} meal={meal} disabled={busy}>
+            <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>
+              <span aria-hidden style={{ color: '#9ca3af', marginRight: 4 }}>
+                ⋮⋮
+              </span>
+              {recipe?.name ?? 'Deleted recipe'}
+            </span>
             {leftover && s.source_day !== null && (
               <span style={metaStyle}>Leftovers from {dayLabel(weekStart, s.source_day)} dinner</span>
             )}
@@ -238,8 +322,10 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
               </span>
             )}
             {s.source === 'manual' && <span style={metaStyle}>Manual pick</span>}
-          </>
+          </DragHandle>
         )}
+
+        {error && errorAt === key && <span style={{ fontSize: 12, color: '#b91c1c' }}>{error}</span>}
 
         {needed && s.flagged && <span style={{ ...metaStyle, color: '#b45309' }}>Needs manual pick</span>}
 
@@ -280,7 +366,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
             ))}
           </select>
         )}
-      </div>
+      </DropCell>
     )
   }
 
@@ -318,17 +404,28 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
         >
           Accept plan
         </button>
-        {saved && (
+        {saved && !confirmEdit && (
           <span style={{ ...metaStyle, marginLeft: 'auto' }}>
             Saved {saved.created_at}{' '}
-            <button style={ghostBtnStyle} disabled={busy} onClick={() => load(saved.id)}>
-              Load
+            <button style={ghostBtnStyle} disabled={busy} onClick={() => (hasPicks ? setConfirmEdit(true) : edit())}>
+              Edit
+            </button>
+          </span>
+        )}
+        {saved && confirmEdit && (
+          <span style={{ ...metaStyle, marginLeft: 'auto', color: '#111827' }}>
+            Replace this draft with the saved plan?{' '}
+            <button style={ghostBtnStyle} disabled={busy} onClick={edit}>
+              Replace
+            </button>{' '}
+            <button style={ghostBtnStyle} onClick={() => setConfirmEdit(false)}>
+              Keep draft
             </button>
           </span>
         )}
       </div>
 
-      {error && leftoverDay === null && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
+      {error && errorAt === null && leftoverDay === null && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
 
       <PreferencesDrawer
         categories={prefCategories}
@@ -339,18 +436,25 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
         onSaveDefault={saveDefault}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '56px minmax(0, 1fr) minmax(0, 1fr)', gap: 6 }}>
-        <span />
-        <span style={labelStyle}>Lunch</span>
-        <span style={labelStyle}>Dinner</span>
-        {[0, 1, 2, 3, 4, 5, 6, 7].map((day) => (
-          <div key={day} style={{ display: 'contents' }}>
-            <span style={{ ...metaStyle, paddingTop: 10, color: '#111827' }}>{dayLabel(weekStart, day)}</span>
-            {renderCell(day, 'lunch')}
-            {renderCell(day, 'dinner')}
-          </div>
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        onDragStart={({ active }) => setDragging((active.data.current as { meal: Meal }).meal)}
+        onDragCancel={() => setDragging(null)}
+        onDragEnd={onDragEnd}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '56px minmax(0, 1fr) minmax(0, 1fr)', gap: 6 }}>
+          <span />
+          <span style={labelStyle}>Lunch</span>
+          <span style={labelStyle}>Dinner</span>
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((day) => (
+            <div key={day} style={{ display: 'contents' }}>
+              <span style={{ ...metaStyle, paddingTop: 10, color: '#111827' }}>{dayLabel(weekStart, day)}</span>
+              {renderCell(day, 'lunch')}
+              {renderCell(day, 'dinner')}
+            </div>
+          ))}
+        </div>
+      </DndContext>
 
       {popupLunch && leftoverDay !== null && (
         <div
