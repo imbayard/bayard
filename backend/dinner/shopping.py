@@ -75,3 +75,19 @@ def build(slots: list[dict], recipes: list[dict]) -> dict:
             "sources": [{"recipe": name, "qty": _amount(src["total"], src["texts"])} for name, src in sources.items()],
         })
     return {"recipes": order, "items": out}
+
+
+def staple_key(staple_id: int) -> str:
+    """Own namespace: recipe keys are "name|unit", so "staple:<id>" can't collide."""
+    return f"staple:{staple_id}"
+
+
+def staples_section(staples: list[dict]) -> list[dict]:
+    """Staples as list lines, as entered: never scaled, never merged with recipe items."""
+    return [
+        {
+            "key": staple_key(s["id"]), "name": s["name"], "unit": s["unit"] or "", "qty": s["quantity"] or "",
+            "optional": False, "sources": [], "staple": True,
+        }
+        for s in staples
+    ]

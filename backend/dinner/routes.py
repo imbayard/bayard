@@ -78,6 +78,18 @@ class ShoppingStateIn(BaseModel):
     status: Literal["checked", "removed"] | None = None
 
 
+class StapleIn(BaseModel):
+    name: str
+    quantity: str = ""
+    unit: str = ""
+
+    def clean(self) -> tuple[str, str | None, str | None]:
+        name = self.name.strip()
+        if not name:
+            raise HTTPException(422, "Staple name is required.")
+        return name, self.quantity.strip() or None, self.unit.strip() or None
+
+
 async def _plan(action, slots: list[PlanSlot], *args) -> list[dict]:
     """Run a planner action on the client's draft against the current recipe box."""
     try:
@@ -248,21 +260,49 @@ async def get_plan(plan_id: int):
 
 @router.get("/shopping-list")
 async def shopping_list(week: datetime.date):
-    """The week's latest saved plan, dumped into a list, with check-off state merged in."""
+    """The week's latest saved plan, dumped into a list, staples appended, with check-off state merged in.
+
+    No saved plan → no list at all, staples included: the list is rebuilt from the plan.
+    """
     plans = await store.get_plans(week.isoformat())
     if not plans:
         return {"plan_id": None, "recipes": [], "items": []}
     plan = await store.get_plan(plans[0]["id"])
     state = await store.get_shopping_state(week.isoformat())
     built = shopping.build(plan["slots"], await store.get_recipes())
+    items = built["items"] + shopping.staples_section(await store.get_staples())
     return {
         "plan_id": plan["id"],
         "recipes": built["recipes"],
-        "items": [i | {"status": state.get(i["key"])} for i in built["items"]],
+        "items": [i | {"status": state.get(i["key"])} for i in items],
     }
 
 
 @router.put("/shopping-list/item")
 async def set_shopping_item(body: ShoppingStateIn):
     await store.set_shopping_state(body.week.isoformat(), body.key, body.status)
+    return {"ok": True}
+
+
+@router.get("/staples")
+async def list_staples():
+    return await store.get_staples()
+
+
+@router.post("/staples")
+async def create_staple(body: StapleIn):
+    return await store.get_staple(await store.create_staple(*body.clean()))
+
+
+@router.put("/staples/{staple_id}")
+async def update_staple(staple_id: int, body: StapleIn):
+    if await store.get_staple(staple_id) is None:
+        raise HTTPException(404, "Staple not found.")
+    await store.update_staple(staple_id, *body.clean())
+    return await store.get_staple(staple_id)
+
+
+@router.delete("/staples/{staple_id}")
+async def delete_staple(staple_id: int):
+    await store.delete_staple(staple_id)
     return {"ok": True}

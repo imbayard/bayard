@@ -1,9 +1,13 @@
 """Shopping list tests. Run: python -m unittest backend.dinner.test_shopping"""
 
+import datetime
+import tempfile
 import unittest
 from fractions import Fraction
+from pathlib import Path
 
-from .shopping import build, parse_qty
+from . import routes, store
+from .shopping import build, parse_qty, staple_key, staples_section
 
 
 def ing(qty: str, unit: str, name: str, optional: bool = False) -> dict:
@@ -68,6 +72,68 @@ class Build(unittest.TestCase):
         self.assertEqual(items["salt|"]["qty"], "a pinch")
         self.assertTrue(items["lime|"]["optional"])
         self.assertFalse(items["onion|cup"]["optional"])
+
+
+class Staples(unittest.TestCase):
+    STAPLES = [{"id": 7, "name": "Onion", "quantity": "2", "unit": "cup"}, {"id": 8, "name": "coffee", "quantity": None, "unit": None}]
+
+    def test_as_entered_never_scaled(self):
+        lines = staples_section(self.STAPLES)
+        self.assertEqual([(l["key"], l["qty"], l["unit"]) for l in lines], [("staple:7", "2", "cup"), ("staple:8", "", "")])
+        self.assertTrue(all(l["staple"] and l["sources"] == [] for l in lines))
+
+    def test_not_merged_with_matching_recipe_item(self):
+        # Chili ×2 has onion|cup = 1; the "Onion 2 cup" staple stays its own line.
+        recipe_items = build([slot(0, "dinner", 1, 8, batch=8)], RECIPES)["items"]
+        keys = [i["key"] for i in recipe_items + staples_section(self.STAPLES)]
+        self.assertEqual(keys.count("onion|cup"), 1)
+        self.assertIn("staple:7", keys)
+        self.assertEqual(next(i for i in recipe_items if i["key"] == "onion|cup")["qty"], "1")
+
+
+class StapleRoutes(unittest.IsolatedAsyncioTestCase):
+    """Store + route against a throwaway DB — never the real dinner.db."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.real_path = store.DB_PATH
+        store.DB_PATH = Path(self.tmp.name) / "dinner.db"
+        await store.create_table()
+
+    async def asyncTearDown(self):
+        store.DB_PATH = self.real_path
+        self.tmp.cleanup()
+
+    async def test_staples_need_a_saved_plan(self):
+        await store.create_staple("Coffee", None, None)
+        week = datetime.date(2026, 11, 22)
+        self.assertEqual((await routes.shopping_list(week))["items"], [])
+        await store.save_plan(week.isoformat(), [])
+        items = (await routes.shopping_list(week))["items"]
+        self.assertEqual([i["name"] for i in items], ["Coffee"])
+
+    async def test_check_off_independent_per_week_and_staple(self):
+        coffee = await store.create_staple("Coffee", None, None)
+        yogurt = await store.create_staple("Yogurt", "4", "cups")
+        this_week, next_week = datetime.date(2026, 11, 22), datetime.date(2026, 11, 29)
+        for week in (this_week, next_week):
+            await store.save_plan(week.isoformat(), [])
+        await store.set_shopping_state(this_week.isoformat(), staple_key(coffee), "checked")
+
+        def status(lst):
+            return {i["name"]: i["status"] for i in lst["items"]}
+
+        self.assertEqual(status(await routes.shopping_list(this_week)), {"Coffee": "checked", "Yogurt": None})
+        self.assertEqual(status(await routes.shopping_list(next_week)), {"Coffee": None, "Yogurt": None})
+        self.assertNotEqual(staple_key(coffee), staple_key(yogurt))
+
+    async def test_crud(self):
+        made = await routes.create_staple(routes.StapleIn(name="  Yogurt ", quantity="", unit="tub"))
+        self.assertEqual((made["name"], made["quantity"], made["unit"]), ("Yogurt", None, "tub"))
+        await routes.update_staple(made["id"], routes.StapleIn(name="Greek yogurt", quantity="2"))
+        self.assertEqual(await store.get_staples(), [{"id": made["id"], "name": "Greek yogurt", "quantity": "2", "unit": None}])
+        await routes.delete_staple(made["id"])
+        self.assertEqual(await store.get_staples(), [])
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { labelStyle, ghostBtnStyle } from '../lib/styles'
 import { fetchShoppingList, setShoppingStatus, type ShoppingItem, type ShoppingStatus } from './lib/api'
 import { addDays, dayLabel, isoDate } from './lib/week'
+import StaplesEditor from './StaplesEditor'
 
 // Rows are big tap targets: this screen gets used one-handed in a store aisle.
 const rowStyle: CSSProperties = {
@@ -48,6 +49,7 @@ export default function ShoppingList({ initialWeek }: { initialWeek: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showRemoved, setShowRemoved] = useState(false)
+  const [reload, setReload] = useState(0) // bumped when staples change
 
   useEffect(() => {
     fetchShoppingList(weekStart)
@@ -58,7 +60,7 @@ export default function ShoppingList({ initialWeek }: { initialWeek: string }) {
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false))
-  }, [weekStart])
+  }, [weekStart, reload])
 
   const shiftWeek = (days: number) => {
     setWeekStart(isoDate(addDays(weekStart, days)))
@@ -90,6 +92,9 @@ export default function ShoppingList({ initialWeek }: { initialWeek: string }) {
   const toBuy = items.filter((i) => i.status === null)
   const inCart = items.filter((i) => i.status === 'checked')
   const removed = items.filter((i) => i.status === 'removed')
+  // Staples arrive after the recipe lines and keep their own section in both views.
+  const staples = items.filter((i) => i.staple && i.status !== 'removed')
+  const staplesToBuy = toBuy.filter((i) => i.staple)
 
   // Under a recipe, a row shows that recipe's share; checking it checks the combined line everywhere.
   const renderRow = (item: ShoppingItem, recipe?: string) => {
@@ -146,12 +151,18 @@ export default function ShoppingList({ initialWeek }: { initialWeek: string }) {
 
       {error && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
 
-      {!loading && !error && planId === null && <div style={metaStyle}>No saved plan for this week — save one on the Plan tab.</div>}
+      {!loading && !error && planId === null && <div style={metaStyle}>No saved plan for this week — save one on the Plan tab. Staples join the list once it exists.</div>}
       {!loading && planId !== null && items.length === 0 && <div style={metaStyle}>The plan's recipes have no ingredients.</div>}
 
       {planId !== null && items.length > 0 && toBuy.length === 0 && <div style={metaStyle}>Everything's in the cart.</div>}
 
-      {view === 'items' && toBuy.length > 0 && <div>{toBuy.map((i) => renderRow(i))}</div>}
+      {view === 'items' && toBuy.some((i) => !i.staple) && <div>{toBuy.filter((i) => !i.staple).map((i) => renderRow(i))}</div>}
+      {view === 'items' && staplesToBuy.length > 0 && (
+        <div>
+          <span style={labelStyle}>Staples</span>
+          {staplesToBuy.map((i) => renderRow(i))}
+        </div>
+      )}
       {view === 'items' && inCart.length > 0 && (
         <div>
           <span style={labelStyle}>In cart · {inCart.length}</span>
@@ -174,6 +185,14 @@ export default function ShoppingList({ initialWeek }: { initialWeek: string }) {
             </div>
           )
         })}
+      {view === 'recipes' && staples.length > 0 && (
+        <div>
+          <span style={labelStyle}>
+            Staples · {staplesToBuy.length ? `${staplesToBuy.length} left` : 'done'}
+          </span>
+          {staples.map((i) => renderRow(i))}
+        </div>
+      )}
 
       {removed.length > 0 && (
         <div>
@@ -191,6 +210,8 @@ export default function ShoppingList({ initialWeek }: { initialWeek: string }) {
             ))}
         </div>
       )}
+
+      <StaplesEditor onChange={() => setReload((n) => n + 1)} />
     </div>
   )
 }
