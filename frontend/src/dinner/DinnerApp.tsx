@@ -9,8 +9,10 @@ import {
   updateRecipe,
   type Ingredient,
   type Recipe,
+  type TagSuggestion,
 } from './lib/api'
 import MealPlanner from './MealPlanner'
+import TagEditor from './TagEditor'
 import ShoppingList from './ShoppingList'
 import { upcomingSunday } from './lib/week'
 
@@ -48,10 +50,11 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
   const [steps, setSteps] = useState<string[]>([''])
   const [tags, setTags] = useState('')
   const [ingredientNames, setIngredientNames] = useState<string[]>([])
-  const [tagNames, setTagNames] = useState<string[]>([])
+  const [tagNames, setTagNames] = useState<TagSuggestion[]>([])
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
   const [listWeek, setListWeek] = useState(upcomingSunday)
   const [view, setView] = useState<'recipes' | 'plan' | 'list'>('recipes')
 
@@ -139,7 +142,7 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
       </datalist>
       <datalist id="dinner-tag-names">
         {tagNames.map((t) => (
-          <option key={t} value={t} />
+          <option key={t.name} value={t.name} label={t.category ?? undefined} />
         ))}
       </datalist>
 
@@ -173,6 +176,24 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
       {view === 'recipes' && (
       <>
 
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={labelStyle}>{tagsOpen ? 'Tags' : 'Recipe box'}</span>
+        <button style={ghostBtnStyle} onClick={() => setTagsOpen((v) => !v)}>
+          {tagsOpen ? 'Back to recipes' : 'Manage tags'}
+        </button>
+      </div>
+
+      {tagsOpen && (
+        <TagEditor
+          onChanged={() => {
+            load() // renames/deletes rewrite recipe tags
+            suggestTags('').then(setTagNames).catch(() => {})
+          }}
+        />
+      )}
+
+      {!tagsOpen && (
+      <>
       <div>
       <button
         style={{ ...primaryBtnStyle, padding: '12px 24px', minWidth: 160 }}
@@ -374,6 +395,8 @@ export default function DinnerApp({ onExitToHome }: { onExitToHome: () => void }
           </div>
         ))}
       </div>
+      </>
+      )}
       </>
       )}
     </div>

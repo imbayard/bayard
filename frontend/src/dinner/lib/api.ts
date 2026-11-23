@@ -56,8 +56,74 @@ export function suggestIngredients(q: string, signal?: AbortSignal) {
   return request<string[]>(`/dinner/ingredients?q=${encodeURIComponent(q)}`, { signal })
 }
 
+// Registry tags first (category null when uncategorized), then free-form tags seen on recipes.
+export interface TagSuggestion {
+  name: string
+  category: string | null
+}
+
 export function suggestTags(q: string, signal?: AbortSignal) {
-  return request<string[]>(`/dinner/tags?q=${encodeURIComponent(q)}`, { signal })
+  return request<TagSuggestion[]>(`/dinner/tags?q=${encodeURIComponent(q)}`, { signal })
+}
+
+// Tag registry. Protected rows (built-in tags, the `meal` category) are refused server-side.
+export interface RegistryTag {
+  id: number
+  name: string
+  category_id: number | null
+  protected: boolean
+  recipe_count: number
+}
+
+export interface TagCategory {
+  id: number
+  name: string
+  protected: boolean
+  tags: RegistryTag[]
+}
+
+export interface TagRegistry {
+  categories: TagCategory[]
+  uncategorized: RegistryTag[]
+  free_form: { name: string; recipe_count: number }[] // in use on recipes, not registered
+}
+
+// Every registry write answers with the fresh registry.
+function send(path: string, method: string, body?: unknown) {
+  return request<TagRegistry>(`/dinner/tag-registry${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+export function fetchTagRegistry() {
+  return request<TagRegistry>('/dinner/tag-registry')
+}
+
+export function createTag(name: string, categoryId: number | null = null) {
+  return send('/tags', 'POST', { name, category_id: categoryId })
+}
+
+// Omit a field to leave it unchanged; category_id null = uncategorized.
+export function updateTag(id: number, patch: { name?: string; category_id?: number | null }) {
+  return send(`/tags/${id}`, 'PATCH', patch)
+}
+
+export function deleteTag(id: number) {
+  return send(`/tags/${id}`, 'DELETE')
+}
+
+export function createCategory(name: string) {
+  return send('/categories', 'POST', { name })
+}
+
+export function renameCategory(id: number, name: string) {
+  return send(`/categories/${id}`, 'PATCH', { name })
+}
+
+export function deleteCategory(id: number) {
+  return send(`/categories/${id}`, 'DELETE')
 }
 
 // Meal plan. Day 0 is the plan's Sunday: dinners are days 0-6, lunches days 1-7.
@@ -89,12 +155,26 @@ function post<T>(path: string, body: unknown) {
   })
 }
 
-export function generatePlan(slots: PlanSlot[], mode: 'generate' | 'fill') {
-  return post<PlanSlot[]>('/dinner/plan/generate', { slots, mode })
+// Preferences: selected registry tag ids. The server keeps the standing defaults; each week's
+// draft holds its own copy, sent with Generate/Fill/Swap (never with Accept or manual picks).
+export function fetchPreferences() {
+  return request<{ tag_ids: number[] }>('/dinner/preferences')
 }
 
-export function swapDinner(slots: PlanSlot[], day: number) {
-  return post<PlanSlot[]>('/dinner/plan/swap', { slots, day })
+export function savePreferences(tagIds: number[]) {
+  return request<{ tag_ids: number[] }>('/dinner/preferences', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tag_ids: tagIds }),
+  })
+}
+
+export function generatePlan(slots: PlanSlot[], mode: 'generate' | 'fill', prefs: number[] = []) {
+  return post<PlanSlot[]>('/dinner/plan/generate', { slots, mode, prefs })
+}
+
+export function swapDinner(slots: PlanSlot[], day: number, prefs: number[] = []) {
+  return post<PlanSlot[]>('/dinner/plan/swap', { slots, day, prefs })
 }
 
 export function deleteLeftover(slots: PlanSlot[], day: number) {
@@ -103,6 +183,11 @@ export function deleteLeftover(slots: PlanSlot[], day: number) {
 
 export function moveLeftover(slots: PlanSlot[], day: number, toDay: number) {
   return post<PlanSlot[]>('/dinner/plan/leftover/move', { slots, day, to_day: toDay })
+}
+
+// Drag and drop: apply the browser's arrangement once — leftovers re-chain, flags recompute.
+export function arrangePlan(slots: PlanSlot[]) {
+  return post<PlanSlot[]>('/dinner/plan/arrange', { slots })
 }
 
 export function pickRecipe(slots: PlanSlot[], day: number, meal: Meal, recipeId: number) {
