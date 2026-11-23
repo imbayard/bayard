@@ -45,6 +45,10 @@ class GenerateIn(BaseModel):
     prefs: list[int] = []  # the draft's selected tag ids; empty = no constraint
 
 
+class ArrangeIn(BaseModel):
+    slots: list[PlanSlot]
+
+
 class SlotActionIn(BaseModel):
     slots: list[PlanSlot]
     day: int
@@ -248,13 +252,10 @@ async def move_leftover(body: SlotActionIn):
     return await _plan(planner.move_leftover, body.slots, body.day, body.to_day)
 
 
-@router.post("/plan/move")
-async def move_meal(body: SlotActionIn):
-    """Drag and drop: move (or swap) the `meal` on `day` to the same meal on `to_day`."""
-    if body.to_day is None:
-        raise HTTPException(422, "to_day is required.")
-    action = planner.move_dinner if body.meal == "dinner" else planner.move_lunch
-    return await _plan(action, body.slots, body.day, body.to_day)
+@router.post("/plan/arrange")
+async def arrange_plan(body: ArrangeIn):
+    """Drag and drop: the browser's arrangement in, leftovers re-chained and flags recomputed out."""
+    return await _plan(planner.arrange, body.slots)
 
 
 @router.post("/plan/pick")

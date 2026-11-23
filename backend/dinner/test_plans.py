@@ -31,17 +31,23 @@ class ReopenPlan(TempDB):
         latest = c.get(f"/dinner/plans?week={WEEK}").json()[0]
         draft = c.get(f"/dinner/plans/{latest['id']}").json()["slots"]
         self.assertTrue(all("swapped_out" not in s for s in draft))
-        moved = c.post("/dinner/plan/move", json={"slots": draft, "day": 0, "meal": "dinner", "to_day": 3})
+        # Arrange: Sun and Wed dinners traded in the browser, then applied once.
+        dinner(draft, 0).update(recipe_id=plain, source="manual")
+        dinner(draft, 3).update(recipe_id=prep, source="manual")
+        moved = c.post("/dinner/plan/arrange", json={"slots": draft})
         self.assertEqual(moved.status_code, 200)
         self.assertEqual(dinner(moved.json(), 3)["recipe_id"], prep)
+        self.assertTrue(next(s for s in moved.json() if s["meal"] == "lunch" and s["day"] == 1)["flagged"])
 
         second = c.post("/dinner/plans", json={"week_start": WEEK, "slots": moved.json()}).json()
         plans = c.get(f"/dinner/plans?week={WEEK}").json()
         self.assertEqual([p["id"] for p in plans], [second["id"], first["id"]])
         self.assertEqual(dinner(c.get(f"/dinner/plans/{first['id']}").json()["slots"], 0)["recipe_id"], prep)
 
-    def test_invalid_drop_is_a_409(self):
+    def test_arranging_a_deleted_recipe_is_a_409(self):
         c = client()
-        res = c.post("/dinner/plan/move", json={"slots": planner.blank_draft(), "day": 0, "meal": "dinner", "to_day": 1})
+        slots = planner.blank_draft()
+        dinner(slots, 0).update(servings=2, recipe_id=999, source="manual")
+        res = c.post("/dinner/plan/arrange", json={"slots": slots})
         self.assertEqual(res.status_code, 409)
-        self.assertIn("Nothing to move", res.json()["detail"])
+        self.assertIn("no longer exists", res.json()["detail"])

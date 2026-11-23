@@ -5,15 +5,14 @@ import unittest
 
 from .planner import (
     PlanError,
+    arrange,
     blank_draft,
     delete_leftover,
     eligible,
     finalize,
     generate,
     manual_pick,
-    move_dinner,
     move_leftover,
-    move_lunch,
     swap_dinner,
     tags_in,
 )
@@ -266,8 +265,8 @@ class LeftoverTests(unittest.TestCase):
         self.assertEqual(at(out, 0, "dinner")["batch_servings"], 5)
 
 
-class DragTests(unittest.TestCase):
-    """Drag and drop: move_dinner / move_lunch."""
+class ArrangeTests(unittest.TestCase):
+    """Drag and drop: the browser's arrangement, applied once by `arrange`."""
 
     def setUp(self):
         # Sun: meal-prep 1 feeds Mon+Tue lunch. Wed: plain 2. Thu dinner empty (flagged).
@@ -278,65 +277,61 @@ class DragTests(unittest.TestCase):
         at(self.slots, 1, "lunch").update(recipe_id=1, source="leftover", source_day=0)
         at(self.slots, 2, "lunch").update(recipe_id=1, source="leftover", source_day=0)
 
-    def test_swap_rechains_leftovers(self):
-        out = move_dinner(self.slots, self.recipes, 0, 3)
-        self.assertEqual(at(out, 0, "dinner")["recipe_id"], 2)
-        self.assertEqual(at(out, 0, "dinner")["source"], "manual")
-        self.assertEqual(at(out, 3, "dinner")["recipe_id"], 1)
+    def place(self, slots: list[dict], day: int, meal: str, recipe_id: int | None, source: str | None = None) -> None:
+        at(slots, day, meal).update(recipe_id=recipe_id, source=source, source_day=None)
+
+    def test_moved_meal_prep_dinner_rechains_from_its_new_day(self):
+        self.place(self.slots, 0, "dinner", 2, "manual")  # Sun and Wed traded
+        self.place(self.slots, 3, "dinner", 1, "generated")
+        out = arrange(self.slots, self.recipes)
         for d in (4, 5):
-            self.assertEqual(at(out, d, "lunch")["source_day"], 3)
-        for d in (1, 2):  # Sun's plain dinner can't feed them
-            self.assertTrue(at(out, d, "lunch")["flagged"])
+            self.assertEqual((at(out, d, "lunch")["recipe_id"], at(out, d, "lunch")["source_day"]), (1, 3))
         self.assertEqual(at(out, 3, "dinner")["batch_servings"], 4)
+        self.assertEqual(at(out, 0, "dinner")["source"], "manual")
 
-    def test_move_to_empty_dinner(self):
-        out = move_dinner(self.slots, self.recipes, 0, 4)
+    def test_leftovers_out_of_reach_are_cleared_and_flagged(self):
+        self.place(self.slots, 0, "dinner", None)
+        self.place(self.slots, 4, "dinner", 1, "generated")
+        out = arrange(self.slots, self.recipes)
         self.assertTrue(at(out, 0, "dinner")["flagged"])
-        self.assertEqual(at(out, 4, "dinner")["recipe_id"], 1)
+        for d in (1, 2):
+            self.assertIsNone(at(out, d, "lunch")["recipe_id"])
+            self.assertTrue(at(out, d, "lunch")["flagged"])
         self.assertEqual(at(out, 5, "lunch")["source_day"], 4)
-        self.assertTrue(at(out, 1, "lunch")["flagged"])
 
-    def test_freed_lunches_rehome_from_another_dinner(self):
+    def test_lunches_out_of_reach_are_refilled_from_another_dinner(self):
         recipes = self.recipes + [recipe(4, servings=10, prep=True)]
         slots = draft({0: 1, 1: 1, 3: 1}, {2: 1})
         at(slots, 0, "dinner").update(recipe_id=1, source="generated")
         at(slots, 1, "dinner").update(recipe_id=4, source="generated")
         at(slots, 2, "lunch").update(recipe_id=1, source="leftover", source_day=0)
-        out = move_dinner(slots, recipes, 0, 3)
-        self.assertEqual(at(out, 2, "lunch")["recipe_id"], 4)
-        self.assertEqual(at(out, 2, "lunch")["source_day"], 1)
+        self.place(slots, 0, "dinner", 3, "manual")  # Sun ↔ Wed: the plain one lands on Sun
+        self.place(slots, 3, "dinner", 1, "generated")
+        out = arrange(slots, recipes)
+        self.assertEqual((at(out, 2, "lunch")["recipe_id"], at(out, 2, "lunch")["source_day"]), (4, 1))
+        self.assertEqual(at(out, 1, "dinner")["batch_servings"], 2)
 
-    def test_dinner_drop_needs_servings(self):
-        with self.assertRaisesRegex(PlanError, "isn't needed"):
-            move_dinner(self.slots, self.recipes, 0, 5)
-
-    def test_drag_from_empty_slot_raises(self):
-        with self.assertRaisesRegex(PlanError, "Nothing to move"):
-            move_dinner(self.slots, self.recipes, 4, 0)
-
-    def test_leftover_drag_keeps_reach_rule(self):
-        with self.assertRaisesRegex(PlanError, "only reach"):
-            move_lunch(self.slots, self.recipes, 2, 4)
-
-    def test_leftover_drag_moves_in_reach(self):
-        slots = delete_leftover(self.slots, self.recipes, 2)
-        out = move_lunch(slots, self.recipes, 1, 2)
+    def test_standalone_lunches_stay_put(self):
+        self.place(self.slots, 1, "lunch", 3, "manual")  # dropped over Mon's leftovers
+        self.place(self.slots, 5, "lunch", 2, "generated")
+        out = arrange(self.slots, self.recipes)
+        self.assertEqual((at(out, 1, "lunch")["recipe_id"], at(out, 1, "lunch")["source"]), (3, "manual"))
+        self.assertEqual((at(out, 5, "lunch")["recipe_id"], at(out, 5, "lunch")["source"]), (2, "generated"))
         self.assertEqual(at(out, 2, "lunch")["source_day"], 0)
-        self.assertTrue(at(out, 1, "lunch")["flagged"])
+        self.assertEqual(at(out, 0, "dinner")["batch_servings"], 2)
 
-    def test_standalone_lunch_moves_and_swaps(self):
-        slots = manual_pick(self.slots, self.recipes, 4, "lunch", 3)
-        out = move_lunch(slots, self.recipes, 4, 5)
-        self.assertEqual(at(out, 5, "lunch")["recipe_id"], 3)
+    def test_deleted_recipe_raises(self):
+        self.place(self.slots, 4, "dinner", 99, "manual")
+        with self.assertRaisesRegex(PlanError, "Thu dinner: that recipe no longer exists"):
+            arrange(self.slots, self.recipes)
+
+    def test_unchanged_arrangement_recomputes_flags_and_batches(self):
+        slots = [dict(s, flagged=False, batch_servings=None) for s in self.slots]
+        out = arrange(slots, self.recipes)
+        self.assertEqual(at(out, 0, "dinner")["batch_servings"], 3)
+        self.assertTrue(at(out, 4, "dinner")["flagged"])
         self.assertTrue(at(out, 4, "lunch")["flagged"])
-        slots = manual_pick(out, self.recipes, 4, "lunch", 2)
-        out = move_lunch(slots, self.recipes, 4, 5)
-        self.assertEqual((at(out, 4, "lunch")["recipe_id"], at(out, 5, "lunch")["recipe_id"]), (3, 2))
-
-    def test_standalone_lunch_onto_leftovers_raises(self):
-        slots = manual_pick(self.slots, self.recipes, 4, "lunch", 3)
-        with self.assertRaisesRegex(PlanError, "leftovers"):
-            move_lunch(slots, self.recipes, 4, 1)
+        self.assertEqual([at(out, d, "lunch")["source_day"] for d in (1, 2)], [0, 0])
 
     def test_finalize_clears_orphaned_leftovers(self):
         slots = [dict(s) for s in self.slots]
