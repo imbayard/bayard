@@ -9,9 +9,11 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import { labelStyle, primaryBtnStyle, ghostBtnStyle } from '../lib/styles'
 import {
+  arrangePlan,
   deleteLeftover,
   fetchPlan,
   fetchPlans,
@@ -19,7 +21,6 @@ import {
   fetchTagRegistry,
   generatePlan,
   moveLeftover,
-  moveMeal,
   pickRecipe,
   savePlan,
   savePreferences,
@@ -31,6 +32,7 @@ import {
   type TagCategory,
 } from './lib/api'
 import PreferencesDrawer from './PreferencesDrawer'
+import { cellKey, discard, drop, toCells, toSlots, unplaced, type Cells, type Lift } from './lib/arrange'
 import { addDays, dayLabel, isoDate, upcomingSunday } from './lib/week'
 
 // Window: Sunday dinner (day 0) → the following Sunday's lunch (day 7).
@@ -81,15 +83,18 @@ const stepBtnStyle: CSSProperties = {
 
 const metaStyle: CSSProperties = { fontSize: 11, color: '#6b7280' }
 
+const outlineBtnStyle: CSSProperties = { ...primaryBtnStyle, padding: '10px 18px', background: '#fff', color: '#111827', border: '1px solid #111827' }
+
 // Large − / + around the number so servings are easy to set one-handed on a phone. 0 = skip the slot.
-function ServingsStepper({ value, onChange }: { value: number; onChange: (value: string) => void }) {
+function ServingsStepper({ value, disabled, onChange }: { value: number; disabled: boolean; onChange: (value: string) => void }) {
+  const off: CSSProperties = { color: '#d1d5db', cursor: 'default' }
   return (
     <div style={{ display: 'flex', alignItems: 'stretch', minWidth: 0 }}>
       <button
         type="button"
         aria-label="Fewer servings"
-        style={{ ...stepBtnStyle, ...(value <= 0 && { color: '#d1d5db', cursor: 'default' }) }}
-        disabled={value <= 0}
+        style={{ ...stepBtnStyle, ...((disabled || value <= 0) && off) }}
+        disabled={disabled || value <= 0}
         onClick={() => onChange(String(value - 1))}
       >
         −
@@ -102,38 +107,45 @@ function ServingsStepper({ value, onChange }: { value: number; onChange: (value:
         style={{ ...servingsInputStyle, flex: 1, width: 'auto', minWidth: 0, borderLeft: 'none', borderRight: 'none', fontSize: 14, textAlign: 'center' }}
         value={value || ''}
         placeholder="0"
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />
-      <button type="button" aria-label="More servings" style={stepBtnStyle} onClick={() => onChange(String(value + 1))}>
+      <button type="button" aria-label="More servings" style={{ ...stepBtnStyle, ...(disabled && off) }} disabled={disabled} onClick={() => onChange(String(value + 1))}>
         +
       </button>
     </div>
   )
 }
 
-// Drag and drop: a slot is a drop target for its own meal; a planned meal's name block is the handle.
-// Nothing changes until the server accepts the move — a rejected drop just snaps back.
-function DropCell({ day, meal, dragging, style, children }: { day: number; meal: Meal; dragging: Meal | null; style: CSSProperties; children: ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `${day}-${meal}`, data: { day, meal }, disabled: dragging !== meal })
+// Drag and drop: the first drag enters arrange mode, a scratchpad applied once (see lib/arrange.ts).
+// A cell is a drop target for its own meal when it has servings; other cells dim while dragging.
+function DropCell({ id, meal, open, dragging, style, children }: { id: string; meal: Meal; open: boolean; dragging: Meal | null; style: CSSProperties; children: ReactNode }) {
+  const target = open && dragging === meal
+  const { setNodeRef, isOver } = useDroppable({ id, data: { key: id, meal }, disabled: !target })
   return (
-    <div ref={setNodeRef} style={{ ...style, ...(isOver && { outline: '2px solid #111827', outlineOffset: -2 }) }}>
+    <div
+      ref={setNodeRef}
+      style={{ ...style, ...(dragging && !target && { opacity: 0.45 }), ...(isOver && { outline: '2px solid #111827', outlineOffset: -2 }) }}
+    >
       {children}
     </div>
   )
 }
 
-function DragHandle({ day, meal, disabled, children }: { day: number; meal: Meal; disabled: boolean; children: ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `${day}-${meal}`, data: { day, meal }, disabled })
+function DragHandle({ id, lift, disabled, children }: { id: string; lift: Lift; disabled: boolean; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id, data: lift, disabled })
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      aria-label={`Drag ${meal}`}
+      aria-label={`Drag ${lift.meal}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
+        flex: 1,
+        minWidth: 0,
         cursor: disabled ? 'default' : isDragging ? 'grabbing' : 'grab',
         touchAction: 'manipulation',
         borderRadius: 0,
@@ -146,14 +158,39 @@ function DragHandle({ day, meal, disabled, children }: { day: number; meal: Meal
   )
 }
 
+const grip = (
+  <span aria-hidden style={{ color: '#9ca3af', marginRight: 4 }}>
+    ⋮⋮
+  </span>
+)
+
+// A card bumped by a drop: half size and muted, still draggable; × discards it from the plan.
+function HalfCard({ lift, name, onDiscard }: { lift: Lift & { index: number }; name: string; onDiscard: () => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #e5e7eb', borderRadius: 0, background: '#f9fafb', padding: '2px 6px' }}>
+      <DragHandle id={`${lift.key}-b${lift.index}`} lift={lift} disabled={false}>
+        <span style={{ fontSize: 11, color: '#6b7280', overflowWrap: 'anywhere' }}>
+          {grip}
+          {name}
+        </span>
+      </DragHandle>
+      <button type="button" aria-label={`Discard ${name}`} style={{ ...ghostBtnStyle, fontSize: 14, lineHeight: 1, padding: '2px 4px' }} onClick={onDiscard}>
+        ×
+      </button>
+    </div>
+  )
+}
+
 export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; onAccept: (weekStart: string) => void }) {
   const [weekStart, setWeekStart] = useState(upcomingSunday)
   const [slots, setSlots] = useState<PlanSlot[]>(blankSlots)
   const [saved, setSaved] = useState<SavedPlan | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [errorAt, setErrorAt] = useState<string | null>(null) // cell key of a rejected drop; null = top of page
   const [dragging, setDragging] = useState<Meal | null>(null)
+  // Arrange mode: the scratchpad's cells, null when not arranging. `slots` stays untouched meanwhile,
+  // so it is the snapshot Cancel returns to.
+  const [cells, setCells] = useState<Cells | null>(null)
   const [confirmEdit, setConfirmEdit] = useState(false)
   const [picking, setPicking] = useState<string | null>(null)
   const [leftoverDay, setLeftoverDay] = useState<number | null>(null)
@@ -170,6 +207,8 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
   const slot = (day: number, meal: Meal) => slots.find((s) => s.day === day && s.meal === meal)
   const hasPicks = slots.some((s) => s.recipe_id !== null)
   const hasEmpties = slots.some((s) => s.servings > 0 && s.recipe_id === null)
+  const locked = busy || cells !== null
+  const unplacedCount = cells ? unplaced(cells) : 0
 
   // Touch waits for a short press so the page still scrolls; keyboard: space to lift, arrows, space to drop.
   const sensors = useSensors(
@@ -224,10 +263,9 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
     setError(null)
   }
 
-  const run = async (action: () => Promise<PlanSlot[]>, at: string | null = null) => {
+  const run = async (action: () => Promise<PlanSlot[]>) => {
     setBusy(true)
     setError(null)
-    setErrorAt(at)
     try {
       setSlots(await action())
       return true
@@ -270,12 +308,22 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
     })
   }
 
+  const onDragStart = ({ active }: DragStartEvent) => {
+    setDragging((active.data.current as Lift).meal)
+    setPicking(null)
+    setCells((prev) => prev ?? toCells(slots))
+  }
+
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     setDragging(null)
-    const from = active.data.current as { day: number; meal: Meal }
-    const to = over?.data.current as { day: number; meal: Meal } | undefined
-    if (!to || to.meal !== from.meal || to.day === from.day) return
-    run(() => moveMeal(slots, from.day, from.meal, to.day), `${from.day}-${from.meal}`)
+    const from = active.data.current as Lift
+    const to = over?.data.current as { key: string; meal: Meal } | undefined
+    if (!to || to.meal !== from.meal) return
+    setCells((prev) => prev && drop(prev, from, to.key))
+  }
+
+  const apply = async () => {
+    if (cells && (await run(() => arrangePlan(toSlots(slots, cells))))) setCells(null)
   }
 
   const closeLeftover = () => {
@@ -287,68 +335,80 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
   const renderCell = (day: number, meal: Meal) => {
     const s = slot(day, meal)
     if (!s) return <div />
-    const key = `${day}-${meal}`
-    const recipe = s.recipe_id !== null ? byId.get(s.recipe_id) : undefined
+    const key = cellKey(day, meal)
     const needed = s.servings > 0
-    const leftover = needed && s.source === 'leftover'
+    // Arranging shows the scratchpad's cards; otherwise the draft's pick.
+    const cell = cells?.[key]
+    const card = cell ? cell.main : needed && s.recipe_id !== null ? { recipe_id: s.recipe_id, source: s.source, source_day: s.source_day } : null
+    const recipe = card ? byId.get(card.recipe_id) : undefined
+    const leftover = card?.source === 'leftover'
     const style: CSSProperties = {
       ...cellStyle,
       ...(leftover && { border: '1px dashed #9ca3af', background: '#f9fafb' }),
-      ...(needed && s.flagged && { border: '1px solid #b45309' }),
+      ...(!cells && needed && s.flagged && { border: '1px solid #b45309' }),
     }
 
     return (
-      <DropCell key={key} day={day} meal={meal} dragging={dragging} style={style}>
+      <DropCell key={key} id={key} meal={meal} open={needed} dragging={dragging} style={style}>
         <span style={metaStyle}>Servings</span>
-        <ServingsStepper value={s.servings} onChange={(v) => setServings(day, meal, v)} />
+        <ServingsStepper value={s.servings} disabled={cells !== null} onChange={(v) => setServings(day, meal, v)} />
 
         {!needed && <span style={{ color: '#d1d5db' }}>—</span>}
 
-        {needed && s.recipe_id !== null && (
-          <DragHandle day={day} meal={meal} disabled={busy}>
-            <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>
-              <span aria-hidden style={{ color: '#9ca3af', marginRight: 4 }}>
-                ⋮⋮
+        {card && (
+          // Leftovers are never dragged: they follow their dinner (the Move button moves one by hand).
+          <DragHandle id={key} lift={{ key, index: null, meal }} disabled={busy || leftover}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, ...(cells && leftover && { opacity: 0.45 }) }}>
+              <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>
+                {!leftover && grip}
+                {recipe?.name ?? 'Deleted recipe'}
               </span>
-              {recipe?.name ?? 'Deleted recipe'}
-            </span>
-            {leftover && s.source_day !== null && (
-              <span style={metaStyle}>Leftovers from {dayLabel(weekStart, s.source_day)} dinner</span>
-            )}
-            {meal === 'dinner' && s.batch_servings !== null && (
-              <span style={metaStyle}>
-                Cook {s.batch_servings}
-                {recipe && ` · ×${+(s.batch_servings / recipe.servings).toFixed(2)}`}
-              </span>
-            )}
-            {s.source === 'manual' && <span style={metaStyle}>Manual pick</span>}
+              {leftover && card.source_day !== null && (
+                <span style={metaStyle}>Leftovers from {dayLabel(weekStart, card.source_day)} dinner</span>
+              )}
+              {!cells && meal === 'dinner' && s.batch_servings !== null && (
+                <span style={metaStyle}>
+                  Cook {s.batch_servings}
+                  {recipe && ` · ×${+(s.batch_servings / recipe.servings).toFixed(2)}`}
+                </span>
+              )}
+              {card.source === 'manual' && <span style={metaStyle}>Manual pick</span>}
+            </div>
           </DragHandle>
         )}
 
-        {error && errorAt === key && <span style={{ fontSize: 12, color: '#b91c1c' }}>{error}</span>}
+        {cell?.bumped.map((b, i) => (
+          <HalfCard
+            key={`${b.origin}-${b.recipe_id}`}
+            lift={{ key, index: i, meal }}
+            name={byId.get(b.recipe_id)?.name ?? 'Deleted recipe'}
+            onDiscard={() => setCells((prev) => prev && discard(prev, key, i))}
+          />
+        ))}
 
-        {needed && s.flagged && <span style={{ ...metaStyle, color: '#b45309' }}>Needs manual pick</span>}
+        {cells && needed && !card && <span style={metaStyle}>Empty</span>}
+        {!cells && needed && s.flagged && <span style={{ ...metaStyle, color: '#b45309' }}>Needs manual pick</span>}
 
         {needed && (
           <div style={{ display: 'flex', gap: 12 }}>
             {meal === 'dinner' && s.recipe_id !== null && (
-              <button style={ghostBtnStyle} disabled={busy} onClick={() => run(() => swapDinner(slots, day, prefs))}>
+              <button style={ghostBtnStyle} disabled={locked} onClick={() => run(() => swapDinner(slots, day, prefs))}>
                 Swap
               </button>
             )}
-            {leftover ? (
-              <button style={ghostBtnStyle} disabled={busy} onClick={() => setLeftoverDay(day)}>
+            {s.source === 'leftover' ? (
+              <button style={ghostBtnStyle} disabled={locked} onClick={() => setLeftoverDay(day)}>
                 Swap
               </button>
             ) : (
-              <button style={ghostBtnStyle} disabled={busy} onClick={() => setPicking(picking === key ? null : key)}>
+              <button style={ghostBtnStyle} disabled={locked} onClick={() => setPicking(picking === key ? null : key)}>
                 Pick
               </button>
             )}
           </div>
         )}
 
-        {picking === key && (
+        {picking === key && !cells && (
           <select
             style={{ ...servingsInputStyle, width: '100%' }}
             value=""
@@ -375,39 +435,31 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button style={ghostBtnStyle} onClick={() => shiftWeek(-7)}>
+        <button style={ghostBtnStyle} disabled={cells !== null} onClick={() => shiftWeek(-7)}>
           ‹ Prev
         </button>
         <span style={labelStyle}>Week of {dayLabel(weekStart, 0)}</span>
-        <button style={ghostBtnStyle} onClick={() => shiftWeek(7)}>
+        <button style={ghostBtnStyle} disabled={cells !== null} onClick={() => shiftWeek(7)}>
           Next ›
         </button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button style={{ ...primaryBtnStyle, padding: '10px 18px' }} disabled={busy} onClick={() => run(() => generatePlan(slots, 'generate', prefs))}>
+        <button style={{ ...primaryBtnStyle, padding: '10px 18px' }} disabled={locked} onClick={() => run(() => generatePlan(slots, 'generate', prefs))}>
           Generate
         </button>
         {hasPicks && hasEmpties && (
-          <button
-            style={{ ...primaryBtnStyle, padding: '10px 18px', background: '#fff', color: '#111827', border: '1px solid #111827' }}
-            disabled={busy}
-            onClick={() => run(() => generatePlan(slots, 'fill', prefs))}
-          >
+          <button style={outlineBtnStyle} disabled={locked} onClick={() => run(() => generatePlan(slots, 'fill', prefs))}>
             Fill empties
           </button>
         )}
-        <button
-          style={{ ...primaryBtnStyle, padding: '10px 18px', background: '#fff', color: '#111827', border: '1px solid #111827' }}
-          disabled={busy || !hasPicks}
-          onClick={accept}
-        >
+        <button style={outlineBtnStyle} disabled={locked || !hasPicks} onClick={accept}>
           Accept plan
         </button>
         {saved && !confirmEdit && (
           <span style={{ ...metaStyle, marginLeft: 'auto' }}>
             Saved {saved.created_at}{' '}
-            <button style={ghostBtnStyle} disabled={busy} onClick={() => (hasPicks ? setConfirmEdit(true) : edit())}>
+            <button style={ghostBtnStyle} disabled={locked} onClick={() => (hasPicks ? setConfirmEdit(true) : edit())}>
               Edit
             </button>
           </span>
@@ -415,7 +467,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
         {saved && confirmEdit && (
           <span style={{ ...metaStyle, marginLeft: 'auto', color: '#111827' }}>
             Replace this draft with the saved plan?{' '}
-            <button style={ghostBtnStyle} disabled={busy} onClick={edit}>
+            <button style={ghostBtnStyle} disabled={locked} onClick={edit}>
               Replace
             </button>{' '}
             <button style={ghostBtnStyle} onClick={() => setConfirmEdit(false)}>
@@ -425,7 +477,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
         )}
       </div>
 
-      {error && errorAt === null && leftoverDay === null && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
+      {error && leftoverDay === null && <div style={{ color: '#b91c1c', fontSize: 13 }}>{error}</div>}
 
       <PreferencesDrawer
         categories={prefCategories}
@@ -436,12 +488,28 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
         onSaveDefault={saveDefault}
       />
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={({ active }) => setDragging((active.data.current as { meal: Meal }).meal)}
-        onDragCancel={() => setDragging(null)}
-        onDragEnd={onDragEnd}
-      >
+      {cells && (
+        <div
+          style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '10px 12px', background: '#fff', border: '1px solid #111827', borderRadius: 0 }}
+        >
+          <span style={labelStyle}>Arranging — Apply or Cancel</span>
+          <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+            {unplacedCount > 0 && (
+              <span style={{ ...metaStyle, color: '#b45309' }}>
+                {unplacedCount} {unplacedCount === 1 ? 'card' : 'cards'} unplaced
+              </span>
+            )}
+            <button style={{ ...primaryBtnStyle, padding: '10px 18px' }} disabled={busy || unplacedCount > 0} onClick={apply}>
+              Apply
+            </button>
+            <button style={outlineBtnStyle} disabled={busy} onClick={() => setCells(null)}>
+              Cancel
+            </button>
+          </span>
+        </div>
+      )}
+
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragCancel={() => setDragging(null)} onDragEnd={onDragEnd}>
         <div style={{ display: 'grid', gridTemplateColumns: '56px minmax(0, 1fr) minmax(0, 1fr)', gap: 6 }}>
           <span />
           <span style={labelStyle}>Lunch</span>
@@ -502,9 +570,7 @@ export default function MealPlanner({ recipes, onAccept }: { recipes: Recipe[]; 
                 >
                   Delete
                 </button>
-                <button
-                  style={{ ...primaryBtnStyle, padding: '10px 18px', background: '#fff', color: '#111827', border: '1px solid #111827' }}
-                  onClick={() => setMoving(true)}
+                <button style={outlineBtnStyle} onClick={() => setMoving(true)}
                 >
                   Move
                 </button>
